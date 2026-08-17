@@ -5,6 +5,7 @@ import type { AgentRunner } from './agents/runner.js';
 import type { LeaderLock } from './scheduler/leaderLock.js';
 import type { Leadership } from './scheduler/leadership.js';
 import type { RunClaims } from './scheduler/runClaims.js';
+import type { Ticker } from './scheduler/ticker.js';
 import type { ModelCatalog } from './setup/modelCatalog.js';
 import type { CountersService } from './state/counters.js';
 import type { FileStateBackend, StateFileWatcher } from './state/fileStore.js';
@@ -45,6 +46,7 @@ export interface ServiceContainer {
   readonly promptSnapshots: PromptSnapshotSync;
   readonly tools: ToolRegistry;
   readonly runner: AgentRunner;
+  readonly ticker: Ticker;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
   /** Current settings, re-read whenever the configuration changes. */

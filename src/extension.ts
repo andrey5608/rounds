@@ -8,6 +8,7 @@ import type { ServiceContainer } from './container.js';
 import { LeaderLock } from './scheduler/leaderLock.js';
 import { Leadership } from './scheduler/leadership.js';
 import { recoverStaleClaims } from './scheduler/recovery.js';
+import { Ticker } from './scheduler/ticker.js';
 import { RunClaims } from './scheduler/runClaims.js';
 import { VscodeLanguageModelGateway } from './model/vscodeGateway.js';
 import { showFirstRunNotice } from './setup/firstRunNotice.js';
@@ -139,6 +140,30 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     },
   });
 
+  const ticker = new Ticker({
+    store,
+    runner,
+    settings: () => settings,
+    logger,
+    onCapReached: (message) => {
+      void vscode.window
+        .showWarningMessage(message, 'Open Settings')
+        .then((choice) => {
+          if (choice === 'Open Settings') {
+            void vscode.commands.executeCommand(
+              'workbench.action.openSettings',
+              'rounds.maxExecutionsPerDay',
+            );
+          }
+        });
+    },
+    onFrequencyWarning: (agent, interval) => {
+      void vscode.window.showWarningMessage(
+        `The agent "${agent.name}" runs every ${interval} minute(s). Frequent automated requests can get your model provider account rate limited.`,
+      );
+    },
+  });
+
   container = {
     extensionContext,
     output,
@@ -155,6 +180,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     promptSnapshots,
     tools,
     runner,
+    ticker,
     models,
     agentsView,
     statusBar,
@@ -170,16 +196,36 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     leadership,
     runClaims,
     promptSnapshots,
+    ticker,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('rounds')) {
+        const previous = settings;
         settings = readSettings(vscode.workspace.getConfiguration());
         logger.debug('Settings changed; reloaded them.');
+        if (settings.enabled !== previous.enabled) {
+          if (settings.enabled && leadership.isLeader) {
+            ticker.start();
+          } else {
+            ticker.stop();
+          }
+        }
+        if (settings.timezone !== previous.timezone) {
+          // Every next run was computed in the old zone and has to be redone.
+          void ticker.recomputeAll();
+        }
         agentsView.refresh();
       }
     }),
     leadership.onDidChange((isLeader) => {
       statusBar.setLeader(isLeader);
       void vscode.commands.executeCommand('setContext', 'rounds.isLeader', isLeader);
+      // Only the window that holds the lock schedules runs; the others stay tick-free.
+      if (isLeader && settings.enabled) {
+        ticker.start();
+        void ticker.catchUp();
+      } else {
+        ticker.stop();
+      }
     }),
     store.onDidChange((change) => {
       void vscode.commands.executeCommand(
@@ -234,6 +280,7 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
 export async function deactivate(): Promise<void> {
   // Releasing the scheduling lock is awaited on purpose: another window can then take
   // over at once instead of waiting for the lock to go stale.
+  container?.ticker.stop();
   await container?.leadership.stop();
   // Everything else created during activation is registered in `context.subscriptions`,
   // which the editor disposes for us.
