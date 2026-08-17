@@ -7,7 +7,7 @@ atomic writes, secret storage, run history, daily counters, output channel, stat
 
 ## Steps
 
-### 2.1 Domain types (`src/state/types.ts`)
+### 2.1 Domain types (`src/state/types.ts`) ✅
 ```ts
 type ExecutionMode = 'api' | 'chat';
 type MissedRunPolicy = 'skip' | 'runOnce';

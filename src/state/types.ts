@@ -1,0 +1,165 @@
+/**
+ * Domain types shared by every layer.
+ *
+ * Nothing in this file may hold a secret. Tokens live in the editor's secret storage and
+ * are looked up by the connector factory when a run needs them; they are never part of an
+ * agent, a run record or anything else that gets persisted here.
+ */
+
+/** How a run reaches the model. */
+export type ExecutionMode = 'api' | 'chat';
+
+/** What happens to a run that came due while no window was open. */
+export type MissedRunPolicy = 'skip' | 'runOnce';
+
+/** What an agent does when its prompt file cannot be read at run time. */
+export type PromptFileFallback = 'snapshot' | 'blockWhenResolvable' | 'blockAlways';
+
+/** Outcome of a single run. */
+export type RunStatus = 'succeeded' | 'failed' | 'skipped' | 'handedOff' | 'interrupted';
+
+/** What caused a run to start. */
+export type RunTrigger = 'schedule' | 'manual' | 'startup' | 'missedRun';
+
+/** Where the prompt text comes from. */
+export type PromptSourceKind = 'inline' | 'file';
+
+/** Which source an agent visits. */
+export type SourceKind = 'jira' | 'git';
+
+/** How a repository host lists pull requests for an agent. */
+export type GitSourceMode = 'newPullRequests' | 'updatedPullRequests';
+
+export interface AgentSchedule {
+  /** One or more cron expressions; the earliest upcoming occurrence wins. */
+  cronExpressions: string[];
+  /** IANA time zone name. Falls back to the `rounds.timezone` setting, then the system. */
+  timezone?: string;
+  /** Run shortly after the leader window starts up. */
+  runOnStartup: boolean;
+  missedRunPolicy: MissedRunPolicy;
+}
+
+export interface JiraSource {
+  kind: 'jira';
+  /** Name of the configured endpoint that carries the base URL and auth scheme. */
+  baseUrlRef: string;
+  jql: string;
+  maxResults: number;
+}
+
+export interface GitSource {
+  kind: 'git';
+  baseUrlRef: string;
+  repo: string;
+  mode: GitSourceMode;
+  /** ISO timestamp of the newest item already processed. Advances only after success. */
+  sinceCursor?: string;
+}
+
+export type AgentSource = JiraSource | GitSource;
+
+export interface PromptSnapshot {
+  content: string;
+  /** sha256 of the content, used to detect changes without storing the file twice. */
+  hash: string;
+  capturedAt: string;
+}
+
+export interface PromptConfig {
+  source: PromptSourceKind;
+  inlineText?: string;
+  filePath?: string;
+  snapshot?: PromptSnapshot;
+  /** Overrides the `rounds.promptFileFallback` setting for this agent. */
+  fallback?: PromptFileFallback;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  enabled: boolean;
+  executionMode: ExecutionMode;
+  schedule: AgentSchedule;
+  source: AgentSource;
+  prompt: PromptConfig;
+  /** Exact model identifier. A run fails rather than substituting a different model. */
+  modelId: string;
+  /** Names of the tools this agent may call. */
+  tools: string[];
+  outputFolder?: string;
+  /** Optional stricter cap than the global `rounds.maxExecutionsPerDay`. */
+  maxExecutionsPerDay?: number;
+  /** Local time window, `HH:mm`. Both ends must be set for the window to apply. */
+  allowedTimeStart?: string;
+  allowedTimeEnd?: string;
+  lastRunAt?: string;
+  nextRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ToolCallRecord {
+  name: string;
+  /** Redacted, length-capped rendering of the arguments. */
+  inputSummary: string;
+  allowed: boolean;
+  durationMs: number;
+  outputBytes: number;
+  truncated: boolean;
+  error?: string;
+}
+
+export interface PromptResolutionRecord {
+  source: PromptSourceKind;
+  path?: string;
+  usedSnapshot: boolean;
+  hash?: string;
+}
+
+export interface RunError {
+  code: string;
+  message: string;
+}
+
+export interface RunRecord {
+  id: string;
+  agentId: string;
+  startedAt: string;
+  finishedAt?: string;
+  status: RunStatus;
+  trigger: RunTrigger;
+  /** One line describing the outcome: first line of the output, or the error message. */
+  summary: string;
+  modelId: string;
+  executionMode: ExecutionMode;
+  toolCalls: ToolCallRecord[];
+  sourceItemCount: number;
+  resultFilePath?: string;
+  error?: RunError;
+  promptResolution: PromptResolutionRecord;
+  /** Random delay applied before a scheduled run, in seconds. */
+  jitterSeconds?: number;
+}
+
+export interface DailyCounters {
+  /** Local date in the effective time zone, `YYYY-MM-DD`. */
+  localDate: string;
+  global: number;
+  perAgent: Record<string, number>;
+  /** Set when the user has already been told the cap was reached on this date. */
+  capNotifiedAt?: string;
+}
+
+/** History is kept per agent, newest first. */
+export type RunHistory = Record<string, RunRecord[]>;
+
+/** Everything this extension persists, in one envelope. */
+export interface PersistedState {
+  schemaVersion: number;
+  /** Incremented on every write. A window that lost a race reloads instead of overwriting. */
+  revision: number;
+  agents: Agent[];
+  history: RunHistory;
+  counters: DailyCounters;
+}
