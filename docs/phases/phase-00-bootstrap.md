@@ -69,7 +69,7 @@ in the Extension Development Host, and is checked by CI.
   `xvfb-run -a npm run test:integration` (Linux), `npm run package`.
 - Run the language check and the dependency check from 0.5 in CI.
 
-### 0.8 Repository hygiene
+### 0.8 Repository hygiene ✅
 - `.gitignore` for `node_modules`, `out`, `dist`, `*.vsix`, `.vscode-test`.
 - `LICENSE` (MIT unless the owner decides otherwise), `CHANGELOG.md` with an
   `## [Unreleased]` section.
