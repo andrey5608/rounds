@@ -66,7 +66,7 @@ Sections, in this order:
   release checklist next to the publisher, which is the same kind of gap.
 - `publisher` stays `TODO-PUBLISHER`; the release checklist in phase 12 requires replacing it.
 
-### 11.4 CHANGELOG
+### 11.4 CHANGELOG ✅
 - Fill `## [1.0.0]` with the feature set grouped as Added / Known limitations.
 
 ### 11.5 Documentation review pass
