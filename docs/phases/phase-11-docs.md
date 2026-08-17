@@ -58,11 +58,13 @@ Sections, in this order:
   rather than chaining them with `&&`, and never let an assertion compare against a
   re-implementation of the code under test.
 
-### 11.3 Marketplace metadata
-- `icon` (128×128 PNG), `galleryBanner`, `repository`, `bugs`, `homepage` fields.
-- `description` and `keywords` reviewed against the trademark rule.
-- `publisher` stays `TODO-PUBLISHER`; add a release-checklist line saying it must be
-  replaced before publishing (phase 12).
+### 11.3 Marketplace metadata ✅
+- `galleryBanner`, `repository`, `bugs` and `homepage` are set. `description` and `keywords` name no
+  product, per the trademark rule.
+- **No `icon` is shipped.** Drawing a logo is the owner's decision, and a placeholder graphic would
+  be worse than the marketplace default: it looks like a finished choice nobody made. It sits on the
+  release checklist next to the publisher, which is the same kind of gap.
+- `publisher` stays `TODO-PUBLISHER`; the release checklist in phase 12 requires replacing it.
 
 ### 11.4 CHANGELOG
 - Fill `## [1.0.0]` with the feature set grouped as Added / Known limitations.

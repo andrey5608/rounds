@@ -1,6 +1,6 @@
 {
   "name": "rounds",
-  "displayName": "Rounds — Scheduled Task Agents",
+  "displayName": "Rounds \u2014 Scheduled Task Agents",
   "publisher": "TODO-PUBLISHER",
   "version": "0.0.1",
   "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
@@ -17,6 +17,14 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/andrey5608/rounds.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andrey5608/rounds/issues"
+  },
+  "homepage": "https://github.com/andrey5608/rounds#readme",
+  "galleryBanner": {
+    "color": "#1f1f1f",
+    "theme": "dark"
   },
   "main": "./dist/extension.js",
   "extensionKind": [
