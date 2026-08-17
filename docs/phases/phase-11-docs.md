@@ -8,7 +8,7 @@ CONTRIBUTING note on registering a new tool or connector.
 
 ## Steps
 
-### 11.1 README (`README.md`, English only)
+### 11.1 README (`README.md`, English only) ✅
 Sections, in this order:
 
 1. **What it is** — one paragraph, the "making the rounds" idea, the vocabulary
@@ -17,7 +17,9 @@ Sections, in this order:
    GitHub Copilot (named descriptively, in prose only).
 3. **Install and set up** — install, run `Rounds: Check Setup`, grant model access, add
    base URLs and tokens, pick an output folder.
-4. **Creating your first agent** — the wizard steps with a small screenshot each.
+4. **Creating your first agent** — the wizard steps in order, plus the placeholder table. Written
+   without screenshots: capturing them needs a real tracker, a real repository and a signed-in model
+   provider, so they are listed on the release checklist rather than faked.
 5. **Execution modes** — `api` (result captured to a file) vs `chat` (handoff for review,
    output not captured).
 6. **⚠️ Runs only while VS Code is open** — its own prominent section: the scheduler
@@ -27,7 +29,8 @@ Sections, in this order:
    rate-limited or restricted; link GitHub's Acceptable Use Policies and the Copilot
    terms; explain `jitterSeconds`, `maxExecutionsPerDay`, `minimumIntervalWarning` and
    allowed time windows as the built-in mitigations; state that the user is responsible
-   for the volume they schedule.
+   for the volume they schedule. Both links were fetched and confirmed to be the pages they claim to
+   be, rather than written from memory.
 8. **Settings reference** — table of all 11 keys with defaults and effects.
 9. **Commands reference** — table of all 11 commands.
 10. **Where results are stored** — folder resolution order, file naming, front matter.

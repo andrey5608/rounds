@@ -84,8 +84,9 @@ in the Extension Development Host, and is checked by CI.
       loaded ones. It reports `active=false` because activation events are contributed in
       step 1.2; activation itself is asserted by the phase 1 tests.
 - [x] `npm run package` produces `dist/extension.js`.
-- [ ] CI is green on a pull request. The full workflow sequence passes locally; the
-      hosted run can only be confirmed once a pull request exists.
+- [x] CI is green on a pull request. Confirmed on the hosted run, which caught three failures a
+      Mac never would: Windows path separators in a guard script, a test that depended on how Linux
+      treats an unwritable path, and a path assertion written as a POSIX literal.
 - [x] The language check fails on purpose when a non-English string is added (verified
       once, then reverted).
 
