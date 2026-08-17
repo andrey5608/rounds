@@ -98,4 +98,7 @@ bypass any of them for convenience.
 - **DO** add tests in the same phase as the code: pure logic as unit tests without the
   extension host, `vscode`-touching code as integration tests.
 - **DON'T** perform real network calls in tests; use fixtures.
+- **DON'T** hardcode POSIX paths in assertions or provoke a failure through the operating system.
+  Build path expectations from `node:path`, or assert on shape, and inject failures instead. CI runs
+  on Windows and Linux, and both have caught tests that only held on a Mac.
 - **DON'T** report a phase as done while its exit criteria in `docs/phases/` are unmet.

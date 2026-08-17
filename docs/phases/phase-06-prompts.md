@@ -88,6 +88,10 @@ Implemented first, in `src/agents/truncate.ts`, because the renderer depends on 
   detection, mixed-mode rejection.
 - Unit: full fallback matrix from 6.3 with a stubbed file system and clock.
 - Unit: truncation markers and recorded flags.
+- Path expectations are asserted by shape — absolute, ending in the expected segments built with
+  `node:path` — not as POSIX literals. A resolved path carries the host separator and on Windows a
+  drive letter, and comparing against `resolve()` of the same inputs would only restate the
+  implementation.
 - 37 tests cover this phase: every placeholder including the time zone sensitive ones, the
   escape form, the unknown-placeholder message, per-item versus batch detection, the mixed
   mode rejection, the complete fallback matrix against a stubbed file system and clock, and

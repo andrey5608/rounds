@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { isAbsolute, join } from 'node:path';
 
 import {
   MAX_PROMPT_FILE_BYTES,
@@ -89,7 +90,16 @@ describe('prompt resolution', () => {
     const path = resolver({}).resolveFilePath(
       agent({ source: 'file', filePath: 'prompts/triage.md' }),
     );
-    assert.equal(path, '/workspace/prompts/triage.md');
+
+    // Asserted by shape rather than as a literal: the resolved path carries the host separator and
+    // on Windows a drive letter as well. Comparing against `resolve()` of the same inputs would
+    // only restate the implementation.
+    assert.ok(path, 'a path was resolved');
+    assert.ok(isAbsolute(path), `expected an absolute path, got ${path}`);
+    assert.ok(
+      path.endsWith(join('workspace', 'prompts', 'triage.md')),
+      `expected the path under the workspace root, got ${path}`,
+    );
   });
 
   it('keeps an absolute path as it is', () => {
