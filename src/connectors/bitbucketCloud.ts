@@ -5,7 +5,7 @@ import type { HttpClient } from './http.js';
 import { byUpdatedAtDescending, itemsAfterCursor, newestCursor, toIsoTimestamp } from './items.js';
 import type { FetchResult, SourceItem } from './items.js';
 
-export interface BitbucketPullRequest {
+export interface BitbucketCloudPullRequest {
   id?: number;
   title?: string;
   summary?: { raw?: string };
@@ -21,7 +21,7 @@ export interface BitbucketPullRequest {
 }
 
 interface BitbucketPage {
-  values?: BitbucketPullRequest[];
+  values?: BitbucketCloudPullRequest[];
   size?: number;
   next?: string;
 }
@@ -33,8 +33,8 @@ const DEFAULT_DIFF_LIMIT = 60_000;
 const ALL_STATES = ['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED'];
 
 /** Turns one pull request into the shared item shape. */
-export function toBitbucketItem(
-  pullRequest: BitbucketPullRequest,
+export function toBitbucketCloudItem(
+  pullRequest: BitbucketCloudPullRequest,
   repo: string,
   browseBaseUrl: string,
   mode: GitMode,
@@ -71,7 +71,7 @@ export function toBitbucketItem(
   };
 }
 
-export interface BitbucketConnectorOptions {
+export interface BitbucketCloudConnectorOptions {
   http: HttpClient;
   /** Host root used to build pull request links, without the API path. */
   browseBaseUrl: string;
@@ -86,8 +86,8 @@ export interface BitbucketConnectorOptions {
  * expressed as repeated query parameters — and the only thing they have in common is what this
  * extension needs out of them, which is exactly what the port describes.
  */
-export class BitbucketConnector implements RepositoryHostConnector {
-  constructor(private readonly options: BitbucketConnectorOptions) {}
+export class BitbucketCloudConnector implements RepositoryHostConnector {
+  constructor(private readonly options: BitbucketCloudConnectorOptions) {}
 
   async ping(): Promise<void> {
     await this.options.http.requestJson({ path: 'user' });
@@ -112,7 +112,7 @@ export class BitbucketConnector implements RepositoryHostConnector {
     }
 
     const all = page.values.map((pullRequest) =>
-      toBitbucketItem(pullRequest, request.repo, this.options.browseBaseUrl, request.mode),
+      toBitbucketCloudItem(pullRequest, request.repo, this.options.browseBaseUrl, request.mode),
     );
     const fresh = itemsAfterCursor(all, request.cursor).sort(byUpdatedAtDescending);
     const items = fresh.slice(0, maxResults);

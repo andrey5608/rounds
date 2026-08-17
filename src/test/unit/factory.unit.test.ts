@@ -412,7 +412,7 @@ describe('where the API lives', () => {
 
   it('uses the versioned path for a host declared as the hosted Bitbucket API', () => {
     assert.equal(
-      resolveApiRoot({ ...git('https://bb.example.invalid'), provider: 'bitbucket' }),
+      resolveApiRoot({ ...git('https://bb.example.invalid'), provider: 'bitbucketCloud' }),
       'https://bb.example.invalid/2.0/',
     );
   });
@@ -440,19 +440,19 @@ describe('where the API lives', () => {
   });
 
   it('recognises the provider from the host, and lets a stored choice win', () => {
-    assert.equal(resolveProvider(git('https://bitbucket.org')), 'bitbucket');
+    assert.equal(resolveProvider(git('https://bitbucket.org')), 'bitbucketCloud');
     assert.equal(resolveProvider(git('https://github.com')), 'github');
     // A self-hosted installation cannot be recognised from its address, so the wizard stores the
     // answer and it has to survive.
     assert.equal(resolveProvider(git('https://git.example.invalid')), 'github');
     assert.equal(
-      resolveProvider({ ...git('https://git.example.invalid'), provider: 'bitbucket' }),
-      'bitbucket',
+      resolveProvider({ ...git('https://git.example.invalid'), provider: 'bitbucketCloud' }),
+      'bitbucketCloud',
     );
   });
 
   it('stays silent about a host that does not announce its API, so the wizard asks', () => {
-    assert.equal(providerFromHost('https://bitbucket.org/'), 'bitbucket');
+    assert.equal(providerFromHost('https://bitbucket.org/'), 'bitbucketCloud');
     assert.equal(providerFromHost('https://github.com'), 'github');
     assert.equal(providerFromHost('https://git.example.invalid'), undefined);
     assert.equal(providerFromHost('whatever the user typed'), undefined);

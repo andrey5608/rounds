@@ -78,7 +78,7 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
   Gitea — are refused by name, because "not supported yet" is a fact somebody can act on and a 404 is
   not.
 
-### 5.5a `BitbucketConnector` (`src/connectors/bitbucket.ts`) ✅
+### 5.5a `BitbucketCloudConnector` (`src/connectors/bitbucketCloud.ts`) ✅
 - Reported from a real setup: Bitbucket was refused by name, which is better than a 404 but still a
   dead end for somebody whose pull requests live there. It now has its own implementation of the same
   port, which is what "a second provider is an added file, not a rewrite" was for.

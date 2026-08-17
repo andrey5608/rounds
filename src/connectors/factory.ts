@@ -2,7 +2,7 @@ import type { RoundsSecrets, SecretName } from '../state/secrets.js';
 import type { StoreLogger } from '../state/store.js';
 import type { AgentSource, EndpointConfig, GitProvider, SourceKind } from '../state/types.js';
 
-import { BitbucketConnector } from './bitbucket.js';
+import { BitbucketCloudConnector } from './bitbucketCloud.js';
 import { BitbucketServerConnector } from './bitbucketServer.js';
 import { ConfigError } from './errors.js';
 import { RestGitConnector } from './git.js';
@@ -34,7 +34,7 @@ export function resolveApiRoot(endpoint: EndpointConfig): string {
 
   const host = hostOf(endpoint);
   const provider = resolveProvider(endpoint);
-  if (provider === 'bitbucket') {
+  if (provider === 'bitbucketCloud') {
     return host.endsWith('bitbucket.org') ? 'https://api.bitbucket.org/2.0/' : `${trimmed}/2.0/`;
   }
   if (provider === 'bitbucketServer') {
@@ -98,7 +98,7 @@ export function providerFromHost(baseUrl: string): GitProvider | undefined {
     return undefined;
   }
   if (BITBUCKET_CLOUD.test(host)) {
-    return 'bitbucket';
+    return 'bitbucketCloud';
   }
   return GITHUB_HOSTS.has(host) ? 'github' : undefined;
 }
@@ -202,8 +202,8 @@ export class ConnectorFactory {
     }
     const http = await this.httpFor(endpoint);
     switch (resolveProvider(endpoint)) {
-      case 'bitbucket':
-        return new BitbucketConnector({ http, browseBaseUrl: endpoint.baseUrl });
+      case 'bitbucketCloud':
+        return new BitbucketCloudConnector({ http, browseBaseUrl: endpoint.baseUrl });
       case 'bitbucketServer':
         return new BitbucketServerConnector({ http, browseBaseUrl: endpoint.baseUrl });
       default:

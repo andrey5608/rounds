@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 
-import { BitbucketConnector, toBitbucketItem } from '../../connectors/bitbucket.js';
-import type { BitbucketPullRequest } from '../../connectors/bitbucket.js';
+import { BitbucketCloudConnector, toBitbucketCloudItem } from '../../connectors/bitbucketCloud.js';
+import type { BitbucketCloudPullRequest } from '../../connectors/bitbucketCloud.js';
 import { AuthError, ConfigError } from '../../connectors/errors.js';
 import { HttpClient } from '../../connectors/http.js';
 import type { FetchLike, HttpResponseLike } from '../../connectors/http.js';
@@ -18,7 +18,7 @@ function json(value: unknown, status = 200): HttpResponseLike {
 }
 
 /** A recorded page, trimmed to the fields the connector reads. */
-const page: { values: BitbucketPullRequest[]; size: number; next?: string } = {
+const page: { values: BitbucketCloudPullRequest[]; size: number; next?: string } = {
   values: [
     {
       id: 7,
@@ -48,10 +48,10 @@ const page: { values: BitbucketPullRequest[]; size: number; next?: string } = {
   size: 2,
 };
 
-const [openPullRequest, mergedPullRequest] = page.values as [BitbucketPullRequest, BitbucketPullRequest];
+const [openPullRequest, mergedPullRequest] = page.values as [BitbucketCloudPullRequest, BitbucketCloudPullRequest];
 
 function connector(responses: HttpResponseLike[]): {
-  connector: BitbucketConnector;
+  connector: BitbucketCloudConnector;
   urls: string[];
 } {
   const urls: string[] = [];
@@ -63,12 +63,12 @@ function connector(responses: HttpResponseLike[]): {
     return Promise.resolve(next);
   };
   const http = new HttpClient({ baseUrl: BASE, fetch, sleep: () => Promise.resolve() });
-  return { connector: new BitbucketConnector({ http, browseBaseUrl: BROWSE }), urls };
+  return { connector: new BitbucketCloudConnector({ http, browseBaseUrl: BROWSE }), urls };
 }
 
 describe('bitbucket connector', () => {
   it('normalizes a pull request into the shared shape', () => {
-    const item = toBitbucketItem(openPullRequest, 'octo/rounds', BROWSE, 'updatedPullRequests');
+    const item = toBitbucketCloudItem(openPullRequest, 'octo/rounds', BROWSE, 'updatedPullRequests');
 
     assert.equal(item.id, '7');
     assert.equal(item.title, 'Fix the leader lock heartbeat');
@@ -84,23 +84,23 @@ describe('bitbucket connector', () => {
   it('normalizes the timestamps, because the cursor compares strings', () => {
     // The host sends six fractional digits and an explicit +00:00. Comparing that against an ISO
     // cursor character by character is how an agent starts skipping items nobody asked it to skip.
-    const item = toBitbucketItem(openPullRequest, 'octo/rounds', BROWSE, 'updatedPullRequests');
+    const item = toBitbucketCloudItem(openPullRequest, 'octo/rounds', BROWSE, 'updatedPullRequests');
     assert.equal(item.extra.createdAt, '2026-08-15T08:00:00.000Z');
     assert.equal(item.extra.updatedAt, '2026-08-17T09:00:00.000Z');
   });
 
   it('falls back to the nickname when there is no display name', () => {
-    const item = toBitbucketItem(mergedPullRequest, 'octo/rounds', BROWSE, 'updatedPullRequests');
+    const item = toBitbucketCloudItem(mergedPullRequest, 'octo/rounds', BROWSE, 'updatedPullRequests');
     assert.equal(item.extra.author, 'sam');
   });
 
   it('uses the creation time as the ordering timestamp in new pull request mode', () => {
-    const item = toBitbucketItem(openPullRequest, 'octo/rounds', BROWSE, 'newPullRequests');
+    const item = toBitbucketCloudItem(openPullRequest, 'octo/rounds', BROWSE, 'newPullRequests');
     assert.equal(item.updatedAt, '2026-08-15T08:00:00.000Z');
   });
 
   it('rejects a payload without an id', () => {
-    assert.throws(() => toBitbucketItem({ title: 'no id' }, 'octo/rounds', BROWSE, 'newPullRequests'), ConfigError);
+    assert.throws(() => toBitbucketCloudItem({ title: 'no id' }, 'octo/rounds', BROWSE, 'newPullRequests'), ConfigError);
   });
 
   it('proves the token with a cheap call on ping', async () => {

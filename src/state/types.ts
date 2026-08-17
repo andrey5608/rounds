@@ -186,11 +186,11 @@ export type AuthScheme = 'basic' | 'bearer';
  * the connector is chosen by this value. Inferred from the host when it is recognisable, stored so a
  * self-hosted installation can say what it is.
  *
- * `bitbucket` is the hosted service; `bitbucketServer` is the self-hosted product, which shares the
+ * `bitbucketCloud` is the hosted service; `bitbucketServer` is the self-hosted product, which shares the
  * name and almost nothing else — a different REST version, different paths, epoch timestamps and a
  * project key where the hosted service has a workspace.
  */
-export type GitProvider = 'github' | 'bitbucket' | 'bitbucketServer';
+export type GitProvider = 'github' | 'bitbucketCloud' | 'bitbucketServer';
 
 /**
  * A configured base URL an agent can point at.

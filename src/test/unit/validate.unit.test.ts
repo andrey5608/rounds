@@ -128,7 +128,7 @@ describe('state validation', () => {
       },
     });
 
-    for (const provider of ['github', 'bitbucket', 'bitbucketServer']) {
+    for (const provider of ['github', 'bitbucketCloud', 'bitbucketServer']) {
       assert.equal(
         normalizeState(stored(provider), LOCAL_DATE).state.endpoints.repos?.provider,
         provider,

@@ -71,7 +71,7 @@ export async function addOrUpdateEndpoint(
         {
           label: 'Bitbucket Cloud',
           description: 'Only for a host that mirrors the bitbucket.org API.',
-          value: 'bitbucket',
+          value: 'bitbucketCloud',
         },
       ];
       const chosen = await vscode.window.showQuickPick(providers, {
