@@ -94,7 +94,7 @@ interface Agent {
 - API: `canRun(agent, settings)` → `{ allowed: boolean; reason?: 'globalCap' |
   'agentCap' }`, `increment(agentId)`, `markCapNotified()`.
 
-### 2.8 Logger and output channel (`src/state/logger.ts`)
+### 2.8 Logger and output channel (`src/state/logger.ts`) ✅
 - One channel named `Rounds` (created with `createOutputChannel('Rounds', { log: true })`
   if the log-output API is used, otherwise plain).
 - Levels `none | error | info | debug` from `rounds.logLevel`, re-read on config change.
