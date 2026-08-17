@@ -55,8 +55,10 @@ in the Extension Development Host, and is checked by CI.
   and `.github/**` as well, and flags letters rather than symbols so that arrows, dashes
   and emoji stay allowed.
 
-### 0.6 Runtime dependencies (keep the list minimal)
-- `cron-parser` — next-run computation with timezone support.
+### 0.6 Runtime dependencies (keep the list minimal) ✅
+- `cron-parser` — next-run computation with timezone support. Version 5 exposes
+  `CronExpressionParser.parse(expression, { tz })`; the older `parseExpression` helper is
+  gone, so follow the v5 API in phase 9.
 - `cronstrue` — human-readable schedule descriptions for the UI.
 - `proper-lockfile` — leader election lock file.
 - Nothing else in `dependencies` without a note in `CONTRIBUTING.md` explaining why.
