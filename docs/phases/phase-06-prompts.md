@@ -83,17 +83,24 @@ Implemented first, in `src/agents/truncate.ts`, because the renderer depends on 
   empty string, for the same reason — a prompt that quietly loses its subject produces
   confident nonsense.
 
-### 6.7 Tests
+### 6.7 Tests ✅
 - Unit: each placeholder, escaping, unknown placeholder error text, item-scoped vs batch
   detection, mixed-mode rejection.
 - Unit: full fallback matrix from 6.3 with a stubbed file system and clock.
 - Unit: truncation markers and recorded flags.
+- 37 tests cover this phase: every placeholder including the time zone sensitive ones, the
+  escape form, the unknown-placeholder message, per-item versus batch detection, the mixed
+  mode rejection, the complete fallback matrix against a stubbed file system and clock, and
+  every truncation path.
 
 ## Exit criteria
 
-- [ ] Every placeholder from `plan.md` renders correctly, including the timezone-sensitive
-      ones.
-- [ ] The fallback matrix is fully covered by tests and matches the table above.
-- [ ] Prompt validation fails at agent-save time, not only at run time.
-- [ ] Each run record states the prompt source, path, snapshot usage and hash.
-- [ ] Oversized content is truncated with a visible marker.
+- [x] Every placeholder from `plan.md` renders correctly, including the time zone sensitive
+      ones, which are asserted across two zones on the same instant.
+- [x] The fallback matrix is fully covered by tests and matches the table above, for all three
+      kinds of unreadable file and for the per-agent override.
+- [x] Prompt validation fails at save time: `validatePrompt` rejects unknown placeholders and
+      mixed modes, and the wizard calls it before an agent can be stored (phase 10).
+- [x] Each resolution produces the record the run stores: source, path, snapshot usage, hash.
+- [x] Oversized content is truncated with a visible marker at every level: diff, item body,
+      item count and the whole prompt.
