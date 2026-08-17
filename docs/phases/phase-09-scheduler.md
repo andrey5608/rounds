@@ -8,7 +8,7 @@ Milestone **M3**.
 
 ## Steps
 
-### 9.1 Cron service (`src/scheduler/cron.ts`)
+### 9.1 Cron service (`src/scheduler/cron.ts`) ✅
 - `validate(expr)` → ok or an English error with the offending field.
 - `nextRun(expr[], after: Date, timezone)` → earliest next occurrence across all
   expressions (an agent may have several), computed with `cron-parser` in the effective
@@ -28,7 +28,7 @@ Milestone **M3**.
   tracked in memory plus the state claim so the same agent never overlaps itself.
 - Ticks are cheap and silent at `info` level; details go to `debug`.
 
-### 9.3 Jitter
+### 9.3 Jitter ✅
 - Before a **scheduled** run, wait `random(0, rounds.jitterSeconds)` seconds (default
   600, clamped to 0–1800). Manual runs never jitter.
 - The delay is interruptible (cancellation on shutdown / disable) and is recorded in the
@@ -44,9 +44,10 @@ Milestone **M3**.
 - Manual runs also count against the caps but are allowed to exceed them after an
   explicit confirmation modal that names the cap.
 
-### 9.5 Allowed time window
+### 9.5 Allowed time window ✅
 - Optional per-agent `allowedTimeStart` / `allowedTimeEnd` (`HH:mm`, effective timezone),
-  supporting windows that cross midnight.
+  supporting windows that cross midnight: "22:00 to 06:00" is an ordinary way to say overnight, and
+  reading it as an empty range would silently stop the agent forever.
 - A due run outside the window is skipped (recorded once per occurrence, not spammed) and
   `nextRunAt` advances to the next occurrence.
 
@@ -56,16 +57,17 @@ Milestone **M3**.
   error), flag it in `rounds.checkSetup`, and mark the agent in the tree with a warning
   icon and tooltip.
 
-### 9.7 Startup and missed runs
+### 9.7 Startup and missed runs ✅
 - On leader startup: for each enabled agent, if `nextRunAt` is in the past, apply
   `missedRunPolicy` — `skip` advances `nextRunAt` to the next future occurrence and
-  records nothing; `runOnce` runs the agent once (with jitter) and then advances.
+  records nothing; `runOnce` runs the agent **once**, however many occurrences were missed.
+  Replaying a whole weekend would surprise the user and exhaust the daily limit in one go.
 - `runOnStartup: true` runs the agent shortly after leadership is acquired, subject to
   caps, window and jitter.
 - A start-up burst guard: at most 3 agents run in the first 5 minutes after activation;
   the rest are deferred to their normal schedule.
 
-### 9.8 Next-run bookkeeping
+### 9.8 Next-run bookkeeping ✅
 - After every run (or skip), recompute `nextRunAt`:
   - scheduled run → next occurrence after now;
   - manual run → per `rounds.manualRunNextRunPolicy`: `advance` keeps the existing next
