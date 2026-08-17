@@ -24,7 +24,8 @@ from Jira or a Git host, run a prompt through a language model, and store the re
 
 - **DO** copy identifiers verbatim from `plan.md`: the `rounds.` prefixes, the 11 command
   ids, the 11 setting keys, view ids, `globalState` keys, `secrets` keys.
-- **DO** keep `"publisher": "TODO-PUBLISHER"` until the owner supplies a real one.
+- **DO** keep `"publisher": "rounds"`. It is the owner's marketplace publisher id, not a guess to be
+  changed.
 - **DON'T** invent new command ids, setting keys or alternative names. If something is
   missing from the spec, ask instead of guessing.
 - **DON'T** put `Copilot`, `GitHub`, `Jira`, `Atlassian`, `VS Code` or `Visual Studio` in

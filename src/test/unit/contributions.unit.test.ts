@@ -48,7 +48,7 @@ describe('manifest contributions', () => {
   it('declares the expected identity', () => {
     assert.equal(manifest.name, 'rounds');
     assert.equal(manifest.displayName, 'Rounds — Scheduled Task Agents');
-    assert.equal(manifest.publisher, 'TODO-PUBLISHER');
+    assert.equal(manifest.publisher, 'rounds');
   });
 
   it('declares the settings listed in the code base', () => {

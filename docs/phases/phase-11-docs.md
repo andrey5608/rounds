@@ -64,7 +64,8 @@ Sections, in this order:
 - **No `icon` is shipped.** Drawing a logo is the owner's decision, and a placeholder graphic would
   be worse than the marketplace default: it looks like a finished choice nobody made. It sits on the
   release checklist next to the publisher, which is the same kind of gap.
-- `publisher` stays `TODO-PUBLISHER`; the release checklist in phase 12 requires replacing it.
+- `publisher` was a `TODO-PUBLISHER` placeholder through this phase and is now `rounds`, the id the
+  owner registered.
 
 ### 11.4 CHANGELOG ✅
 - Fill `## [1.0.0]` with the feature set grouped as Added / Known limitations.

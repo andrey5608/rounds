@@ -60,9 +60,14 @@ The checklist is written; running it is a release step, and pretending otherwise
 thing this document must not do.
 
 ### 12.5 Packaging ✅
-- `vsce package` produces a VSIX containing eight files: `package.json`, the README, the licence, the
-  changelog, `dist/extension.js`, and the three brand assets an install needs — the marketplace icon,
-  the activity bar glyph and the README image.
+- `vsce package` produces a 114 KB VSIX: `package.json`, the README, the licence, the changelog,
+  `dist/extension.js`, and the three brand assets an install needs — the marketplace icon, the
+  activity bar glyph and the README image.
+- **`vsce package` builds nothing by itself.** The first attempt with a real publisher shipped a 662 KB
+  development bundle, because the last thing to touch `dist/` had been a watch build. A
+  `vscode:prepublish` script now runs the production build, and `check-bundle` fails on a bundle that
+  still references a sourcemap — the one signal that separates the two, since an unminified bundle
+  passes every other audit. Verified in both directions.
 - **A marketplace README may not embed an SVG**: `vsce` refuses to package one and says so. The README
   therefore shows a PNG rendered from `media/rounds-lockup.svg`, and links the vector source next to
   it. The vector originals stay in the repository and out of the package.
@@ -82,8 +87,7 @@ thing this document must not do.
 Three of these are the owner's to do, and the difference is stated rather than blurred: the first two
 because publishing is their decision, the last because it needs a real editor and real credentials.
 
-- [ ] **Owner:** replace `publisher` — it is still `TODO-PUBLISHER`, which is deliberate. Publishing
-      requires a marketplace identity that only the owner has.
+- [x] `publisher` is `rounds`, the id the owner registered. The extension id is `rounds.rounds`.
 - [x] `icon` is `media/rounds-icon-128.png`, from the brand assets the owner supplied. The activity
       bar uses `media/rounds-activitybar.svg` instead of the codicon the plan originally named, and
       `plan.md` was amended rather than left to contradict the manifest.

@@ -14,12 +14,12 @@ decision, or a working installation.
 
 | Item | Where it stands | How to close it |
 | --- | --- | --- |
-| `publisher` | `package.json` still says `TODO-PUBLISHER`, deliberately — `plan.md` forbids guessing one | Create the marketplace publisher, put its id in `package.json` |
 | README screenshots | The "Creating your first agent" section is written in prose | Capture the wizard against a real tracker and a signed-in provider |
-| Tag `v1.0.0` | Version and changelog say 1.0.0; no tag exists | Tag the release commit once the items above are in |
+| Tag `v1.0.0` | Version and changelog say 1.0.0; no tag exists. Nothing blocks it any more | Tag the release commit, then `vsce publish` |
 
-Closed since this list was written: the icon and the activity bar glyph. The owner supplied brand
-assets, which are in [`media/`](../media) and wired into the manifest.
+Closed since this list was written: the icon and the activity bar glyph, from the brand assets in
+[`media/`](../media), and the publisher id, which is now `rounds`. What remains is the screenshots and
+the release act itself.
 
 ## 2. Needs a real environment
 

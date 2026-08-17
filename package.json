@@ -1,7 +1,7 @@
 {
   "name": "rounds",
   "displayName": "Rounds \u2014 Scheduled Task Agents",
-  "publisher": "TODO-PUBLISHER",
+  "publisher": "rounds",
   "version": "1.0.0",
   "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
   "categories": [
@@ -311,6 +311,7 @@
     ]
   },
   "scripts": {
+    "vscode:prepublish": "npm run package",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "package": "node scripts/clean.mjs dist && node esbuild.js --production",

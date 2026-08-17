@@ -28,6 +28,15 @@ const REQUIRED = [
   { pattern: /rounds\.agentsView/, what: 'the contributed view id' },
 ];
 
+/**
+ * A development bundle carries a sourcemap comment and is roughly three times the size.
+ *
+ * Worth checking, because `vsce package` does not build anything itself: without a
+ * `vscode:prepublish` script it ships whatever the last watch build left in `dist/`, and a 660 KB
+ * unminified bundle looks perfectly fine to every other audit.
+ */
+const DEVELOPMENT_MARKER = /sourceMappingURL=/;
+
 let info;
 try {
   info = await stat(BUNDLE);
@@ -48,6 +57,10 @@ for (const { pattern, what } of REQUIRED) {
   if (!pattern.test(bundle)) {
     failures.push(`the bundle is missing ${what}`);
   }
+}
+
+if (DEVELOPMENT_MARKER.test(bundle)) {
+  failures.push('the bundle is a development build: it still references a sourcemap');
 }
 
 // A bundle that suddenly grows by an order of magnitude usually means a dependency came along for

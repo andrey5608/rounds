@@ -14,7 +14,8 @@ all commands registered as stubs, activation free of any model call. Milestone *
   reader.
 - `name`: `rounds`
 - `displayName`: `Rounds — Scheduled Task Agents`
-- `publisher`: `TODO-PUBLISHER` (placeholder stays until the owner provides one)
+- `publisher`: `rounds`, supplied by the owner. Until then the manifest carried a `TODO-PUBLISHER`
+  placeholder rather than a guess, and the full extension id is now `rounds.rounds`.
 - `description`: one English sentence, descriptive, no trademarks in a naming position.
 - `categories`: `["Other"]`; `keywords`: `["agents", "schedule", "automation", "cron"]`.
 - `galleryBanner` is added in phase 11.
