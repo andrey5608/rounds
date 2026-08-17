@@ -63,7 +63,7 @@ in the Extension Development Host, and is checked by CI.
 - `proper-lockfile` — leader election lock file.
 - Nothing else in `dependencies` without a note in `CONTRIBUTING.md` explaining why.
 
-### 0.7 Continuous integration
+### 0.7 Continuous integration ✅
 - GitHub Actions workflow `.github/workflows/ci.yml`: matrix on ubuntu + windows,
   steps `npm ci`, `npm run lint`, `npm run typecheck`, `npm run test:unit`,
   `xvfb-run -a npm run test:integration` (Linux), `npm run package`.
