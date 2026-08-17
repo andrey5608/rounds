@@ -12,7 +12,8 @@ Milestone **M3**.
 - `validate(expr)` → ok or an English error with the offending field.
 - `nextRun(expr[], after: Date, timezone)` → earliest next occurrence across all
   expressions (an agent may have several), computed with `cron-parser` in the effective
-  timezone (`agent.schedule.timezone` → `rounds.timezone` → system).
+  timezone (`agent.schedule.timezone` → `rounds.timezone` → system). The installed
+  `cron-parser` 5.x API is `CronExpressionParser.parse(expression, { tz, currentDate })`.
 - `describe(expr)` → human-readable text via `cronstrue` for the tree and the wizard.
 - `minIntervalMinutes(expr)` → smallest gap over the next 50 occurrences, used for the
   frequency warning.

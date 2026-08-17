@@ -7,7 +7,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 
 ## Steps
 
-### 1.1 Extension identity
+### 1.1 Extension identity ✅
 - `name`: `rounds`
 - `displayName`: `Rounds — Scheduled Task Agents`
 - `publisher`: `TODO-PUBLISHER` (placeholder stays until the owner provides one)
@@ -15,7 +15,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 - `categories`: `["Other"]`; `keywords`: `["agents", "schedule", "automation", "cron"]`.
 - `icon` and `galleryBanner` are added in phase 11.
 
-### 1.2 Activation
+### 1.2 Activation ✅
 - `activationEvents`: `onStartupFinished` plus the view activation is implicit from the
   contributed view.
 - `activate()` may read state, create the output channel, register commands, create the
@@ -24,7 +24,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
   dialogs.
 - Keep activation under ~50 ms of synchronous work; defer everything else.
 
-### 1.3 Views
+### 1.3 Views ✅
 ```jsonc
 "viewsContainers": {
   "activitybar": [{ "id": "rounds", "title": "Rounds", "icon": "$(history)" }]
@@ -38,7 +38,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 - Add a `when` context key `rounds.hasAgents` set from the state store so the welcome
   view disappears once an agent exists.
 
-### 1.4 Commands
+### 1.4 Commands ✅
 Declare all v1 ids with category `Rounds` and titles written **without** the category:
 
 | Command id | Title |
@@ -55,17 +55,19 @@ Declare all v1 ids with category `Rounds` and titles written **without** the cat
 | `rounds.refreshView` | Refresh |
 | `rounds.showOutput` | Show Output |
 
-### 1.5 Menus
+### 1.5 Menus ✅
 - `view/title` for `rounds.agentsView`: `rounds.createAgent` (group `navigation`),
   `rounds.refreshView` (`navigation`), `rounds.checkSetup`, `rounds.showOutput`.
 - `view/item/context`: agent items (`contextValue` starting with `rounds.agent`) get
-  run now / edit / duplicate / toggle / open result folder / show history / delete;
-  run items (`contextValue` `rounds.run`) get open result file.
+  run now / edit / duplicate / toggle / open result folder / show history / delete.
+- Run items get **no** context menu entry. Opening a result file is the item's default
+  click command (step 10.3), and the v1 command list has no id for it — inventing one
+  would break the "identifiers come from `plan.md`" rule.
 - `commandPalette` entries: hide the item-scoped commands that make no sense without a
   selection? No — keep them visible and let them prompt with a QuickPick of agents when
   invoked without an argument (decided in phase 10).
 
-### 1.6 Configuration
+### 1.6 Configuration ✅
 Title `Rounds`, all keys under the `rounds.` prefix:
 
 | Key | Type | Default | Notes |
@@ -85,26 +87,47 @@ Title `Rounds`, all keys under the `rounds.` prefix:
 - Every key gets a `markdownDescription` in English; enums get `enumDescriptions`.
 - Numeric keys get `minimum`/`maximum` so the settings UI validates them.
 
-### 1.7 Service container and command stubs
+### 1.7 Service container and command stubs ✅
 - `src/extension.ts` builds a small container object (logger, state store, secrets,
   later: catalog, scheduler, runner, tree provider) and passes it explicitly. No global
   singletons, no service locator.
+- The `ServiceContainer` type lives in `src/container.ts` rather than in `extension.ts`,
+  so the layers below can import it without importing the entry point back.
 - Register all 11 commands as stubs that log and show
   `Not implemented yet` — replaced phase by phase.
 - `deactivate()` disposes everything: subscriptions, timers, lock, output channel.
 
-### 1.8 Contribution guard test
+### 1.8 Contribution guard test ✅
 - Integration test asserting: every command id in `package.json` is registered at
   runtime, every registered `rounds.*` command is declared in `package.json`, and the
   declared setting keys match the constant list in `src/state/settings.ts`.
 - Unit test asserting no forbidden trademark string appears in `displayName`, command
   titles, view titles or setting keys.
+- The editor generates its own commands for a contributed view (`rounds.agentsView.open`
+  and friends). They live in our namespace but are not ours to declare, so the guard
+  filters commands prefixed with a contributed **view id** — not with the view container
+  id, which is plain `rounds` and would swallow everything.
+- `compile:tests` now wipes `out/` first. Compiling on top of stale output kept running
+  tests whose sources had been deleted, which made a green run meaningless.
+- `test:integration` now builds the bundle before launching the host. It previously only
+  compiled the tests, so the host loaded a stale `dist/extension.js`. Note that
+  `getCommands(true)` also returns commands that are merely *declared* in the manifest,
+  so that check alone cannot detect a missing registration — the test that executes every
+  command is the one that proves it.
 
 ## Exit criteria
 
-- [ ] Activity bar shows the `Rounds` container with the `Agents` view and its welcome
-      content.
-- [ ] All 11 commands appear in the palette as `Rounds: <title>` and run their stub.
-- [ ] All 11 settings appear in the settings UI under `Rounds` with English descriptions.
-- [ ] Startup produces no consent prompt, no network request, no error notification.
-- [ ] Contribution guard test and trademark test pass.
+- [x] Activity bar shows the `Rounds` container with the `Agents` view and its welcome
+      content. Verified structurally: the container, the view and the welcome block are
+      contributed, a data provider is registered, and the extension activates without
+      errors. The pixels themselves still deserve one look with F5.
+- [x] All 11 commands appear in the palette as `Rounds: <title>` and run their stub.
+      An integration test executes each of them; the palette entry follows from the
+      declared category and title, which the unit test checks.
+- [x] All 11 settings appear in the settings UI under `Rounds` with English descriptions.
+      The unit test compares the declared keys with the code base list and the integration
+      test reads their defaults from a live editor.
+- [x] Startup produces no consent prompt, no network request, no error notification.
+      No source file references `vscode.lm`, `selectChatModels` or `fetch`, and activation
+      is asserted to succeed.
+- [x] Contribution guard test and trademark test pass.

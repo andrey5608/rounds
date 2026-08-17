@@ -1,0 +1,337 @@
+{
+  "name": "rounds",
+  "displayName": "Rounds — Scheduled Task Agents",
+  "publisher": "TODO-PUBLISHER",
+  "version": "0.0.1",
+  "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "agents",
+    "schedule",
+    "automation",
+    "cron"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrey5608/rounds.git"
+  },
+  "main": "./dist/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "rounds.createAgent",
+        "title": "Create Agent",
+        "category": "Rounds",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rounds.editAgent",
+        "title": "Edit Agent",
+        "category": "Rounds",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "rounds.duplicateAgent",
+        "title": "Duplicate Agent",
+        "category": "Rounds",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "rounds.deleteAgent",
+        "title": "Delete Agent",
+        "category": "Rounds",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "rounds.toggleAgent",
+        "title": "Enable or Disable Agent",
+        "category": "Rounds",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "rounds.runNow",
+        "title": "Run Now",
+        "category": "Rounds",
+        "icon": "$(play)"
+      },
+      {
+        "command": "rounds.openResultFolder",
+        "title": "Open Result Folder",
+        "category": "Rounds",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "rounds.showHistory",
+        "title": "Show Run History",
+        "category": "Rounds",
+        "icon": "$(history)"
+      },
+      {
+        "command": "rounds.checkSetup",
+        "title": "Check Setup",
+        "category": "Rounds",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "rounds.refreshView",
+        "title": "Refresh",
+        "category": "Rounds",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "rounds.showOutput",
+        "title": "Show Output",
+        "category": "Rounds",
+        "icon": "$(output)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "rounds",
+          "title": "Rounds",
+          "icon": "$(history)"
+        }
+      ]
+    },
+    "views": {
+      "rounds": [
+        {
+          "id": "rounds.agentsView",
+          "name": "Agents"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Rounds",
+      "properties": {
+        "rounds.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Master switch for scheduled runs. When off, agents only run when you start them manually."
+        },
+        "rounds.timezone": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "IANA time zone name used to evaluate schedules, daily limits and result file names, for example `Europe/Berlin`. Leave empty to use the system time zone. An agent may override this."
+        },
+        "rounds.jitterSeconds": {
+          "type": "number",
+          "default": 600,
+          "minimum": 0,
+          "maximum": 1800,
+          "markdownDescription": "Maximum random delay before a scheduled run. Spreading runs out reduces the chance that automated requests look like abuse to your model provider. Manual runs are never delayed."
+        },
+        "rounds.maxExecutionsPerDay": {
+          "type": "number",
+          "default": 24,
+          "minimum": 1,
+          "maximum": 1000,
+          "markdownDescription": "Maximum number of runs across all agents per local day. An agent may set a lower limit of its own."
+        },
+        "rounds.minimumIntervalWarning": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 1440,
+          "markdownDescription": "Warn when a schedule fires more often than this many minutes."
+        },
+        "rounds.manualRunNextRunPolicy": {
+          "type": "string",
+          "default": "advance",
+          "enum": [
+            "advance",
+            "fromNow"
+          ],
+          "enumDescriptions": [
+            "Keep the already scheduled next run.",
+            "Recompute the next run from the time of the manual run."
+          ],
+          "markdownDescription": "What happens to the next scheduled run after you start an agent manually."
+        },
+        "rounds.defaultOutputFolder": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path of the folder that receives result files. Leave empty to store them inside the extension's global storage. An agent may override this."
+        },
+        "rounds.scriptWhitelist": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Commands the `runScript` tool is allowed to execute. Nothing outside this list runs, so an empty list disables the tool.",
+          "items": {
+            "type": "object",
+            "required": [
+              "command"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "Executable name or absolute path. Executed directly, never through a shell."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Allowed argument patterns. A pattern may end with * to allow any suffix. Omit to allow no arguments."
+              }
+            }
+          }
+        },
+        "rounds.executionHistoryLimit": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 1000,
+          "markdownDescription": "How many runs to keep in the history of each agent. Result files are never deleted."
+        },
+        "rounds.promptFileFallback": {
+          "type": "string",
+          "default": "snapshot",
+          "enum": [
+            "snapshot",
+            "blockWhenResolvable",
+            "blockAlways"
+          ],
+          "enumDescriptions": [
+            "Use the stored snapshot of the prompt file when the file cannot be read.",
+            "Fail the run when the file cannot be read but a snapshot exists.",
+            "Always fail the run when the file cannot be read."
+          ],
+          "markdownDescription": "What an agent does when its prompt file is missing or unreadable at run time."
+        },
+        "rounds.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "none",
+            "error",
+            "info",
+            "debug"
+          ],
+          "enumDescriptions": [
+            "Log nothing.",
+            "Log failures only.",
+            "Log runs and their outcomes.",
+            "Log everything, including tool calls and scheduling decisions."
+          ],
+          "markdownDescription": "Verbosity of the Rounds output channel."
+        }
+      }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "rounds.createAgent",
+          "when": "view == rounds.agentsView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "rounds.refreshView",
+          "when": "view == rounds.agentsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "rounds.checkSetup",
+          "when": "view == rounds.agentsView",
+          "group": "1_setup@1"
+        },
+        {
+          "command": "rounds.showOutput",
+          "when": "view == rounds.agentsView",
+          "group": "1_setup@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "rounds.runNow",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "inline@1"
+        },
+        {
+          "command": "rounds.toggleAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "inline@2"
+        },
+        {
+          "command": "rounds.editAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "1_modify@1"
+        },
+        {
+          "command": "rounds.duplicateAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "1_modify@2"
+        },
+        {
+          "command": "rounds.openResultFolder",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "2_results@1"
+        },
+        {
+          "command": "rounds.showHistory",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "2_results@2"
+        },
+        {
+          "command": "rounds.deleteAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "3_danger@1"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "rounds.agentsView",
+        "when": "!rounds.hasAgents",
+        "contents": "No agents yet. An agent visits a source on a schedule, runs your prompt through a language model and stores the result.\n[Create Agent](command:rounds.createAgent)\n[Check Setup](command:rounds.checkSetup)"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "clean": "node scripts/clean.mjs out dist",
+    "compile:tests": "node scripts/clean.mjs out && tsc -p ./",
+    "typecheck": "tsc -p ./ --noEmit",
+    "lint": "eslint .",
+    "check": "node scripts/check-language.mjs && node scripts/check-dependencies.mjs && node scripts/check-unit-tests.mjs",
+    "test:unit": "node scripts/check-unit-tests.mjs && npm run compile:tests && mocha \"out/**/*.unit.test.js\"",
+    "test:integration": "npm run compile && npm run compile:tests && vscode-test",
+    "test": "npm run test:unit && npm run test:integration"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.43",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/vscode": "~1.95.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
+    "mocha": "^11.8.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0"
+  },
+  "dependencies": {
+    "cron-parser": "^5.10.0",
+    "cronstrue": "^3.24.0",
+    "proper-lockfile": "^4.1.2"
+  }
+}
