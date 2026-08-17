@@ -65,7 +65,7 @@ interface Agent {
   revision changed since the read, it reloads and re-applies the mutator (max 5
   attempts, then a typed `StateConflictError`). Mutators must be pure and idempotent.
 
-### 2.4 Atomic file mirror (`src/state/fileStore.ts`)
+### 2.4 Atomic file mirror (`src/state/fileStore.ts`) ✅
 - `globalState` alone gives no cross-window write ordering, so mirror the envelope to
   `<globalStorageUri>/state.json`.
 - Write path: serialize → write `state.json.tmp-<pid>-<n>` in the **same directory** →
