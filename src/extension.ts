@@ -6,6 +6,7 @@ import { Leadership } from './scheduler/leadership.js';
 import { recoverStaleClaims } from './scheduler/recovery.js';
 import { RunClaims } from './scheduler/runClaims.js';
 import { VscodeLanguageModelGateway } from './model/vscodeGateway.js';
+import { showFirstRunNotice } from './setup/firstRunNotice.js';
 import { ModelCatalog } from './setup/modelCatalog.js';
 import { CountersService } from './state/counters.js';
 import { FileStateBackend, StateFileWatcher } from './state/fileStore.js';
@@ -159,6 +160,8 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
     services.logger.info(
       `Rounds is ready with ${state.agents.length} agent(s) at state revision ${state.revision}.`,
     );
+    // Last, so a first-time notification never delays anything functional.
+    await showFirstRunNotice(services.store);
   } catch (error) {
     services.logger.error(`Could not load the stored state: ${String(error)}`);
   }

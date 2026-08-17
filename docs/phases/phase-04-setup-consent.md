@@ -77,7 +77,7 @@ combination of missing prerequisites is just another context object in a unit te
 - Results are cached in state so the tree can render a `needsSetup` badge without re-running
   network pings.
 
-### 4.6 First-activation nudge
+### 4.6 First-activation nudge ✅
 - On first activation ever, show a non-modal information message: what the extension
   does in one sentence + a `Check Setup` button + `Don't show again`.
 - Never auto-run consent. Record `firstRunNoticeShownAt` in state.
