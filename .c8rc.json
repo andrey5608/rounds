@@ -1,0 +1,28 @@
+{
+  "all": true,
+  "src": [
+    "out"
+  ],
+  "include": [
+    "out/state/**",
+    "out/scheduler/**",
+    "out/agents/**",
+    "out/tools/**"
+  ],
+  "exclude": [
+    "out/test/**",
+    "out/**/*.test.js",
+    "out/state/outputChannel.js",
+    "out/agents/promptSnapshots.js",
+    "out/tools/vscodeFileFinder.js",
+    "out/state/types.js"
+  ],
+  "reporter": [
+    "text-summary"
+  ],
+  "check-coverage": true,
+  "lines": 80,
+  "statements": 80,
+  "functions": 80,
+  "branches": 70
+}

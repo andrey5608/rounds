@@ -34,8 +34,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Unit tests with coverage
+        run: npm run test:coverage
 
       - name: Integration tests
         if: runner.os == 'Linux'

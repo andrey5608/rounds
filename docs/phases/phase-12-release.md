@@ -7,7 +7,7 @@ release checklist. Milestone **M4**.
 
 ## Steps
 
-### 12.1 Test matrix completion
+### 12.1 Test matrix completion ✅
 | Layer | Scope | Runner |
 | --- | --- | --- |
 | Unit | state, cron, jitter, caps, placeholders, prompt fallback, tools, agentic loop, result writer | Mocha, no extension host |
