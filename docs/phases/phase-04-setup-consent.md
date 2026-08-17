@@ -25,6 +25,23 @@ action.
   file is where it is.
 
 ### 4.2 Model catalog (`src/setup/modelCatalog.ts`) ✅
+
+**Corrected after a real installation reported the fault.** With GitHub Copilot installed and signed
+in, Check Setup still said access had not been granted, and asking for it appeared to do nothing.
+Cause: `selectChatModels()` was asked once, and a provider that has not finished starting reports an
+empty list. One empty answer was then treated as "no models available", which told a user with a
+working provider to go and install one.
+
+Three changes:
+
+- `list(action, { waitForProviderMs })` waits for `lm.onDidChangeChatModels` and re-queries when the
+  first answer is empty. The editor's own documentation says the list "might have changed and
+  extensions should re-query"; that event is the only way to tell "no provider" from "not ready yet".
+- The wording distinguishes the two states: "Rounds has not asked the editor yet" before the first
+  attempt, and "the provider may still be initialising" when consent is on record but the list is
+  empty.
+- `refreshAfterProviderChange()` updates the cache when the provider list changes, and refuses unless
+  consent is already recorded — so the subscription cannot cause a prompt nobody asked for.
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
   mirrored into state (ids and labels only) so the tree and validation work without a
   new consent-triggering call.

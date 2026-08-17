@@ -47,6 +47,10 @@ export interface ModelRequest {
   tools: { name: string; description: string; inputSchema: Record<string, unknown> }[];
 }
 
+export interface GatewayDisposable {
+  dispose(): void;
+}
+
 export interface LanguageModelGateway {
   /**
    * Resolves the models the user has access to.
@@ -63,4 +67,13 @@ export interface LanguageModelGateway {
    * output: the result is written to a file once the run finishes.
    */
   sendRequest(request: ModelRequest): Promise<ModelTurn>;
+
+  /**
+   * Fires when the set of available models changed.
+   *
+   * The editor documents that the list "might have changed and extensions should re-query", and this
+   * is the only way to tell "no provider" apart from "the provider has not finished starting": a
+   * provider that is still initialising reports nothing and then fires this.
+   */
+  onDidChangeModels?(listener: () => void): GatewayDisposable;
 }

@@ -244,6 +244,16 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
         agentsView.refresh();
       }
     }),
+    // The editor documents that the model list may change and should be re-queried. Doing so is only
+    // safe once consent is on record, which the catalog checks for itself.
+    new VscodeLanguageModelGateway().onDidChangeModels(() => {
+      void models.refreshAfterProviderChange().then((refreshed) => {
+        if (refreshed && container) {
+          logger.info(`The provider now reports ${refreshed.length} model(s).`);
+          void refreshView(container);
+        }
+      });
+    }),
     leadership.onDidChange((isLeader) => {
       statusBar.setLeader(isLeader);
       void vscode.commands.executeCommand('setContext', 'rounds.isLeader', isLeader);

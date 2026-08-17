@@ -125,14 +125,16 @@ const modelsCheck: SetupCheck = {
       return outcome(
         check,
         'fail',
-        'Access to the language model API has not been granted yet. Grant it to let agents run.',
+        'Rounds has not asked the editor for a language model yet. Select this item to ask; the editor will request your permission, and a provider such as GitHub Copilot must be installed and signed in.',
       );
     }
     if (context.models.length === 0) {
+      // Consent is on record, so a provider answered at least once. An empty list now usually means
+      // it is still starting up rather than that it is missing.
       return outcome(
         check,
         'fail',
-        'Access was granted but no models are available. Check that a language model provider, such as GitHub Copilot, is installed and signed in.',
+        'No models are available right now. If the editor has just started, the provider may still be initialising — select this item to look again.',
       );
     }
     return outcome(check, 'pass', `${context.models.length} model(s) available.`);

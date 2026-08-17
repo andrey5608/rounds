@@ -66,16 +66,20 @@ describe('setup checks', () => {
     assert.equal(SETUP_CHECKS.length, 6);
   });
 
-  it('fails the model check before consent was granted', async () => {
+  it('fails the model check before the editor has been asked', async () => {
     const results = await runSetupChecks(context({ hasConsent: false, models: [] }));
     const models = byId(results, 'models');
     assert.equal(models.status, 'fail');
-    assert.match(models.message, /has not been granted/);
+    assert.match(models.message, /has not asked the editor/);
+    // The wording must not send somebody to install a provider they already have.
+    assert.ok(!/install/i.test(models.message) || /must be installed/.test(models.message));
   });
 
-  it('fails the model check when consent produced no models', async () => {
+  it('blames a starting provider, not a missing one, when the list is empty', async () => {
     const results = await runSetupChecks(context({ models: [] }));
-    assert.equal(byId(results, 'models').status, 'fail');
+    const models = byId(results, 'models');
+    assert.equal(models.status, 'fail');
+    assert.match(models.message, /still be initialising/);
   });
 
   it('only warns about an unconfigured source nobody uses', async () => {

@@ -51,10 +51,60 @@ export class ModelCatalog {
     this.clock = options.clock ?? systemClock;
   }
 
-  /** Resolves the model list, triggering the consent prompt on the first call. */
-  async list(action: UserAction): Promise<ModelInfo[]> {
+  /**
+   * Waits for a provider that is still starting up.
+   *
+   * A freshly opened editor reports no models for a while: the provider extension activates, then
+   * registers its models, then fires the change event. Asking once and concluding "no models
+   * available" tells a user with a perfectly good provider installed to go and install one.
+   */
+  private async waitForModels(timeoutMs: number): Promise<ModelInfo[]> {
+    const subscribe = this.options.gateway.onDidChangeModels?.bind(this.options.gateway);
+    if (!subscribe) {
+      return [];
+    }
+    return new Promise<ModelInfo[]>((resolve) => {
+      let settled = false;
+      const finish = (models: ModelInfo[]): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        subscription.dispose();
+        resolve(models);
+      };
+
+      const timer = setTimeout(() => finish([]), timeoutMs);
+      timer.unref?.();
+      const subscription = subscribe(() => {
+        void this.options.gateway
+          .selectModels()
+          .then((models) => {
+            if (models.length > 0) {
+              finish(models);
+            }
+          })
+          .catch(() => undefined);
+      });
+    });
+  }
+
+  /**
+   * Resolves the model list, triggering the consent prompt on the first call.
+   *
+   * `waitForProviderMs` covers the startup gap described above; it is only worth passing from a
+   * user-initiated action, where waiting a few seconds is better than a wrong answer.
+   */
+  async list(action: UserAction, options?: { waitForProviderMs?: number }): Promise<ModelInfo[]> {
     this.options.logger?.debug(`Resolving language models (${action.reason}).`);
-    const models = await this.options.gateway.selectModels();
+    let models = await this.options.gateway.selectModels();
+    if (models.length === 0 && options?.waitForProviderMs) {
+      this.options.logger?.info(
+        `No language models were reported; waiting up to ${Math.round(options.waitForProviderMs / 1000)}s in case a provider is still starting.`,
+      );
+      models = await this.waitForModels(options.waitForProviderMs);
+    }
     this.memory = models;
     const at = this.clock.now().toISOString();
     const cached: CachedModel[] = models.map((model) => ({
@@ -71,6 +121,26 @@ export class ModelCatalog {
       }
     });
     this.options.logger?.info(`Resolved ${models.length} language model(s).`);
+    return models;
+  }
+
+  /** Refreshes the cache without a user action. Only safe once consent is on record. */
+  async refreshAfterProviderChange(): Promise<ModelInfo[] | undefined> {
+    if (!(await this.hasConsent())) {
+      return undefined;
+    }
+    const models = await this.options.gateway.selectModels();
+    this.memory = models;
+    const at = this.clock.now().toISOString();
+    await this.options.store.update((draft) => {
+      draft.setup.models = models.map((model) => ({
+        id: model.id,
+        name: model.name,
+        vendor: model.vendor,
+        family: model.family,
+      }));
+      draft.setup.modelsFetchedAt = at;
+    });
     return models;
   }
 

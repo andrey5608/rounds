@@ -1,6 +1,11 @@
 import * as assert from 'node:assert/strict';
 
-import type { LanguageModelGateway, ModelInfo, ModelTurn } from '../../model/gateway.js';
+import type {
+  GatewayDisposable,
+  LanguageModelGateway,
+  ModelInfo,
+  ModelTurn,
+} from '../../model/gateway.js';
 import { userAction } from '../../setup/consentGate.js';
 import { ModelCatalog, ModelNotFoundError } from '../../setup/modelCatalog.js';
 import { MementoBackend, RoundsStore } from '../../state/store.js';
@@ -22,6 +27,7 @@ class FakeMemento implements MementoLike {
 
 class FakeGateway implements LanguageModelGateway {
   calls = 0;
+  private listeners: (() => void)[] = [];
   models: ModelInfo[] = [
     { id: 'model-a', name: 'Model A', vendor: 'vendor', family: 'family-a' },
     { id: 'model-b', name: 'Model B', vendor: 'vendor', family: 'family-b' },
@@ -39,6 +45,23 @@ class FakeGateway implements LanguageModelGateway {
   sendRequest(): Promise<ModelTurn> {
     // The catalog never sends a request; only resolution is under test here.
     return Promise.reject(new Error('not used in these tests'));
+  }
+
+  onDidChangeModels(listener: () => void): GatewayDisposable {
+    this.listeners.push(listener);
+    return {
+      dispose: () => {
+        this.listeners = this.listeners.filter((candidate) => candidate !== listener);
+      },
+    };
+  }
+
+  /** Simulates a provider finishing its start-up and registering models. */
+  providerBecomesReady(models: ModelInfo[]): void {
+    this.models = models;
+    for (const listener of [...this.listeners]) {
+      listener();
+    }
   }
 }
 
@@ -139,6 +162,57 @@ describe('model catalog', () => {
       assert.match(error.message, /Check Setup/);
       return true;
     });
+  });
+
+  it('waits for a provider that is still starting up', async () => {
+    const gateway = new FakeGateway();
+    gateway.models = [];
+    const { catalog } = makeCatalog(gateway);
+
+    const pending = catalog.list(userAction('check setup'), { waitForProviderMs: 5000 });
+    // The provider registers its models a moment after being asked, which is what a freshly opened
+    // editor does.
+    setTimeout(
+      () => gateway.providerBecomesReady([{ id: 'model-a', name: 'Model A', vendor: 'v', family: 'f' }]),
+      10,
+    );
+
+    const models = await pending;
+    assert.deepEqual(models.map((model) => model.id), ['model-a']);
+    assert.equal(await catalog.hasConsent(), true, 'consent is recorded once a model answered');
+  });
+
+  it('gives up waiting rather than hanging', async () => {
+    const gateway = new FakeGateway();
+    gateway.models = [];
+    const { catalog } = makeCatalog(gateway);
+
+    const models = await catalog.list(userAction('check setup'), { waitForProviderMs: 20 });
+    assert.deepEqual(models, []);
+  });
+
+  it('does not wait when it does not have to', async () => {
+    const gateway = new FakeGateway();
+    const { catalog } = makeCatalog(gateway);
+
+    const models = await catalog.list(userAction('check setup'), { waitForProviderMs: 10_000 });
+    assert.equal(models.length, 2, 'a provider that answers at once is not waited for');
+  });
+
+  it('refreshes the cache when the provider list changes, once consent is on record', async () => {
+    const gateway = new FakeGateway();
+    const { catalog } = makeCatalog(gateway);
+
+    // Without consent there is nothing to refresh and nothing may be asked.
+    assert.equal(await catalog.refreshAfterProviderChange(), undefined);
+    assert.equal(gateway.calls, 0);
+
+    await catalog.list(userAction('check setup'));
+    gateway.models = [...gateway.models, { id: 'model-c', name: 'Model C', vendor: 'v', family: 'f' }];
+
+    const refreshed = await catalog.refreshAfterProviderChange();
+    assert.equal(refreshed?.length, 3);
+    assert.deepEqual((await catalog.cached()).map((model) => model.id), ['model-a', 'model-b', 'model-c']);
   });
 
   it('propagates provider failures rather than pretending there are no models', async () => {

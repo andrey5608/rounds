@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { ConfigError } from '../connectors/errors.js';
 
 import type {
+  GatewayDisposable,
   LanguageModelGateway,
   ModelInfo,
   ModelMessage,
@@ -64,7 +65,13 @@ export class VscodeLanguageModelGateway implements LanguageModelGateway {
     return { text, toolCalls };
   }
 
+  onDidChangeModels(listener: () => void): GatewayDisposable {
+    return vscode.lm.onDidChangeChatModels(listener);
+  }
+
   private resolveAll(): Thenable<vscode.LanguageModelChat[]> {
+    // No selector: the editor returns every model this extension may use. A vendor-specific selector
+    // would quietly exclude any provider other than the one named.
     return vscode.lm.selectChatModels();
   }
 }

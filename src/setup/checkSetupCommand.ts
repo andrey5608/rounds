@@ -126,14 +126,31 @@ async function fixCheck(container: ServiceContainer, checkId: string): Promise<v
  */
 async function grantModelAccess(container: ServiceContainer): Promise<void> {
   try {
-    const models = await container.models.list(userAction('check setup: grant model access'));
+    const models = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Rounds: asking the editor for a language model',
+      },
+      // Waiting matters here: a provider that is still starting reports nothing, and concluding
+      // "none available" would tell a user with a working provider to go and install one.
+      () =>
+        container.models.list(userAction('check setup: grant model access'), {
+          waitForProviderMs: 15_000,
+        }),
+    );
     if (models.length === 0) {
-      await vscode.window.showWarningMessage(
-        'Access was granted but no models are available. Check that a language model provider, such as GitHub Copilot, is installed and signed in.',
+      const choice = await vscode.window.showWarningMessage(
+        'The editor reported no language models. If a provider such as GitHub Copilot has only just started, wait a moment and try again; otherwise check that it is installed, signed in and enabled for this workspace.',
+        'Try Again',
       );
+      if (choice === 'Try Again') {
+        await grantModelAccess(container);
+      }
       return;
     }
-    await vscode.window.showInformationMessage(`Rounds can use ${models.length} model(s).`);
+    await vscode.window.showInformationMessage(
+      `Rounds can use ${models.length} model(s): ${models.map((model) => model.id).join(', ')}.`,
+    );
   } catch (error) {
     const mapped = mapModelError(error);
     container.logger.error(`Could not resolve models: ${mapped.detail}`);

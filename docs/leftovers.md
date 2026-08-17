@@ -50,14 +50,23 @@ To close it: in `runNowCommand`, ask `counters.canRun` before dispatching, and o
 modal naming the limit; when the user insists, run with a flag the runner passes through its cap
 check. The counter must still be incremented, so the day's total stays truthful.
 
-## 4. Worth adding, not required
+## 4. Fixed after release testing
+
+Kept here because the next person deserves to know it was wrong once:
+
+- **Check Setup reported no model access with a working provider installed.** `selectChatModels()` was
+  asked once, and a provider that is still starting answers with an empty list. It now waits for the
+  editor's model-change event and re-queries, and the messages tell "not asked yet" apart from
+  "provider still starting". See [phase 4](./phases/phase-04-setup-consent.md).
+
+## 5. Worth adding, not required
 
 - **A dedicated daylight-saving transition test.** Time zone handling is proven across zones on the
   same instant, and every next run is recomputed when the zone setting changes, but no test pins a
   real DST date. Noted in [phase 9](./phases/phase-09-scheduler.md). Pick a transition date in a zone
   that observes it, and assert the next run neither doubles nor disappears.
 
-## 5. Not leftovers: out of scope for v1
+## 6. Not leftovers: out of scope for v1
 
 Listed so nobody files them as gaps. These are decisions from [`plan.md`](../plan.md), and a test
 asserts the first two are absent from the manifest rather than merely unmentioned:
