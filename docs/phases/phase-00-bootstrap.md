@@ -77,12 +77,16 @@ in the Extension Development Host, and is checked by CI.
 
 ## Exit criteria
 
-- [ ] `npm run compile`, `npm run lint`, `npm run typecheck` all pass.
-- [ ] `npm run test:unit` and `npm run test:integration` both run and pass.
-- [ ] F5 opens an Extension Development Host with the extension activated and no errors.
-- [ ] `npm run package` produces `dist/extension.js`.
-- [ ] CI is green on a pull request.
-- [ ] The language check fails on purpose when a non-English string is added (verified
+- [x] `npm run compile`, `npm run lint`, `npm run typecheck` all pass.
+- [x] `npm run test:unit` and `npm run test:integration` both run and pass.
+- [x] F5 opens an Extension Development Host with the extension loaded and no errors.
+      Verified by launching the development host and finding the extension among the
+      loaded ones. It reports `active=false` because activation events are contributed in
+      step 1.2; activation itself is asserted by the phase 1 tests.
+- [x] `npm run package` produces `dist/extension.js`.
+- [ ] CI is green on a pull request. The full workflow sequence passes locally; the
+      hosted run can only be confirmed once a pull request exists.
+- [x] The language check fails on purpose when a non-English string is added (verified
       once, then reverted).
 
 ## Notes
