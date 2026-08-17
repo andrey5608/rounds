@@ -38,7 +38,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 - Add a `when` context key `rounds.hasAgents` set from the state store so the welcome
   view disappears once an agent exists.
 
-### 1.4 Commands
+### 1.4 Commands ✅
 Declare all v1 ids with category `Rounds` and titles written **without** the category:
 
 | Command id | Title |

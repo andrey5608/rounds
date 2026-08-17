@@ -29,6 +29,74 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "rounds.createAgent",
+        "title": "Create Agent",
+        "category": "Rounds",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rounds.editAgent",
+        "title": "Edit Agent",
+        "category": "Rounds",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "rounds.duplicateAgent",
+        "title": "Duplicate Agent",
+        "category": "Rounds",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "rounds.deleteAgent",
+        "title": "Delete Agent",
+        "category": "Rounds",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "rounds.toggleAgent",
+        "title": "Enable or Disable Agent",
+        "category": "Rounds",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "rounds.runNow",
+        "title": "Run Now",
+        "category": "Rounds",
+        "icon": "$(play)"
+      },
+      {
+        "command": "rounds.openResultFolder",
+        "title": "Open Result Folder",
+        "category": "Rounds",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "rounds.showHistory",
+        "title": "Show Run History",
+        "category": "Rounds",
+        "icon": "$(history)"
+      },
+      {
+        "command": "rounds.checkSetup",
+        "title": "Check Setup",
+        "category": "Rounds",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "rounds.refreshView",
+        "title": "Refresh",
+        "category": "Rounds",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "rounds.showOutput",
+        "title": "Show Output",
+        "category": "Rounds",
+        "icon": "$(output)"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
