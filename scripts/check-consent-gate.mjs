@@ -15,12 +15,9 @@ import { extname, join, relative, resolve } from 'node:path';
 const ROOT = resolve('.');
 const SRC = resolve('src');
 const GATEWAY = 'src/model/vscodeGateway.ts';
-const USER_ACTION_ALLOWED = [
-  'src/setup/',
-  'src/ui/',
-  'src/extension.ts',
-  'src/test/',
-];
+// Note that src/extension.ts is NOT in this list: activation must have no way to create a
+// token, otherwise a window could trigger a consent prompt nobody asked for.
+const USER_ACTION_ALLOWED = ['src/setup/', 'src/ui/', 'src/test/'];
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -50,7 +47,7 @@ for (const file of files) {
 
   if (/\buserAction\(/.test(source) && !USER_ACTION_ALLOWED.some((prefix) => relativePath.startsWith(prefix))) {
     failures.push(
-      `${relativePath} creates a user action token; only commands, wizard steps and setup code may.`,
+      `${relativePath} creates a user action token; only commands, wizard steps and setup code may. Activation must never be able to.`,
     );
   }
 }
