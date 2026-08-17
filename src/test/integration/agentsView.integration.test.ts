@@ -95,10 +95,10 @@ describe('agents view', () => {
     const provider = new AgentsTreeDataProvider();
     provider.setData(data({ agents: [agent()] }));
 
-    const children = provider.getChildren(provider.getChildren()[0]);
-    assert.equal(children[0]?.kind, 'message');
-    const item = provider.getTreeItem(children[0] as never);
-    assert.equal(item.label, 'No runs yet');
+    const [placeholder] = provider.getChildren(provider.getChildren()[0]);
+    assert.ok(placeholder, 'the agent has a child node');
+    assert.equal(placeholder.kind, 'message');
+    assert.equal(provider.getTreeItem(placeholder).label, 'No runs yet');
   });
 
   it('describes the schedule and the next run in one line', () => {
