@@ -176,6 +176,39 @@ export interface RunClaim {
   heartbeatAt: string;
 }
 
+/** A model as the editor reported it. Ids and labels only; no credentials involved. */
+export interface CachedModel {
+  id: string;
+  name: string;
+  vendor: string;
+  family: string;
+}
+
+export type CheckStatus = 'pass' | 'warn' | 'fail';
+
+export interface CheckOutcome {
+  id: string;
+  title: string;
+  status: CheckStatus;
+  message: string;
+}
+
+/**
+ * What setup has established so far.
+ *
+ * Cached here so the tree, the wizard and agent validation can work without triggering a
+ * consent prompt: resolving models is only allowed from a user-initiated action.
+ */
+export interface SetupState {
+  /** Set the first time the user granted access to the language model API. */
+  consentGrantedAt?: string;
+  models?: CachedModel[];
+  modelsFetchedAt?: string;
+  firstRunNoticeShownAt?: string;
+  lastCheckAt?: string;
+  lastCheckResults?: CheckOutcome[];
+}
+
 /** History is kept per agent, newest first. */
 export type RunHistory = Record<string, RunRecord[]>;
 
@@ -189,4 +222,5 @@ export interface PersistedState {
   counters: DailyCounters;
   /** Keyed by agent id. Absent means no window is running that agent. */
   runClaims: Record<string, RunClaim>;
+  setup: SetupState;
 }

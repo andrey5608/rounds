@@ -20,7 +20,7 @@ action.
   the scheduler, runner or connectors. Both rules were verified to fail on a deliberate
   violation.
 
-### 4.2 Model catalog (`src/setup/modelCatalog.ts`)
+### 4.2 Model catalog (`src/setup/modelCatalog.ts`) ✅
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
   mirrored into state (ids and labels only) so the tree and validation work without a
   new consent-triggering call.

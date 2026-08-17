@@ -91,6 +91,7 @@ describe('state layer inside the extension host', () => {
       history: {},
       counters: { localDate: '2026-08-17', global: 0, perAgent: {} },
       runClaims: {},
+      setup: {},
     });
     assert.equal(await backend.peekRevision(), 1);
     await rm(globalStorage, { recursive: true, force: true });

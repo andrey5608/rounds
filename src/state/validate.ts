@@ -5,6 +5,8 @@ import type {
   DailyCounters,
   PersistedState,
   PromptConfig,
+  CachedModel,
+  CheckOutcome,
   RunClaim,
   RunHistory,
   RunRecord,
@@ -54,7 +56,74 @@ export function emptyState(localDate: string): PersistedState {
     history: {},
     counters: { localDate, global: 0, perAgent: {} },
     runClaims: {},
+    setup: {},
   };
+}
+
+/**
+ * Reads the setup slice.
+ *
+ * Nothing here is critical: a missing or malformed value only means the user is asked to
+ * run the setup command again, so unreadable parts are dropped rather than quarantined.
+ */
+function validateSetup(value: unknown): PersistedState['setup'] {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const setup: PersistedState['setup'] = {};
+  if (isString(value.consentGrantedAt)) {
+    setup.consentGrantedAt = value.consentGrantedAt;
+  }
+  if (isString(value.modelsFetchedAt)) {
+    setup.modelsFetchedAt = value.modelsFetchedAt;
+  }
+  if (isString(value.firstRunNoticeShownAt)) {
+    setup.firstRunNoticeShownAt = value.firstRunNoticeShownAt;
+  }
+  if (isString(value.lastCheckAt)) {
+    setup.lastCheckAt = value.lastCheckAt;
+  }
+  if (Array.isArray(value.models)) {
+    const models: CachedModel[] = [];
+    for (const candidate of value.models) {
+      if (
+        isRecord(candidate) &&
+        isNonEmptyString(candidate.id) &&
+        isString(candidate.name) &&
+        isString(candidate.vendor) &&
+        isString(candidate.family)
+      ) {
+        models.push({
+          id: candidate.id,
+          name: candidate.name,
+          vendor: candidate.vendor,
+          family: candidate.family,
+        });
+      }
+    }
+    setup.models = models;
+  }
+  if (Array.isArray(value.lastCheckResults)) {
+    const results: CheckOutcome[] = [];
+    for (const candidate of value.lastCheckResults) {
+      if (
+        isRecord(candidate) &&
+        isNonEmptyString(candidate.id) &&
+        isString(candidate.title) &&
+        isOneOf(candidate.status, ['pass', 'warn', 'fail'] as const) &&
+        isString(candidate.message)
+      ) {
+        results.push({
+          id: candidate.id,
+          title: candidate.title,
+          status: candidate.status,
+          message: candidate.message,
+        });
+      }
+    }
+    setup.lastCheckResults = results;
+  }
+  return setup;
 }
 
 function validateClaim(value: unknown): RunClaim | string {
@@ -436,6 +505,7 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
       history,
       counters: isString(counters) ? emptyState(localDate).counters : counters,
       runClaims,
+      setup: validateSetup(migrated.setup),
     },
     quarantine,
   };
