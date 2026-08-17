@@ -15,7 +15,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 - `categories`: `["Other"]`; `keywords`: `["agents", "schedule", "automation", "cron"]`.
 - `icon` and `galleryBanner` are added in phase 11.
 
-### 1.2 Activation
+### 1.2 Activation ✅
 - `activationEvents`: `onStartupFinished` plus the view activation is implicit from the
   contributed view.
 - `activate()` may read state, create the output channel, register commands, create the
