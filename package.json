@@ -353,6 +353,7 @@
     ]
   },
   "scripts": {
+    "make": "npx vsce package --no-dependencies -o rounds-1.0.0.vsix",
     "vscode:prepublish": "npm run package",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
