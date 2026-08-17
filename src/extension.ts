@@ -26,6 +26,8 @@ import { createToolRegistry } from './tools/index.js';
 import { createVscodeFileFinder } from './tools/vscodeFileFinder.js';
 import { SECRET_NAMES } from './state/secrets.js';
 import { registerAgentsView } from './ui/agentsView.js';
+import { registerRunDetails } from './ui/runDetails.js';
+import { refreshView } from './ui/viewState.js';
 import { registerCommands } from './ui/commands.js';
 import { RoundsStatusBar } from './ui/statusBar.js';
 
@@ -184,6 +186,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     models,
     agentsView,
     statusBar,
+    runningAgents: new Set<string>(),
     settings: () => settings,
   };
 
@@ -233,11 +236,22 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
         'rounds.hasAgents',
         change.state.agents.length > 0,
       );
-      agentsView.refresh();
+      if (container) {
+        void refreshView(container);
+      }
     }),
   );
 
+  registerRunDetails(extensionContext, store);
   registerCommands(container);
+
+  // The "next run" text is relative, so it goes stale on its own. One slow timer keeps it honest;
+  // a per-second timer would repaint the view for no reason.
+  const relativeTimeTimer = setInterval(() => {
+    agentsView.refresh();
+  }, 60_000);
+  relativeTimeTimer.unref?.();
+  extensionContext.subscriptions.push({ dispose: () => clearInterval(relativeTimeTimer) });
 
   // Everything below touches the file system, so it happens after activation returns.
   void bootstrap(container);
@@ -253,7 +267,7 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
       state.agents.length > 0,
     );
     services.statusBar.update({ kind: 'idle', agentCount: state.agents.length });
-    services.agentsView.refresh();
+    await refreshView(services);
     // A claim tagged with this window id, or one nobody refreshes any more, is what a
     // crashed window leaves behind. Clearing it keeps the agent runnable.
     await recoverStaleClaims({

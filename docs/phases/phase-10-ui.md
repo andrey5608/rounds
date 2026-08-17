@@ -7,7 +7,7 @@ no JSON editing. Minimal and functional; no custom styling in v1.
 
 ## Steps
 
-### 10.1 Tree data provider (`src/ui/agentsTree.ts`)
+### 10.1 Tree data provider (`src/ui/agentsView.ts`) ✅
 - Root level: agents, sorted by name.
   - `label`: agent name.
   - `description`: human-readable schedule + next run (`Every day at 09:00 · next in 3 h`).
@@ -21,22 +21,28 @@ no JSON editing. Minimal and functional; no custom styling in v1.
 - Chat-mode runs show `$(comment-discussion)` and a tooltip explaining that the output
   was not captured.
 
-### 10.2 Refresh strategy
+### 10.2 Refresh strategy ✅
 - Refresh on: `store.onDidChange`, run start/finish events, configuration change,
   leadership change.
-- A single throttled 60 s timer updates relative "next run" text; never a per-second
-  timer.
+- A single 60 s timer updates the relative "next run" text; never a per-second timer, since the
+  text changes by the minute and a repaint costs more than it is worth.
+- The tree renders from a snapshot built once per refresh (`buildViewData`), so secret lookups and
+  readiness evaluation happen once rather than once per row, and the presentation logic is a pure
+  function of its input.
 - `rounds.refreshView` forces a full refresh and re-evaluates `needsSetup` from cache
   (it does not trigger consent or network pings).
 
-### 10.3 Item activation
+### 10.3 Item activation ✅
 - Clicking a run with a result file opens that file in the editor.
 - Clicking a `handedOff` or file-less run opens a read-only detail view built as a
   Markdown virtual document (`TextDocumentContentProvider`, scheme `rounds`), showing the
   record fields and the error.
+- Both go through the editor's built-in `vscode.open` command with the right URI. Giving the item
+  its own `rounds.*` command would have meant inventing an identifier the specification does not
+  list, and the v1 command list has none for opening a result.
 - Clicking an agent expands it; the wizard is reached through `Edit Agent`.
 
-### 10.4 Welcome view and empty states
+### 10.4 Welcome view and empty states ✅
 - No agents → welcome view from phase 1 (`Create Agent`, `Check Setup`).
 - Agents exist but none has runs → a child node `No runs yet` with a `Run Now` hint.
 

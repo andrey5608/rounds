@@ -49,6 +49,8 @@ export interface ServiceContainer {
   readonly ticker: Ticker;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
+  /** Agents this window is currently running, so the tree can show it. */
+  readonly runningAgents: Set<string>;
   /** Current settings, re-read whenever the configuration changes. */
   settings(): RoundsSettings;
 }

@@ -4,6 +4,7 @@ import type { ServiceContainer } from '../container.js';
 import { checkSetupCommand } from '../setup/checkSetupCommand.js';
 
 import { runNowCommand } from './runNowCommand.js';
+import { refreshView } from './viewState.js';
 
 /**
  * Every command this extension contributes.
@@ -59,8 +60,10 @@ function implemented(
       container.output.show();
     },
     'rounds.refreshView': () => {
-      container.agentsView.refresh();
-      void container.store.refreshFromExternalChange();
+      void runAndReport(container, 'rounds.refreshView', async () => {
+        await container.store.refreshFromExternalChange();
+        await refreshView(container);
+      });
     },
   };
 }

@@ -297,7 +297,7 @@
       {
         "view": "rounds.agentsView",
         "when": "!rounds.hasAgents",
-        "contents": "No agents yet. An agent visits a source on a schedule, runs your prompt through a language model and stores the result.\n[Create Agent](command:rounds.createAgent)\n[Check Setup](command:rounds.checkSetup)"
+        "contents": "No agents yet. An agent visits a source on a schedule, runs your prompt through a language model and stores the result.\nAgents run only while this editor is open.\n[Create Agent](command:rounds.createAgent)\n[Check Setup](command:rounds.checkSetup)"
       }
     ]
   },

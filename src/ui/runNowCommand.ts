@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import type { ServiceContainer } from '../container.js';
 import type { Agent, RunRecord } from '../state/types.js';
 
+import { refreshView } from './viewState.js';
+
 /** Asks which agent to run when the command was invoked without one. */
 export async function pickAgent(
   container: ServiceContainer,
@@ -55,6 +57,8 @@ export async function runNowCommand(
   }
 
   container.statusBar.update({ kind: 'running', agentName: agent.name });
+  container.runningAgents.add(agent.id);
+  await refreshView(container);
   let record: RunRecord;
   try {
     record = await vscode.window.withProgress(
@@ -62,9 +66,10 @@ export async function runNowCommand(
       () => container.runner.run({ agent, trigger: 'manual' }),
     );
   } finally {
+    container.runningAgents.delete(agent.id);
     const state = await container.store.read();
     container.statusBar.update({ kind: 'idle', agentCount: state.agents.length });
-    container.agentsView.refresh();
+    await refreshView(container);
   }
 
   await report(container, agent, record);
