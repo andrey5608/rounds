@@ -60,6 +60,11 @@ Kept here because the next person deserves to know it was wrong once:
   had no provider to raise its consent dialog for and silently returned nothing. It now waits for the
   model-change event, and falls back to naming the vendor when a bare request comes back empty. See
   [phase 4](./phases/phase-04-setup-consent.md).
+- **Diagnosing that took three rounds of guessing, because the evidence was not being kept.** There is
+  now an always-on extended log at `logs/rounds-<date>.log` in the extension's storage folder, holding
+  every line regardless of `rounds.logLevel`, plus an environment header: editor and extension version,
+  whether the language model API is present, and which installed extensions look like providers and
+  whether they activated. See [phase 2](./phases/phase-02-state.md).
 
 ## 5. Worth adding, not required
 

@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { PromptSnapshotSync } from './agents/promptSnapshots.js';
@@ -11,6 +13,8 @@ import { recoverStaleClaims } from './scheduler/recovery.js';
 import { Ticker } from './scheduler/ticker.js';
 import { RunClaims } from './scheduler/runClaims.js';
 import { VscodeLanguageModelGateway } from './model/vscodeGateway.js';
+import { logEnvironment } from './setup/diagnostics.js';
+import { FileLogSink } from './state/fileSink.js';
 import { showFirstRunNotice } from './setup/firstRunNotice.js';
 import { ModelCatalog } from './setup/modelCatalog.js';
 import { CountersService } from './state/counters.js';
@@ -50,8 +54,14 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
 
   const output = createOutputChannelSink();
   const secrets = new RoundsSecrets(extensionContext.secrets);
+  // Always-on file log next to the state, so a report can be attached rather than reproduced.
+  const fileLog = new FileLogSink({
+    directory: join(extensionContext.globalStorageUri.fsPath, 'logs'),
+    onError: (error) => output.append(`[log] could not write the extended log: ${String(error)}`),
+  });
   const logger = new Logger({
     sink: output,
+    verboseSink: fileLog,
     getLevel: () => settings.logLevel,
     getRedactions: () => secrets.knownValues(),
   });
@@ -91,11 +101,8 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   const runClaims = new RunClaims({ store, windowId: leadership.windowId, logger });
 
   const tools = createToolRegistry();
-  const models = new ModelCatalog({
-    gateway: new VscodeLanguageModelGateway(),
-    store,
-    logger,
-  });
+  const gateway = new VscodeLanguageModelGateway((message) => logger.info(message));
+  const models = new ModelCatalog({ gateway, store, logger });
   const history = new HistoryService(store, () => settings.executionHistoryLimit);
   const counters = new CountersService({
     store,
@@ -109,7 +116,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     counters,
     claims: runClaims,
     models,
-    gateway: new VscodeLanguageModelGateway(),
+    gateway,
     registry: tools,
     // The endpoints live in the state and can change between runs, so the factory is built per
     // run rather than captured once.
@@ -212,6 +219,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     agentsView,
     statusBar,
     runningAgents: new Set<string>(),
+    logPath: fileLog.path,
     settings: () => settings,
   };
 
@@ -246,7 +254,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     }),
     // The editor documents that the model list may change and should be re-queried. Doing so is only
     // safe once consent is on record, which the catalog checks for itself.
-    new VscodeLanguageModelGateway().onDidChangeModels(() => {
+    gateway.onDidChangeModels(() => {
       void models.refreshAfterProviderChange().then((refreshed) => {
         if (refreshed && container) {
           logger.info(`The provider now reports ${refreshed.length} model(s).`);
@@ -318,6 +326,7 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
     services.logger.info(
       `Rounds is ready with ${state.agents.length} agent(s) at state revision ${state.revision}.`,
     );
+    logEnvironment(services.logger, services.extensionContext, services.logPath);
     // Last, so a first-time notification never delays anything functional.
     await showFirstRunNotice(services.store);
   } catch (error) {

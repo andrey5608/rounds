@@ -140,11 +140,17 @@ async function grantModelAccess(container: ServiceContainer): Promise<void> {
     );
     if (models.length === 0) {
       const choice = await vscode.window.showWarningMessage(
-        'The editor reported no language models. If a provider such as GitHub Copilot has only just started, wait a moment and try again; otherwise check that it is installed, signed in and enabled for this workspace.',
+        'The editor reported no language models. Chat models come from a provider such as GitHub Copilot Chat, which must be installed, signed in and enabled here — the completions extension alone provides none. If it has only just started, wait a moment and try again.',
         'Try Again',
+        'Show Output',
+        'Open Log File',
       );
       if (choice === 'Try Again') {
         await grantModelAccess(container);
+      } else if (choice === 'Show Output') {
+        container.output.show();
+      } else if (choice === 'Open Log File') {
+        await vscode.window.showTextDocument(vscode.Uri.file(container.logPath));
       }
       return;
     }

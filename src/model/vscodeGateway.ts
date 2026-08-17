@@ -31,15 +31,32 @@ const CONSENT_VENDORS = ['copilot'];
  * scripts/check-consent-gate.mjs on purpose.
  */
 export class VscodeLanguageModelGateway implements LanguageModelGateway {
+  /** Optional, so tests and callers that do not care are unaffected. */
+  constructor(private readonly log?: (message: string) => void) {}
+
   async selectModels(): Promise<ModelInfo[]> {
     let models = await this.resolveAll();
+    this.log?.(`A request with no selector returned ${models.length} model(s).`);
+
     if (models.length === 0) {
       for (const vendor of CONSENT_VENDORS) {
-        models = await vscode.lm.selectChatModels({ vendor });
+        try {
+          models = await vscode.lm.selectChatModels({ vendor });
+          this.log?.(`A request for vendor "${vendor}" returned ${models.length} model(s).`);
+        } catch (error) {
+          // A provider that refuses is information, not a reason to stop asking the others.
+          this.log?.(`A request for vendor "${vendor}" failed: ${String(error)}`);
+          continue;
+        }
         if (models.length > 0) {
           break;
         }
       }
+    }
+    if (models.length > 0) {
+      this.log?.(
+        `Models available: ${models.map((model) => `${model.id} (${model.vendor}/${model.family})`).join(', ')}.`,
+      );
     }
     return models.map((model) => ({
       id: model.id,

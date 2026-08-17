@@ -49,6 +49,8 @@ export interface ServiceContainer {
   readonly ticker: Ticker;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
+  /** Where the always-on extended log is written. Shown to the user when something goes wrong. */
+  readonly logPath: string;
   /** Agents this window is currently running, so the tree can show it. */
   readonly runningAgents: Set<string>;
   /** Current settings, re-read whenever the configuration changes. */

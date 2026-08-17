@@ -185,7 +185,7 @@ Deleting an agent never deletes files it already wrote.
 | "The prompt file … could not be read" | The file moved or was deleted. Restore it, point the agent at the new path, or choose a different `rounds.promptFileFallback`. |
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |
 | `runScript` refuses everything | `rounds.scriptWhitelist` is empty. Add the commands you want to allow, with their arguments. |
-| Something else | Open **Rounds: Show Output**, set `rounds.logLevel` to `debug`, and reproduce it. |
+| Something else | Open **Rounds: Show Output**. Every line, including the ones `rounds.logLevel` hides, is also written to `logs/rounds-<date>.log` inside the extension's storage folder — the output channel prints the full path at startup. Attach that file to a report: it is redacted before anything is written. |
 
 ## Known limitations in v1
 
