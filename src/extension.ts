@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 
 import { PromptSnapshotSync } from './agents/promptSnapshots.js';
+import { AgentRunner } from './agents/runner.js';
+import { ConnectorFactory } from './connectors/factory.js';
+import { handOffToChat } from './model/chatHandoff.js';
 import type { ServiceContainer } from './container.js';
 import { LeaderLock } from './scheduler/leaderLock.js';
 import { Leadership } from './scheduler/leadership.js';
@@ -19,6 +22,8 @@ import { readSettings } from './state/settings.js';
 import type { RoundsSettings } from './state/settings.js';
 import { RoundsStore } from './state/store.js';
 import { createToolRegistry } from './tools/index.js';
+import { createVscodeFileFinder } from './tools/vscodeFileFinder.js';
+import { SECRET_NAMES } from './state/secrets.js';
 import { registerAgentsView } from './ui/agentsView.js';
 import { registerCommands } from './ui/commands.js';
 import { RoundsStatusBar } from './ui/statusBar.js';
@@ -82,6 +87,58 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   });
   const runClaims = new RunClaims({ store, windowId: leadership.windowId, logger });
 
+  const tools = createToolRegistry();
+  const models = new ModelCatalog({
+    gateway: new VscodeLanguageModelGateway(),
+    store,
+    logger,
+  });
+  const history = new HistoryService(store, () => settings.executionHistoryLimit);
+  const counters = new CountersService({
+    store,
+    getGlobalLimit: () => settings.maxExecutionsPerDay,
+    getTimeZone: () => settings.timezone,
+  });
+
+  const runner = new AgentRunner({
+    store,
+    history,
+    counters,
+    claims: runClaims,
+    models,
+    gateway: new VscodeLanguageModelGateway(),
+    registry: tools,
+    // The endpoints live in the state and can change between runs, so the factory is built per
+    // run rather than captured once.
+    connectors: {
+      forSource: async (source) => {
+        const current = await store.read();
+        const factory = new ConnectorFactory({
+          secrets,
+          endpoints: current.endpoints,
+          logger,
+        });
+        return factory.forSource(source);
+      },
+    },
+    handOffToChat,
+    settings: () => settings,
+    globalStorage: extensionContext.globalStorageUri.fsPath,
+    workspaceFolders: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+    workspaceName: vscode.workspace.workspaceFolders?.[0]?.name,
+    findFiles: createVscodeFileFinder(),
+    logger,
+    secretNames: async () => {
+      const stored: typeof SECRET_NAMES = [];
+      for (const name of SECRET_NAMES) {
+        if (await secrets.has(name)) {
+          stored.push(name);
+        }
+      }
+      return stored;
+    },
+  });
+
   container = {
     extensionContext,
     output,
@@ -90,22 +147,15 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     stateBackend,
     stateWatcher,
     secrets,
-    history: new HistoryService(store, () => settings.executionHistoryLimit),
-    counters: new CountersService({
-      store,
-      getGlobalLimit: () => settings.maxExecutionsPerDay,
-      getTimeZone: () => settings.timezone,
-    }),
+    history,
+    counters,
     leaderLock,
     leadership,
     runClaims,
     promptSnapshots,
-    tools: createToolRegistry(),
-    models: new ModelCatalog({
-      gateway: new VscodeLanguageModelGateway(),
-      store,
-      logger,
-    }),
+    tools,
+    runner,
+    models,
     agentsView,
     statusBar,
     settings: () => settings,

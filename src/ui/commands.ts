@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import type { ServiceContainer } from '../container.js';
 import { checkSetupCommand } from '../setup/checkSetupCommand.js';
 
+import { runNowCommand } from './runNowCommand.js';
+
 /**
  * Every command this extension contributes.
  *
@@ -41,8 +43,15 @@ function notImplemented(commandId: CommandId): void {
  * The rest keep their stub until the phase that owns them: setup in phase 4, run now in
  * phase 8, agent management in phase 10.
  */
-function implemented(container: ServiceContainer): Partial<Record<CommandId, () => void>> {
+function implemented(
+  container: ServiceContainer,
+): Partial<Record<CommandId, (argument?: unknown) => void>> {
   return {
+    'rounds.runNow': (argument) => {
+      void runAndReport(container, 'rounds.runNow', () =>
+        runNowCommand(container, argument as Parameters<typeof runNowCommand>[1]),
+      );
+    },
     'rounds.checkSetup': () => {
       void runAndReport(container, 'rounds.checkSetup', () => checkSetupCommand(container));
     },
