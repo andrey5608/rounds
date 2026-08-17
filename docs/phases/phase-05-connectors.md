@@ -79,17 +79,27 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
   entry) so multiple agents can share one endpoint definition; tokens always come from
   `context.secrets`.
 
-### 5.7 Tests
+### 5.7 Tests ✅
 - Unit with recorded fixtures for: cloud and self-hosted Jira search payloads, PR list
   and diff payloads, `401`, `429` with `Retry-After`, `5xx` retry then success, malformed
   JSON, redirect to a foreign host (must be rejected).
-- No test performs a real network call; CI blocks outbound requests in the test runner.
+- No test performs a real network call, and that is enforced rather than trusted: the unit
+  test runner replaces the global `fetch` with a stub that throws, so a test which forgets to
+  inject one fails instead of quietly talking to a live host. Verified with a test that calls
+  `fetch` on purpose.
 
 ## Exit criteria
 
-- [ ] `ping()` for both connectors is used by `rounds.checkSetup` and reports a typed
-      error the user can act on.
-- [ ] A JQL search returns normalized `SourceItem[]` with `truncated` handling.
-- [ ] PR listing respects the cursor and only advances it after a successful run.
-- [ ] Any request to a host other than the configured one fails closed.
-- [ ] Tokens never appear in logs, errors or result files.
+- [x] `ping()` for both connectors is wired into `rounds.checkSetup` through the factory,
+      and reports a typed error the user can act on. A failed ping becomes a message, never
+      an exception that would take the rest of the checks down.
+- [x] A search returns normalized `SourceItem[]`, newest first, with `truncated` set when the
+      tracker holds more than was asked for.
+- [x] Pull request listing respects the cursor and **returns** the next one instead of storing
+      it, so only a successful run can advance it. The store side lands with the runner in
+      phase 8.
+- [x] Any request to a host other than the configured one fails closed, redirects included,
+      because they are refused rather than followed.
+- [x] Tokens never appear in logs, errors or result files: the factory is the only code that
+      reads them, log lines pass through the redacting logger, and a test asserts a token
+      value cannot reach a ping error message.

@@ -1,0 +1,4 @@
+{
+  "require": ["out/test/support/noNetwork.js"],
+  "spec": ["out/**/*.unit.test.js"]
+}
