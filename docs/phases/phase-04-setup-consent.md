@@ -29,7 +29,7 @@ action.
 - `hasConsent()` → derived from whether a previous successful `list` happened; persisted
   as `consentGrantedAt`.
 
-### 4.3 Language model error mapping (`src/model/errors.ts`)
+### 4.3 Language model error mapping (`src/model/errors.ts`) ✅
 Map `LanguageModelError` and provider errors to typed, actionable results:
 
 | Condition | Code | User-facing action |
