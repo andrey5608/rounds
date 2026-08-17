@@ -101,7 +101,10 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   const runClaims = new RunClaims({ store, windowId: leadership.windowId, logger });
 
   const tools = createToolRegistry();
-  const gateway = new VscodeLanguageModelGateway((message) => logger.info(message));
+  const gateway = new VscodeLanguageModelGateway(
+    (message) => logger.info(message),
+    (message) => logger.debug(message),
+  );
   const models = new ModelCatalog({ gateway, store, logger });
   const history = new HistoryService(store, () => settings.executionHistoryLimit);
   const counters = new CountersService({

@@ -3,6 +3,8 @@ import type { StoreLogger } from '../state/store.js';
 import type { ToolCallRecord } from '../state/types.js';
 import type { ToolContext, ToolRegistry } from '../tools/registry.js';
 
+import { dump } from '../state/dump.js';
+
 import type { LanguageModelGateway, ModelMessage } from './gateway.js';
 
 /** How many times the model may ask for tools before the run is stopped. */
@@ -97,6 +99,7 @@ export async function runAgenticLoop(options: AgenticLoopOptions): Promise<Agent
     options.logger.info(
       `Round ${iteration} answered in ${Date.now() - started}ms: ${turn.text.length} character(s) of text, ${turn.toolCalls.length} tool call(s).`,
     );
+    options.logger.debug(`Round ${iteration} turn:\n${dump(turn)}`);
 
     if (turn.toolCalls.length === 0) {
       if (turn.text.trim().length === 0) {

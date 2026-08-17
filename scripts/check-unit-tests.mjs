@@ -31,7 +31,11 @@ function importsOf(source) {
 }
 
 async function resolveRelative(specifier, fromFile) {
-  const base = resolve(dirname(fromFile), specifier);
+  // Imports in this code base carry a .js extension, as Node16 module resolution wants. Resolving
+  // "./x.js" as "x.js.ts" finds nothing, which made this guard silently skip every relative import
+  // and report success while a unit test pulled in the editor API three files down.
+  const withoutJs = specifier.replace(/\.js$/, '');
+  const base = resolve(dirname(fromFile), withoutJs);
   for (const candidate of [`${base}.ts`, join(base, 'index.ts')]) {
     try {
       await readFile(candidate, 'utf8');
