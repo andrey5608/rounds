@@ -16,13 +16,16 @@ an explicit fallback policy, validated placeholders, and size limits.
   the first workspace folder), update the snapshot when the content hash changed, and
   record which path was taken.
 
-### 6.2 Snapshot lifecycle
+### 6.2 Snapshot lifecycle ✅
 - Snapshot fields: `content`, `hash` (sha256), `capturedAt`.
 - Re-sync on: extension activation, file change events, agent edit, and every successful
   file read during a run.
 - Snapshot updates go through the revisioned store like any other agent mutation.
-- A `FileSystemWatcher` is created only for prompt files inside the workspace; files
-  outside the workspace are re-read on each run and on activation.
+- A `FileSystemWatcher` covers the workspace and the sync only reacts when the changed path
+  is actually some agent's prompt file; files outside the workspace are re-read on each run
+  and on activation anyway.
+- All refreshed snapshots are written in **one** state update rather than one per agent, so a
+  window with a dozen file-based agents does not produce a dozen revisions on startup.
 
 ### 6.3 Fallback policy (`rounds.promptFileFallback`, per-agent override) ✅
 

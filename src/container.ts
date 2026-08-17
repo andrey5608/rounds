@@ -1,5 +1,6 @@
 import type * as vscode from 'vscode';
 
+import type { PromptSnapshotSync } from './agents/promptSnapshots.js';
 import type { LeaderLock } from './scheduler/leaderLock.js';
 import type { Leadership } from './scheduler/leadership.js';
 import type { RunClaims } from './scheduler/runClaims.js';
@@ -39,6 +40,7 @@ export interface ServiceContainer {
   readonly leadership: Leadership;
   readonly runClaims: RunClaims;
   readonly models: ModelCatalog;
+  readonly promptSnapshots: PromptSnapshotSync;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
   /** Current settings, re-read whenever the configuration changes. */

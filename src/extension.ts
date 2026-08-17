@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { PromptSnapshotSync } from './agents/promptSnapshots.js';
 import type { ServiceContainer } from './container.js';
 import { LeaderLock } from './scheduler/leaderLock.js';
 import { Leadership } from './scheduler/leadership.js';
@@ -73,6 +74,11 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     logger,
   });
   const leadership = new Leadership({ lock: leaderLock, logger });
+  const promptSnapshots = new PromptSnapshotSync({
+    store,
+    logger,
+    getFallback: () => settings.promptFileFallback,
+  });
   const runClaims = new RunClaims({ store, windowId: leadership.windowId, logger });
 
   container = {
@@ -92,6 +98,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     leaderLock,
     leadership,
     runClaims,
+    promptSnapshots,
     models: new ModelCatalog({
       gateway: new VscodeLanguageModelGateway(),
       store,
@@ -110,6 +117,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     stateWatcher,
     leadership,
     runClaims,
+    promptSnapshots,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('rounds')) {
         settings = readSettings(vscode.workspace.getConfiguration());
@@ -157,6 +165,9 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
     });
     await services.stateWatcher.start();
     services.leadership.start();
+    // Prompt files may have changed while this window was closed.
+    services.promptSnapshots.start(services.extensionContext);
+    await services.promptSnapshots.syncAll();
     services.logger.info(
       `Rounds is ready with ${state.agents.length} agent(s) at state revision ${state.revision}.`,
     );
