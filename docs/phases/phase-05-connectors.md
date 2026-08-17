@@ -28,7 +28,7 @@ Implemented before the client, which depends on them.
   `ConfigError` (bad base URL, missing repo, invalid JQL, unexpected payload shape).
 - Each carries `code`, English `message`, and optional `fixCommand`.
 
-### 5.3 Normalized item model (`src/connectors/items.ts`)
+### 5.3 Normalized item model (`src/connectors/items.ts`) ✅
 ```ts
 interface SourceItem {
   id: string;            // issue key or PR number
