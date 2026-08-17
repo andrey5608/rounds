@@ -257,7 +257,14 @@ export function validateRunRecord(value: unknown): RunRecord | string {
   if (!isString(value.startedAt)) {
     return 'run.startedAt must be a string';
   }
-  const statuses = ['succeeded', 'failed', 'skipped', 'handedOff', 'interrupted'] as const;
+  const statuses = [
+    'running',
+    'succeeded',
+    'failed',
+    'skipped',
+    'handedOff',
+    'interrupted',
+  ] as const;
   if (!isOneOf(value.status, statuses)) {
     return `run.status must be one of ${statuses.join(', ')}`;
   }

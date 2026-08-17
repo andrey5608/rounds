@@ -45,7 +45,7 @@ and a manual run works from any window without ever double-running an agent.
 - Adding `runClaims` to the envelope needs no migration: a missing field normalizes to an
   empty object, which is exactly the correct starting value.
 
-### 3.5 Crash and stale-state recovery
+### 3.5 Crash and stale-state recovery ✅
 - On activation, scan `runClaims` for entries owned by this `windowId` (impossible after
   a restart → leftovers from a crash) or with a dead heartbeat, and clear them, recording
   an `interrupted` run in history when a matching in-flight run record exists.

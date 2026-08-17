@@ -2,6 +2,7 @@ import type * as vscode from 'vscode';
 
 import type { LeaderLock } from './scheduler/leaderLock.js';
 import type { Leadership } from './scheduler/leadership.js';
+import type { RunClaims } from './scheduler/runClaims.js';
 import type { CountersService } from './state/counters.js';
 import type { FileStateBackend, StateFileWatcher } from './state/fileStore.js';
 import type { HistoryService } from './state/history.js';
@@ -35,6 +36,7 @@ export interface ServiceContainer {
   readonly counters: CountersService;
   readonly leaderLock: LeaderLock;
   readonly leadership: Leadership;
+  readonly runClaims: RunClaims;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
   /** Current settings, re-read whenever the configuration changes. */

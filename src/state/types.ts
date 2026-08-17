@@ -15,8 +15,19 @@ export type MissedRunPolicy = 'skip' | 'runOnce';
 /** What an agent does when its prompt file cannot be read at run time. */
 export type PromptFileFallback = 'snapshot' | 'blockWhenResolvable' | 'blockAlways';
 
-/** Outcome of a single run. */
-export type RunStatus = 'succeeded' | 'failed' | 'skipped' | 'handedOff' | 'interrupted';
+/**
+ * Outcome of a single run.
+ *
+ * `running` is written when a run starts and replaced when it finishes; a `running` record
+ * whose claim is dead means the window disappeared mid-run and becomes `interrupted`.
+ */
+export type RunStatus =
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped'
+  | 'handedOff'
+  | 'interrupted';
 
 /** What caused a run to start. */
 export type RunTrigger = 'schedule' | 'manual' | 'startup' | 'missedRun';

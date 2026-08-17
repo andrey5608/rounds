@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import type { ServiceContainer } from './container.js';
 import { LeaderLock } from './scheduler/leaderLock.js';
 import { Leadership } from './scheduler/leadership.js';
+import { recoverStaleClaims } from './scheduler/recovery.js';
+import { RunClaims } from './scheduler/runClaims.js';
 import { CountersService } from './state/counters.js';
 import { FileStateBackend, StateFileWatcher } from './state/fileStore.js';
 import { HistoryService } from './state/history.js';
@@ -68,6 +70,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     logger,
   });
   const leadership = new Leadership({ lock: leaderLock, logger });
+  const runClaims = new RunClaims({ store, windowId: leadership.windowId, logger });
 
   container = {
     extensionContext,
@@ -85,6 +88,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     }),
     leaderLock,
     leadership,
+    runClaims,
     agentsView,
     statusBar,
     settings: () => settings,
@@ -97,6 +101,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     statusBar,
     stateWatcher,
     leadership,
+    runClaims,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('rounds')) {
         settings = readSettings(vscode.workspace.getConfiguration());
@@ -135,6 +140,13 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
     );
     services.statusBar.update({ kind: 'idle', agentCount: state.agents.length });
     services.agentsView.refresh();
+    // A claim tagged with this window id, or one nobody refreshes any more, is what a
+    // crashed window leaves behind. Clearing it keeps the agent runnable.
+    await recoverStaleClaims({
+      store: services.store,
+      windowId: services.leadership.windowId,
+      logger: services.logger,
+    });
     await services.stateWatcher.start();
     services.leadership.start();
     services.logger.info(
