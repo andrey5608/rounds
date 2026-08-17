@@ -40,7 +40,7 @@ Map `LanguageModelError` and provider errors to typed, actionable results:
 | Request blocked | `model.blocked` | Show the provider message verbatim |
 | Anything else | `model.unknown` | Include the original message, point at the output channel |
 
-### 4.4 Setup checks registry (`src/setup/checks.ts`)
+### 4.4 Setup checks registry (`src/setup/checks.ts`) ✅
 Each check is an object `{ id, title, run(): Promise<CheckResult>, fix?: Command }`,
 where `CheckResult` is `pass | warn | fail` plus an English message.
 
@@ -54,8 +54,18 @@ where `CheckResult` is `pass | warn | fail` plus an English message.
 6. `rateLimits` — `jitterSeconds` in range, `maxExecutionsPerDay` sane, and no enabled
    agent has a cron firing more often than `rounds.minimumIntervalWarning`; `warn`.
 
-Ordering is fixed; checks 2 and 3 are skipped with a `warn` when no agent uses that
-source yet.
+Ordering is fixed; checks 2 and 3 `warn` when no base URL is configured and nobody uses
+that source, and `fail` when an agent does use it. Reachability can only be verified once
+the connectors exist (phase 5): until a `pingEndpoint` function is supplied the check
+reports `warn` — "configured, not verified" — rather than claiming a pass it did not earn.
+
+Base URLs need somewhere to live, and the settings keys are fixed by `plan.md`, so an
+`endpoints` map was added to the state: name, kind, base URL and auth scheme. Tokens stay in
+secret storage, one per source kind, which is the pair of keys `plan.md` defines; endpoints
+of the same kind therefore share a token.
+
+The whole registry takes its dependencies as plain data and small functions, so every
+combination of missing prerequisites is just another context object in a unit test.
 
 ### 4.5 `rounds.checkSetup` command (`src/setup/checkSetupCommand.ts`)
 - Runs all checks with progress notification, then shows a QuickPick listing each check

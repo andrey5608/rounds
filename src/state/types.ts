@@ -176,6 +176,25 @@ export interface RunClaim {
   heartbeatAt: string;
 }
 
+/** How an endpoint authenticates. Cloud trackers usually want basic, self-hosted bearer. */
+export type AuthScheme = 'basic' | 'bearer';
+
+/**
+ * A configured base URL an agent can point at.
+ *
+ * Agents reference an endpoint by name so several agents can share one host without
+ * repeating its URL. The token itself never lives here: it stays in secret storage, one per
+ * source kind, which is the pair of keys plan.md defines.
+ */
+export interface EndpointConfig {
+  name: string;
+  kind: SourceKind;
+  baseUrl: string;
+  authScheme: AuthScheme;
+  /** Needed by basic authentication, where the token is the password. */
+  username?: string;
+}
+
 /** A model as the editor reported it. Ids and labels only; no credentials involved. */
 export interface CachedModel {
   id: string;
@@ -223,4 +242,6 @@ export interface PersistedState {
   /** Keyed by agent id. Absent means no window is running that agent. */
   runClaims: Record<string, RunClaim>;
   setup: SetupState;
+  /** Configured base URLs, keyed by the name agents reference. */
+  endpoints: Record<string, EndpointConfig>;
 }

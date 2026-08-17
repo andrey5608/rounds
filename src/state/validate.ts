@@ -1,5 +1,6 @@
 import type {
   Agent,
+  EndpointConfig,
   AgentSchedule,
   AgentSource,
   DailyCounters,
@@ -17,7 +18,7 @@ export const CURRENT_SCHEMA_VERSION = 1;
 
 /** An entry that could not be understood, kept aside instead of being dropped silently. */
 export interface QuarantineEntry {
-  kind: 'envelope' | 'agent' | 'run' | 'counters' | 'claim';
+  kind: 'envelope' | 'agent' | 'run' | 'counters' | 'claim' | 'endpoint';
   reason: string;
   value: unknown;
 }
@@ -57,7 +58,35 @@ export function emptyState(localDate: string): PersistedState {
     counters: { localDate, global: 0, perAgent: {} },
     runClaims: {},
     setup: {},
+    endpoints: {},
   };
+}
+
+function validateEndpoint(value: unknown): EndpointConfig | string {
+  if (!isRecord(value)) {
+    return 'endpoint is not an object';
+  }
+  if (!isNonEmptyString(value.name)) {
+    return 'endpoint.name must be a non-empty string';
+  }
+  if (!isOneOf(value.kind, ['jira', 'git'] as const)) {
+    return 'endpoint.kind must be jira or git';
+  }
+  if (!isNonEmptyString(value.baseUrl)) {
+    return 'endpoint.baseUrl must be a non-empty string';
+  }
+  const endpoint: EndpointConfig = {
+    name: value.name,
+    kind: value.kind,
+    baseUrl: value.baseUrl,
+    authScheme: isOneOf(value.authScheme, ['basic', 'bearer'] as const)
+      ? value.authScheme
+      : 'bearer',
+  };
+  if (isString(value.username)) {
+    endpoint.username = value.username;
+  }
+  return endpoint;
 }
 
 /**
@@ -490,6 +519,18 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
     }
   }
 
+  const endpoints: Record<string, EndpointConfig> = {};
+  if (isRecord(migrated.endpoints)) {
+    for (const [name, candidate] of Object.entries(migrated.endpoints)) {
+      const endpoint = validateEndpoint(candidate);
+      if (isString(endpoint)) {
+        quarantine.push({ kind: 'endpoint', reason: endpoint, value: candidate });
+      } else {
+        endpoints[name] = endpoint;
+      }
+    }
+  }
+
   const counters = validateCounters(migrated.counters, localDate);
   if (isString(counters)) {
     if (migrated.counters !== undefined) {
@@ -506,6 +547,7 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
       counters: isString(counters) ? emptyState(localDate).counters : counters,
       runClaims,
       setup: validateSetup(migrated.setup),
+      endpoints,
     },
     quarantine,
   };

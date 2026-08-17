@@ -50,6 +50,7 @@ function sampleState(revision: number): PersistedState {
     counters: { localDate: '2026-08-17', global: revision, perAgent: {} },
     runClaims: {},
     setup: {},
+    endpoints: {},
   };
 }
 
