@@ -59,7 +59,7 @@ A failure records a `skipped` or `failed` run with the specific reason — never
   review. The UI must state this limitation wherever chat-mode runs are shown.
 - Chat mode still counts against the daily cap and still respects jitter and windows.
 
-### 8.6 Result writer (`src/agents/resultWriter.ts`)
+### 8.6 Result writer (`src/agents/resultWriter.ts`) ✅
 - Path: `<outputFolder>/<agent-name-slug>-<YYYYMMDD-HHmmss>.md`, timestamp in the
   effective timezone; slug is lowercase ASCII, non-alphanumerics collapsed to `-`,
   trimmed to 60 characters; on collision append `-2`, `-3`, …
