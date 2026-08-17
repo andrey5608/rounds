@@ -67,8 +67,6 @@ export async function runNowCommand(
     );
   } finally {
     container.runningAgents.delete(agent.id);
-    const state = await container.store.read();
-    container.statusBar.update({ kind: 'idle', agentCount: state.agents.length });
     await refreshView(container);
   }
 

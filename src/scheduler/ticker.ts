@@ -35,6 +35,10 @@ export interface TickerDependencies {
   onCapReached?: (message: string) => void;
   /** Called when an agent's schedule fires more often than the warning threshold. */
   onFrequencyWarning?: (agent: Agent, intervalMinutes: number) => void;
+  /** Called when a scheduled run failed. Deduplicated by the caller. */
+  onRunFailed?: (agent: Agent, record: RunRecord) => void;
+  /** Called after every run so the view can refresh. */
+  onRunFinished?: (agent: Agent, record: RunRecord) => void;
 }
 
 async function defaultSleep(ms: number, isCancelled: () => boolean): Promise<void> {
@@ -260,6 +264,10 @@ export class Ticker {
       });
 
       await this.reportCap(record, agent, settings);
+      if (record.status === 'failed') {
+        this.dependencies.onRunFailed?.(agent, record);
+      }
+      this.dependencies.onRunFinished?.(agent, record);
       const now = this.clock.now();
       const next = computeNextRun(agent, now, settings.timezone);
       if (next) {

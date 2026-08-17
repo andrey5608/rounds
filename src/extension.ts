@@ -142,11 +142,36 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     },
   });
 
+  // Failures are reported once per agent per day: an agent that fails every half hour would
+  // otherwise turn the editor into a notification stream nobody reads.
+  const failureNotified = new Map<string, string>();
+
   const ticker = new Ticker({
     store,
     runner,
     settings: () => settings,
     logger,
+    onRunFinished: () => {
+      if (container) {
+        void refreshView(container);
+      }
+    },
+    onRunFailed: (agent, record) => {
+      const today = new Date().toISOString().slice(0, 10);
+      if (failureNotified.get(agent.id) === today) {
+        return;
+      }
+      failureNotified.set(agent.id, today);
+      void vscode.window
+        .showErrorMessage(`${agent.name}: ${record.summary}`, 'Show Output', 'Show Run History')
+        .then((choice) => {
+          if (choice === 'Show Output') {
+            output.show();
+          } else if (choice === 'Show Run History') {
+            void vscode.commands.executeCommand('rounds.showHistory', agent);
+          }
+        });
+    },
     onCapReached: (message) => {
       void vscode.window
         .showWarningMessage(message, 'Open Settings')
