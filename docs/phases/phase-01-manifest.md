@@ -97,12 +97,18 @@ Title `Rounds`, all keys under the `rounds.` prefix:
   `Not implemented yet` — replaced phase by phase.
 - `deactivate()` disposes everything: subscriptions, timers, lock, output channel.
 
-### 1.8 Contribution guard test
+### 1.8 Contribution guard test ✅
 - Integration test asserting: every command id in `package.json` is registered at
   runtime, every registered `rounds.*` command is declared in `package.json`, and the
   declared setting keys match the constant list in `src/state/settings.ts`.
 - Unit test asserting no forbidden trademark string appears in `displayName`, command
   titles, view titles or setting keys.
+- The editor generates its own commands for a contributed view (`rounds.agentsView.open`
+  and friends). They live in our namespace but are not ours to declare, so the guard
+  filters commands prefixed with a contributed **view id** — not with the view container
+  id, which is plain `rounds` and would swallow everything.
+- `compile:tests` now wipes `out/` first. Compiling on top of stale output kept running
+  tests whose sources had been deleted, which made a green run meaningless.
 
 ## Exit criteria
 
