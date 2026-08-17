@@ -75,7 +75,7 @@ interface Agent {
 - Non-leader windows detect external changes by polling the file `mtime` + `revision`
   every ~5 s (cheap) and firing `onDidChange`.
 
-### 2.5 Secret storage (`src/state/secrets.ts`)
+### 2.5 Secret storage (`src/state/secrets.ts`) ✅
 - Thin wrapper over `context.secrets` with only two keys: `rounds.secret.jiraToken`,
   `rounds.secret.gitToken`.
 - `get`, `set`, `delete`, `has`, and `onDidChange` re-exposed.
