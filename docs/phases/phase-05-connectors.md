@@ -43,7 +43,7 @@ interface FetchResult { items: SourceItem[]; truncated: boolean; cursor?: string
 Both connectors produce this shape; placeholders (phase 6) and the result front matter
 (phase 8) only know about `SourceItem`.
 
-### 5.4 `JiraConnector` (`src/connectors/jira.ts`)
+### 5.4 `JiraConnector` (`src/connectors/jira.ts`) ✅
 - Interface: `ping()`, `search(jql, maxResults)`, `getIssue(key)`.
 - REST search by JQL → normalized issues: key, summary, status, description, comments,
   links. Request only the fields that are used (`fields=` parameter) to keep payloads
