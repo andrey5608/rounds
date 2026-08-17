@@ -7,7 +7,7 @@ an explicit fallback policy, validated placeholders, and size limits.
 
 ## Steps
 
-### 6.1 Prompt resolver (`src/agents/promptResolver.ts`)
+### 6.1 Prompt resolver (`src/agents/promptResolver.ts`) ✅
 - `resolve(agent, ctx): Promise<PromptResolution>` where `PromptResolution` is
   `{ text: string; usedSnapshot: boolean; path?: string; hash?: string }` or a typed
   `PromptUnavailableError`.
@@ -24,7 +24,7 @@ an explicit fallback policy, validated placeholders, and size limits.
 - A `FileSystemWatcher` is created only for prompt files inside the workspace; files
   outside the workspace are re-read on each run and on activation.
 
-### 6.3 Fallback policy (`rounds.promptFileFallback`, per-agent override)
+### 6.3 Fallback policy (`rounds.promptFileFallback`, per-agent override) ✅
 
 | Policy | File readable | File unreadable, snapshot exists | File unreadable, no snapshot |
 | --- | --- | --- | --- |
@@ -33,7 +33,13 @@ an explicit fallback policy, validated placeholders, and size limits.
 | `blockAlways` | use file | fail the run | fail the run |
 
 - "Unreadable" covers: missing, permission denied, empty after trim, or larger than the
-  configured maximum. The run record always states which branch was taken.
+  200 000 byte maximum. Deciding that here rather than at the call site means the policy
+  applies to an empty or enormous file too, not only to a missing one. The run record always
+  states which branch was taken.
+- The resolver does not write the snapshot itself: it **returns** a refreshed snapshot when
+  the file content changed, and the caller stores it through the revisioned store together
+  with the rest of the run's agent update. One write instead of two, and no state change at
+  all when the run turns out to be impossible.
 
 ### 6.4 Placeholder engine (`src/agents/placeholders.ts`) ✅
 Supported placeholders exactly as in `plan.md`:
