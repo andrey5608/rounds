@@ -13,6 +13,7 @@ import type { OutputChannelSink } from './state/outputChannel.js';
 import type { RoundsSecrets } from './state/secrets.js';
 import type { RoundsSettings } from './state/settings.js';
 import type { RoundsStore } from './state/store.js';
+import type { ToolRegistry } from './tools/index.js';
 import type { AgentsTreeDataProvider } from './ui/agentsView.js';
 import type { RoundsStatusBar } from './ui/statusBar.js';
 
@@ -41,6 +42,7 @@ export interface ServiceContainer {
   readonly runClaims: RunClaims;
   readonly models: ModelCatalog;
   readonly promptSnapshots: PromptSnapshotSync;
+  readonly tools: ToolRegistry;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
   /** Current settings, re-read whenever the configuration changes. */

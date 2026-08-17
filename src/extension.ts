@@ -18,6 +18,7 @@ import { RoundsSecrets } from './state/secrets.js';
 import { readSettings } from './state/settings.js';
 import type { RoundsSettings } from './state/settings.js';
 import { RoundsStore } from './state/store.js';
+import { createToolRegistry } from './tools/index.js';
 import { registerAgentsView } from './ui/agentsView.js';
 import { registerCommands } from './ui/commands.js';
 import { RoundsStatusBar } from './ui/statusBar.js';
@@ -99,6 +100,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     leadership,
     runClaims,
     promptSnapshots,
+    tools: createToolRegistry(),
     models: new ModelCatalog({
       gateway: new VscodeLanguageModelGateway(),
       store,
