@@ -46,7 +46,7 @@ no JSON editing. Minimal and functional; no custom styling in v1.
 - No agents → welcome view from phase 1 (`Create Agent`, `Check Setup`).
 - Agents exist but none has runs → a child node `No runs yet` with a `Run Now` hint.
 
-### 10.5 Creation wizard (`src/ui/wizard/`)
+### 10.5 Creation wizard (`src/ui/wizard/`) ✅
 Multi-step QuickPick/InputBox flow with working back navigation (`QuickInput` buttons)
 and per-step validation:
 
@@ -71,15 +71,24 @@ and per-step validation:
 10. **Output folder** — default or folder picker; writability probe.
 11. **Summary** — read-only confirmation listing everything, then save.
 
-- The step definitions are data, so `Edit Agent` reuses them with prefilled values and
-  jumps straight to a step list instead of a linear flow.
+- Creation is linear, editing is a field list: those are different jobs. Setting an agent up means
+  answering every question once; changing one means finding that question again.
+- All the validation lives in `src/ui/wizard/steps.ts`, apart from the quick picks — that is the
+  part worth testing, since driving a quick pick from a test proves little and breaks whenever a
+  label changes.
+- The schedule step shows the frequency warning as a modal confirmation, so a sub-threshold schedule
+  needs a deliberate "use it anyway".
+- Changing the prompt file or the repository drops the stored snapshot and cursor of the previous
+  one: keeping them would mean falling back to the wrong prompt, or skipping items the new source
+  never showed.
 
-### 10.6 Remaining commands
+### 10.6 Remaining commands ✅
 - `rounds.editAgent` — step list of the wizard fields for an existing agent.
 - `rounds.duplicateAgent` — deep copy with a new id, name `<name> (copy)`, `enabled:
   false`, cleared `lastRunAt`/`nextRunAt`/cursor.
 - `rounds.deleteAgent` — modal confirmation naming the agent, stating that result files
-  are kept and history is removed; deletes secrets only if no other agent uses them.
+  are kept and history is removed. Tokens are **never** deleted with an agent: they are shared per
+  source kind, so removing one agent would take the credentials of the others with it.
 - `rounds.toggleAgent` — flips `enabled` and recomputes `nextRunAt`.
 - `rounds.openResultFolder` — reveals the resolved output folder in the OS file manager.
 - `rounds.showHistory` — QuickPick of the agent's runs (status icon, timestamp, summary);
