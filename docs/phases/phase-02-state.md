@@ -57,7 +57,7 @@ interface Agent {
 - `migrate(envelope)` chain keyed by `schemaVersion`; v1 starts at `1` with an identity
   migration so the mechanism exists from day one.
 
-### 2.3 Store with revision checks (`src/state/store.ts`)
+### 2.3 Store with revision checks (`src/state/store.ts`) ✅
 - Keys exactly as specified: `rounds.agents`, `rounds.history`, `rounds.stateRevision`,
   `rounds.dailyCounters` in `context.globalState`.
 - API: `read()`, `update(mutator, { expectedRevision })`, `onDidChange` event.
