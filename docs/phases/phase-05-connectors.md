@@ -56,13 +56,16 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
 - Comments and links are fetched only when the agent's prompt actually references them
   (decided by the placeholder scan from phase 6) to avoid needless requests.
 
-### 5.5 `GitConnector` (`src/connectors/git.ts`)
+### 5.5 `GitConnector` (`src/connectors/git.ts`) ✅
 - Interface: `ping()`, `listPullRequests(repo, mode, cursor)`, `getDiff(repo, id)`.
 - `mode`: `newPullRequests` (created after the cursor) and `updatedPullRequests`
   (updated after the cursor).
-- Cursor is an ISO timestamp (plus a last-seen id for tie-breaking), persisted back into
-  `agent.source.sinceCursor` **only after a successful run** so a failed run reprocesses
-  the same window instead of skipping items.
+- Cursor is an ISO timestamp. `listPullRequests` **returns** the next cursor instead of
+  storing it, so only a successful run can advance it; a failure then reprocesses exactly the
+  window it never managed to look at.
+- The item's `updatedAt` carries whichever timestamp the mode cares about — creation time for
+  `newPullRequests`, last change for `updatedPullRequests` — so one cursor rule covers both
+  modes. Both timestamps stay available to the prompt in `extra`.
 - Diff fetching is lazy and capped (see phase 6 truncation rules); the connector returns
   raw unified diff text plus a `truncated` flag.
 - Keep the implementation provider-agnostic: one `GitProvider` interface, one concrete
