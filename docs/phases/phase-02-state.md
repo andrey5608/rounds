@@ -87,7 +87,7 @@ interface Agent {
   its history; result files are **not** deleted (say so in the delete confirmation).
 - Query helpers: `recent(agentId, n)`, `lastRun(agentId)`, `lastSuccess(agentId)`.
 
-### 2.7 Daily counters (`src/state/counters.ts`)
+### 2.7 Daily counters (`src/state/counters.ts`) ✅
 - Shape: `{ localDate: 'YYYY-MM-DD', global: number, perAgent: Record<string, number>,
   capNotifiedAt?: string }`.
 - `localDate` computed in the effective timezone. On a date change the counters reset.
