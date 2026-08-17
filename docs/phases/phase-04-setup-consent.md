@@ -15,7 +15,9 @@ action.
   wizard steps. Scheduler code cannot construct one; a lint rule or a private-symbol
   brand enforces it.
 - `scripts/check-consent-gate.mjs` (part of `npm run check`) asserts two things:
-  `selectChatModels` appears in exactly one file, `src/model/vscodeGateway.ts`, and
+  `selectChatModels(...)` is *called* in exactly one file, `src/model/vscodeGateway.ts` — the
+  check looks for a call rather than the word, so explaining the rule in a comment stays
+  possible — and
   `userAction(` is only called from `src/setup/`, `src/ui/` or the entry point — never from
   the scheduler, runner or connectors. Both rules were verified to fail on a deliberate
   violation.

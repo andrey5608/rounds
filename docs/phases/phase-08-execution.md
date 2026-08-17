@@ -32,7 +32,7 @@ A failure records a `skipped` or `failed` run with the specific reason — never
 - Build the request: a system-style preamble describing the agent, then the resolved
   prompt as a `LanguageModelChatMessage.User` message.
 
-### 8.4 `api` mode: agentic loop (`src/model/loop.ts`)
+### 8.4 `api` mode: agentic loop (`src/model/loop.ts`) ✅
 ```
 1. sendRequest(messages, { tools, toolMode }, token)
 2. stream parts:

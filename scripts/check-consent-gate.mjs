@@ -5,7 +5,8 @@
  * Resolving a language model triggers a consent prompt on its first call, so it must only
  * happen because the user asked for something. Two rules make that verifiable:
  *
- * 1. `selectChatModels` appears in exactly one file, the gateway.
+ * 1. `selectChatModels(...)` is *called* in exactly one file, the gateway. Mentioning the API
+ *    in prose is fine and often useful, so the check looks for a call, not for the word.
  * 2. `userAction(` is only called from command handlers, wizard steps and setup code, never
  *    from the scheduler, the runner or the connectors.
  */
@@ -41,7 +42,7 @@ for (const file of files) {
   const relativePath = relative(ROOT, file);
   const source = await readFile(file, 'utf8');
 
-  if (source.includes('selectChatModels')) {
+  if (/\bselectChatModels\s*\(/.test(source)) {
     selectChatModelsFiles.push(relativePath);
   }
 
