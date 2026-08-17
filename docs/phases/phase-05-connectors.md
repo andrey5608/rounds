@@ -72,7 +72,7 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
   REST implementation for v1, selected by a `provider` field on the source so a second
   provider is an added file, not a rewrite.
 
-### 5.6 Connector factory and credential wiring (`src/connectors/factory.ts`)
+### 5.6 Connector factory and credential wiring (`src/connectors/factory.ts`) ✅
 - `createConnector(source, secrets, settings, logger)` resolves the base URL and the
   token, throwing `ConfigError` with a Fix action when either is missing.
 - Base URLs live in settings-adjacent state (`baseUrlRef` on the source points at a named

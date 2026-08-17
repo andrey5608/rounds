@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { ConnectorFactory } from '../connectors/factory.js';
 import type { ServiceContainer } from '../container.js';
 import { mapModelError } from '../model/errors.js';
 import type { CheckOutcome, CheckStatus, SourceKind } from '../state/types.js';
@@ -20,6 +21,11 @@ const STATUS_ICON: Record<CheckStatus, string> = {
 export async function buildCheckContext(container: ServiceContainer): Promise<SetupCheckContext> {
   const state = await container.store.read();
   const settings = container.settings();
+  const factory = new ConnectorFactory({
+    secrets: container.secrets,
+    endpoints: state.endpoints,
+    logger: container.logger,
+  });
   return {
     settings,
     agents: state.agents,
@@ -27,6 +33,8 @@ export async function buildCheckContext(container: ServiceContainer): Promise<Se
     hasConsent: state.setup.consentGrantedAt !== undefined,
     models: state.setup.models ?? [],
     hasSecret: (name) => container.secrets.has(name),
+    // Live reachability, so the check reports what a run would actually hit.
+    pingEndpoint: (endpoint) => factory.ping(endpoint),
     probeOutputFolder: () =>
       probeOutputFolder(
         resolveOutputFolder({
