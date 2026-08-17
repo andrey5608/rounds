@@ -35,7 +35,7 @@ an explicit fallback policy, validated placeholders, and size limits.
 - "Unreadable" covers: missing, permission denied, empty after trim, or larger than the
   configured maximum. The run record always states which branch was taken.
 
-### 6.4 Placeholder engine (`src/agents/placeholders.ts`)
+### 6.4 Placeholder engine (`src/agents/placeholders.ts`) ✅
 Supported placeholders exactly as in `plan.md`:
 
 | Placeholder | Value |
@@ -55,16 +55,24 @@ Supported placeholders exactly as in `plan.md`:
   rendered **once per item**; `{{items}}` means one render for the whole batch. Mixing
   both is rejected at validation time with a clear message.
 
-### 6.5 Placeholder scan drives fetching
+### 6.5 Placeholder scan drives fetching ✅
+`scanPlaceholders` lives in the same module as the renderer, because the scan is what decides
+both the rendering mode and what needs fetching; splitting it into its own file would have
+separated two halves of one decision.
 - `scan(text)` returns the set of placeholders used. The run pipeline uses it to decide
   whether Jira comments/links or PR diffs need to be fetched at all (see step 5.4/5.5).
 
-### 6.6 Size limits and truncation
+### 6.6 Size limits and truncation ✅
+Implemented first, in `src/agents/truncate.ts`, because the renderer depends on the limits.
 - Configurable-in-code constants (documented in `CONTRIBUTING.md`): max prompt characters,
   max diff characters per item, max items rendered by `{{items}}`.
 - Truncation appends an explicit English marker,
   e.g. `\n\n[truncated: 41231 of 120004 characters shown]`, and sets a flag recorded in
-  the run record. Truncation is never silent.
+  the run record. Truncation is never silent: a summary written from half a diff looks exactly
+  like one written from all of it, so the cut has to be visible in the text itself.
+- A placeholder with no value renders as `(no item)` or `(no diff available)` rather than an
+  empty string, for the same reason — a prompt that quietly loses its subject produces
+  confident nonsense.
 
 ### 6.7 Tests
 - Unit: each placeholder, escaping, unknown placeholder error text, item-scoped vs batch
