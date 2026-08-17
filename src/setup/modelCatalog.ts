@@ -111,6 +111,30 @@ export class ModelCatalog {
     );
   }
 
+  /**
+   * Resolves a model for a scheduled or automated run.
+   *
+   * There is no user action here, so consent must already have been granted: the very first
+   * `selectChatModels` call is the one that prompts, and a prompt appearing because a schedule
+   * fired at three in the morning is exactly what the consent rule exists to prevent. Once
+   * consent is on record, refreshing the list costs nothing and cannot prompt.
+   */
+  async resolveForRun(modelId: string): Promise<ModelInfo> {
+    if (!(await this.hasConsent())) {
+      throw new ModelNotFoundError(modelId, []);
+    }
+    const models = await this.options.gateway.selectModels();
+    this.memory = models;
+    const found = models.find((model) => model.id === modelId);
+    if (!found) {
+      throw new ModelNotFoundError(
+        modelId,
+        models.map((model) => model.id),
+      );
+    }
+    return found;
+  }
+
   /** Checks an id against the cache without any chance of a prompt. */
   async isKnown(modelId: string): Promise<boolean> {
     const cached = await this.cached();

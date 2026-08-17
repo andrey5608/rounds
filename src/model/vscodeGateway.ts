@@ -1,6 +1,15 @@
 import * as vscode from 'vscode';
 
-import type { LanguageModelGateway, ModelInfo } from './gateway.js';
+import { ConfigError } from '../connectors/errors.js';
+
+import type {
+  LanguageModelGateway,
+  ModelInfo,
+  ModelMessage,
+  ModelRequest,
+  ModelTurn,
+  ToolCallRequest,
+} from './gateway.js';
 
 /**
  * The only place in this code base that resolves language models.
@@ -12,7 +21,7 @@ import type { LanguageModelGateway, ModelInfo } from './gateway.js';
  */
 export class VscodeLanguageModelGateway implements LanguageModelGateway {
   async selectModels(): Promise<ModelInfo[]> {
-    const models = await vscode.lm.selectChatModels();
+    const models = await this.resolveAll();
     return models.map((model) => ({
       id: model.id,
       name: model.name,
@@ -22,4 +31,70 @@ export class VscodeLanguageModelGateway implements LanguageModelGateway {
       maxInputTokens: model.maxInputTokens,
     }));
   }
+
+  async sendRequest(request: ModelRequest): Promise<ModelTurn> {
+    const models = await this.resolveAll();
+    const model = models.find((candidate) => candidate.id === request.modelId);
+    if (!model) {
+      throw new ConfigError(
+        `The model "${request.modelId}" is not available any more. Edit the agent and pick one of: ${models.map((candidate) => candidate.id).join(', ')}.`,
+      );
+    }
+
+    const response = await model.sendRequest(
+      request.messages.map(toChatMessage),
+      {
+        tools: request.tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        })),
+      },
+    );
+
+    let text = '';
+    const toolCalls: ToolCallRequest[] = [];
+    for await (const part of response.stream) {
+      if (part instanceof vscode.LanguageModelTextPart) {
+        text += part.value;
+      } else if (part instanceof vscode.LanguageModelToolCallPart) {
+        toolCalls.push({ callId: part.callId, name: part.name, input: part.input });
+      }
+    }
+    return { text, toolCalls };
+  }
+
+  private resolveAll(): Thenable<vscode.LanguageModelChat[]> {
+    return vscode.lm.selectChatModels();
+  }
+}
+
+/**
+ * Translates one of our messages into the editor's shape.
+ *
+ * Tool calls and their results have to travel back to the model in the same conversation,
+ * otherwise the second turn has no idea what the first one asked for.
+ */
+function toChatMessage(message: ModelMessage): vscode.LanguageModelChatMessage {
+  const text =
+    message.text !== undefined && message.text.length > 0
+      ? [new vscode.LanguageModelTextPart(message.text)]
+      : [];
+
+  // The editor keeps the two roles apart: an assistant message may carry tool calls, a user
+  // message may carry their results. Mixing them is a type error, and rightly so.
+  if (message.role === 'assistant') {
+    const calls = (message.toolCalls ?? []).map(
+      (call) => new vscode.LanguageModelToolCallPart(call.callId, call.name, call.input as object),
+    );
+    return vscode.LanguageModelChatMessage.Assistant([...text, ...calls]);
+  }
+
+  const results = (message.toolResults ?? []).map(
+    (result) =>
+      new vscode.LanguageModelToolResultPart(result.callId, [
+        new vscode.LanguageModelTextPart(result.content),
+      ]),
+  );
+  return vscode.LanguageModelChatMessage.User([...text, ...results]);
 }

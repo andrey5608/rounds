@@ -17,6 +17,36 @@ export interface ModelInfo {
   maxInputTokens?: number;
 }
 
+/** A tool call the model asked for. */
+export interface ToolCallRequest {
+  callId: string;
+  name: string;
+  input: unknown;
+}
+
+/** One message in the conversation with the model. */
+export interface ModelMessage {
+  role: 'user' | 'assistant';
+  text?: string;
+  /** Tool calls the model made, on an assistant message. */
+  toolCalls?: ToolCallRequest[];
+  /** Results being fed back, on a user message. */
+  toolResults?: { callId: string; content: string }[];
+}
+
+/** What one exchange with the model produced. */
+export interface ModelTurn {
+  text: string;
+  toolCalls: ToolCallRequest[];
+}
+
+export interface ModelRequest {
+  /** Exact model identifier. Resolution fails rather than substituting another model. */
+  modelId: string;
+  messages: ModelMessage[];
+  tools: { name: string; description: string; inputSchema: Record<string, unknown> }[];
+}
+
 export interface LanguageModelGateway {
   /**
    * Resolves the models the user has access to.
@@ -25,4 +55,12 @@ export interface LanguageModelGateway {
    * prompt, and a prompt nobody asked for is both confusing and easy to dismiss wrongly.
    */
   selectModels(): Promise<ModelInfo[]>;
+
+  /**
+   * Sends one request and returns everything it produced.
+   *
+   * The stream is collected here rather than exposed, because nothing in v1 shows partial
+   * output: the result is written to a file once the run finishes.
+   */
+  sendRequest(request: ModelRequest): Promise<ModelTurn>;
 }

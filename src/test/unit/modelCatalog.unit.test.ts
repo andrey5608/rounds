@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 
-import type { LanguageModelGateway, ModelInfo } from '../../model/gateway.js';
+import type { LanguageModelGateway, ModelInfo, ModelTurn } from '../../model/gateway.js';
 import { userAction } from '../../setup/consentGate.js';
 import { ModelCatalog, ModelNotFoundError } from '../../setup/modelCatalog.js';
 import { MementoBackend, RoundsStore } from '../../state/store.js';
@@ -34,6 +34,11 @@ class FakeGateway implements LanguageModelGateway {
       return Promise.reject(this.failWith);
     }
     return Promise.resolve(this.models);
+  }
+
+  sendRequest(): Promise<ModelTurn> {
+    // The catalog never sends a request; only resolution is under test here.
+    return Promise.reject(new Error('not used in these tests'));
   }
 }
 
