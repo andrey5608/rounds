@@ -409,8 +409,16 @@ async function askModel(container: ServiceContainer, draft: AgentDraft): Promise
   let models;
   try {
     models = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: 'Rounds: resolving models' },
-      () => container.models.list(userAction('agent wizard: choose a model')),
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Rounds: resolving models',
+        cancellable: true,
+      },
+      (_progress, token) =>
+        container.models.list(userAction('agent wizard: choose a model'), {
+          waitForProviderMs: 15_000,
+          isCancelled: () => token.isCancellationRequested,
+        }),
     );
   } catch (error) {
     const mapped = mapModelError(error);

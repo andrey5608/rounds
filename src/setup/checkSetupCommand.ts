@@ -6,6 +6,7 @@ import { mapModelError } from '../model/errors.js';
 import type { CheckOutcome, CheckStatus, SourceKind } from '../state/types.js';
 
 import { runSetupChecks, worstStatus } from './checks.js';
+import { ModelRequestCancelledError, ModelRequestTimeoutError } from './modelCatalog.js';
 import type { SetupCheckContext } from './checks.js';
 import { userAction } from './consentGate.js';
 import { addOrUpdateEndpoint, enterToken } from './endpointEditor.js';
@@ -130,13 +131,19 @@ async function grantModelAccess(container: ServiceContainer): Promise<void> {
       {
         location: vscode.ProgressLocation.Notification,
         title: 'Rounds: asking the editor for a language model',
+        // Cancellable on purpose: this waits on another extension, so it must be possible to give up
+        // without the notification sitting on the screen indefinitely.
+        cancellable: true,
       },
       // Waiting matters here: a provider that is still starting reports nothing, and concluding
       // "none available" would tell a user with a working provider to go and install one.
-      () =>
-        container.models.list(userAction('check setup: grant model access'), {
+      (progress, token) => {
+        progress.report({ message: 'A permission dialog may appear.' });
+        return container.models.list(userAction('check setup: grant model access'), {
           waitForProviderMs: 15_000,
-        }),
+          isCancelled: () => token.isCancellationRequested,
+        });
+      },
     );
     if (models.length === 0) {
       const choice = await vscode.window.showWarningMessage(
@@ -158,6 +165,24 @@ async function grantModelAccess(container: ServiceContainer): Promise<void> {
       `Rounds can use ${models.length} model(s): ${models.map((model) => model.id).join(', ')}.`,
     );
   } catch (error) {
+    if (error instanceof ModelRequestCancelledError) {
+      container.logger.info('The user cancelled the model request.');
+      return;
+    }
+    if (error instanceof ModelRequestTimeoutError) {
+      container.logger.error(error.message);
+      const choice = await vscode.window.showErrorMessage(
+        error.message,
+        'Try Again',
+        'Open Log File',
+      );
+      if (choice === 'Try Again') {
+        await grantModelAccess(container);
+      } else if (choice === 'Open Log File') {
+        await vscode.window.showTextDocument(vscode.Uri.file(container.logPath));
+      }
+      return;
+    }
     const mapped = mapModelError(error);
     container.logger.error(`Could not resolve models: ${mapped.detail}`);
     await vscode.window.showErrorMessage(mapped.message);

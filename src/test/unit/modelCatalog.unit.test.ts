@@ -7,7 +7,12 @@ import type {
   ModelTurn,
 } from '../../model/gateway.js';
 import { userAction } from '../../setup/consentGate.js';
-import { ModelCatalog, ModelNotFoundError } from '../../setup/modelCatalog.js';
+import {
+  ModelCatalog,
+  ModelNotFoundError,
+  ModelRequestCancelledError,
+  ModelRequestTimeoutError,
+} from '../../setup/modelCatalog.js';
 import { MementoBackend, RoundsStore } from '../../state/store.js';
 import type { MementoLike } from '../../state/store.js';
 import { FixedClock } from '../../state/time.js';
@@ -213,6 +218,60 @@ describe('model catalog', () => {
     const refreshed = await catalog.refreshAfterProviderChange();
     assert.equal(refreshed?.length, 3);
     assert.deepEqual((await catalog.cached()).map((model) => model.id), ['model-a', 'model-b', 'model-c']);
+  });
+
+  it('gives up on an editor that never answers', async () => {
+    const gateway = new FakeGateway();
+    // A request that never settles is what a real installation reported: the notification stayed on
+    // screen and the log stopped mid-sentence.
+    gateway.selectModels = () => new Promise<ModelInfo[]>(() => undefined);
+    const { catalog } = makeCatalog(gateway);
+
+    await assert.rejects(
+      catalog.list(userAction('check setup'), { callTimeoutMs: 300 }),
+      (error: unknown) => {
+        assert.ok(error instanceof ModelRequestTimeoutError);
+        assert.equal(error.code, 'model.noAnswer');
+        assert.match(error.message, /did not answer/);
+        return true;
+      },
+    );
+  });
+
+  it('stops waiting when the user cancels', async () => {
+    const gateway = new FakeGateway();
+    gateway.selectModels = () => new Promise<ModelInfo[]>(() => undefined);
+    const { catalog } = makeCatalog(gateway);
+
+    let cancelled = false;
+    setTimeout(() => {
+      cancelled = true;
+    }, 50);
+
+    await assert.rejects(
+      catalog.list(userAction('check setup'), {
+        callTimeoutMs: 30_000,
+        isCancelled: () => cancelled,
+      }),
+      ModelRequestCancelledError,
+    );
+  });
+
+  it('stops waiting for a provider when the user cancels', async () => {
+    const gateway = new FakeGateway();
+    gateway.models = [];
+    const { catalog } = makeCatalog(gateway);
+
+    let cancelled = false;
+    setTimeout(() => {
+      cancelled = true;
+    }, 50);
+
+    const models = await catalog.list(userAction('check setup'), {
+      waitForProviderMs: 30_000,
+      isCancelled: () => cancelled,
+    });
+    assert.deepEqual(models, [], 'the wait ends instead of running to its deadline');
   });
 
   it('propagates provider failures rather than pretending there are no models', async () => {

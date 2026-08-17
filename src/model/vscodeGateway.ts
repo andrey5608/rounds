@@ -35,6 +35,7 @@ export class VscodeLanguageModelGateway implements LanguageModelGateway {
   constructor(private readonly log?: (message: string) => void) {}
 
   async selectModels(): Promise<ModelInfo[]> {
+    this.log?.('Asking the editor for the models this extension may use.');
     let models = await this.resolveAll();
     this.log?.(`A request with no selector returned ${models.length} model(s).`);
 

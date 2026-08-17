@@ -50,6 +50,19 @@ gateway therefore falls back to naming the vendor (`{ vendor: 'copilot' }`) when
 back empty. The bare request stays first, so any provider is found without being listed; the vendor
 list exists only to trigger consent, and adding another provider is one line. A vendor string is an
 API argument, not a name in a title, so the trademark rule is untouched.
+
+**Third correction: the call itself could hang.** The extended log from the same installation stopped at
+"Resolving language models" with nothing after it — `selectChatModels` never resolved, so the progress
+notification sat on the screen indefinitely and no branch of the code was ever reached. An unbounded
+await on another extension's API is a hang waiting to happen. Now:
+
+- one request has a 45 second deadline, after which it is reported rather than awaited — the promise
+  cannot be cancelled, so what changes is that Rounds stops waiting, and a late answer is picked up by
+  the next request;
+- the progress notification is `cancellable`, so there is a button to dismiss it, and cancelling
+  actually stops the wait rather than only hiding it;
+- the log records the start of each request and how long it took, so "it hung" is visible in the file
+  instead of having to be inferred from a missing line.
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
   mirrored into state (ids and labels only) so the tree and validation work without a
   new consent-triggering call.
