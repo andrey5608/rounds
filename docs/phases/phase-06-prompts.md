@@ -1,0 +1,82 @@
+# Phase 6 — Prompt resolution and placeholders
+
+**Goal:** deterministic prompt text for every run: inline or file-based with a snapshot,
+an explicit fallback policy, validated placeholders, and size limits.
+
+**Depends on:** phases 2 and 5.
+
+## Steps
+
+### 6.1 Prompt resolver (`src/agents/promptResolver.ts`)
+- `resolve(agent, ctx): Promise<PromptResolution>` where `PromptResolution` is
+  `{ text: string; usedSnapshot: boolean; path?: string; hash?: string }` or a typed
+  `PromptUnavailableError`.
+- Inline prompts resolve trivially from `prompt.inlineText`.
+- File prompts: read `prompt.filePath` (absolute, or workspace-relative resolved against
+  the first workspace folder), update the snapshot when the content hash changed, and
+  record which path was taken.
+
+### 6.2 Snapshot lifecycle
+- Snapshot fields: `content`, `hash` (sha256), `capturedAt`.
+- Re-sync on: extension activation, file change events, agent edit, and every successful
+  file read during a run.
+- Snapshot updates go through the revisioned store like any other agent mutation.
+- A `FileSystemWatcher` is created only for prompt files inside the workspace; files
+  outside the workspace are re-read on each run and on activation.
+
+### 6.3 Fallback policy (`rounds.promptFileFallback`, per-agent override)
+
+| Policy | File readable | File unreadable, snapshot exists | File unreadable, no snapshot |
+| --- | --- | --- | --- |
+| `snapshot` | use file | use snapshot, log a warning, mark `usedSnapshot` | fail the run (`prompt.unavailable`) |
+| `blockWhenResolvable` | use file | fail the run (`prompt.fileUnreadable`) | fail the run |
+| `blockAlways` | use file | fail the run | fail the run |
+
+- "Unreadable" covers: missing, permission denied, empty after trim, or larger than the
+  configured maximum. The run record always states which branch was taken.
+
+### 6.4 Placeholder engine (`src/agents/placeholders.ts`)
+Supported placeholders exactly as in `plan.md`:
+
+| Placeholder | Value |
+| --- | --- |
+| `{{issueKey}}` | current item id (per-item mode) |
+| `{{summary}}` | current item title |
+| `{{diff}}` | unified diff for the current pull request |
+| `{{items}}` | rendered list of all fetched items (Markdown bullets: id, title, url, updatedAt) |
+| `{{date}}` | local date, `YYYY-MM-DD`, effective timezone |
+| `{{datetime}}` | local date and time, `YYYY-MM-DD HH:mm`, effective timezone |
+| `{{workspace}}` | name of the first workspace folder, or `no workspace` |
+
+- Rendering rules: unknown placeholder → `PromptValidationError` listing the supported
+  ones (fail fast at save time in the wizard **and** at run time).
+- `{{` can be escaped as `\{{`.
+- Item-scoped placeholders (`{{issueKey}}`, `{{summary}}`, `{{diff}}`) mean the prompt is
+  rendered **once per item**; `{{items}}` means one render for the whole batch. Mixing
+  both is rejected at validation time with a clear message.
+
+### 6.5 Placeholder scan drives fetching
+- `scan(text)` returns the set of placeholders used. The run pipeline uses it to decide
+  whether Jira comments/links or PR diffs need to be fetched at all (see step 5.4/5.5).
+
+### 6.6 Size limits and truncation
+- Configurable-in-code constants (documented in `CONTRIBUTING.md`): max prompt characters,
+  max diff characters per item, max items rendered by `{{items}}`.
+- Truncation appends an explicit English marker,
+  e.g. `\n\n[truncated: 41231 of 120004 characters shown]`, and sets a flag recorded in
+  the run record. Truncation is never silent.
+
+### 6.7 Tests
+- Unit: each placeholder, escaping, unknown placeholder error text, item-scoped vs batch
+  detection, mixed-mode rejection.
+- Unit: full fallback matrix from 6.3 with a stubbed file system and clock.
+- Unit: truncation markers and recorded flags.
+
+## Exit criteria
+
+- [ ] Every placeholder from `plan.md` renders correctly, including the timezone-sensitive
+      ones.
+- [ ] The fallback matrix is fully covered by tests and matches the table above.
+- [ ] Prompt validation fails at agent-save time, not only at run time.
+- [ ] Each run record states the prompt source, path, snapshot usage and hash.
+- [ ] Oversized content is truncated with a visible marker.
