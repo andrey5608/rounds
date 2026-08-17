@@ -24,12 +24,15 @@ in the Extension Development Host, and is checked by CI.
   `"target": "ES2022"`, `"module": "Node16"`, `"moduleResolution": "Node16"`,
   `"sourceMap": true`, `outDir` `out`.
 
-### 0.3 Bundling and scripts
+### 0.3 Bundling and scripts ✅
 - Add `esbuild.js` producing a single CommonJS bundle at `dist/extension.js`,
   `external: ["vscode"]`, sourcemaps in dev, minify in production.
 - `package.json` `main`: `./dist/extension.js`.
 - Scripts: `compile`, `watch`, `package` (production bundle), `lint`, `typecheck`,
   `test:unit`, `test:integration`, `test` (runs both).
+- Plus `compile:tests` (`tsc -p ./` into `out/`), because the test runners execute
+  compiled JavaScript while `compile` produces the bundle. `lint` and the test scripts
+  only become functional once steps 0.4 and 0.5 install their tooling.
 
 ### 0.4 Test harness
 - Unit tests: Mocha over compiled pure modules in `src/**/*.unit.test.ts`, no `vscode`

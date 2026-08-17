@@ -3,19 +3,27 @@
   "version": "0.0.1",
   "description": "Scheduled task agents that collect data from your trackers, run a prompt through a language model, and store the result.",
   "license": "MIT",
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "engines": {
     "vscode": "^1.95.0"
   },
   "activationEvents": [],
   "contributes": {},
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "compile:tests": "tsc -p ./",
+    "typecheck": "tsc -p ./ --noEmit",
+    "lint": "eslint src scripts esbuild.js",
+    "test:unit": "npm run compile:tests && mocha \"out/**/*.unit.test.js\"",
+    "test:integration": "npm run compile:tests && vscode-test",
+    "test": "npm run test:unit && npm run test:integration"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "@types/vscode": "~1.95.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   }
 }
