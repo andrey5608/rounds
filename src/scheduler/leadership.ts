@@ -4,7 +4,18 @@ import { Emitter } from '../state/emitter.js';
 import type { Disposable } from '../state/emitter.js';
 import type { StoreLogger } from '../state/store.js';
 
-import type { LeaderLock } from './leaderLock.js';
+/**
+ * The little the manager needs from a lock.
+ *
+ * Declared as an interface so tests can drive lock loss, which the real implementation
+ * only reports when the file system layer notices a compromised lock.
+ */
+export interface LeaderLockLike {
+  readonly isHeld: boolean;
+  acquire(): Promise<boolean>;
+  giveUp(): Promise<void>;
+  onLost(listener: () => void): Disposable;
+}
 
 const silentLogger: StoreLogger = {
   debug: () => undefined,
@@ -14,7 +25,7 @@ const silentLogger: StoreLogger = {
 };
 
 export interface LeadershipOptions {
-  lock: LeaderLock;
+  lock: LeaderLockLike;
   logger?: StoreLogger;
   /** How long to wait before trying again after losing the race. */
   retryMs?: number;
@@ -35,7 +46,7 @@ export class Leadership {
   /** Identifies this activation. Only lives in memory, never persisted. */
   readonly windowId = randomUUID();
 
-  private readonly lock: LeaderLock;
+  private readonly lock: LeaderLockLike;
   private readonly logger: StoreLogger;
   private readonly retryMs: number;
   private readonly retryJitterMs: number;

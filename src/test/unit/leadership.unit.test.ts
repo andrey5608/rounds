@@ -5,6 +5,40 @@ import { join } from 'node:path';
 
 import { LeaderLock } from '../../scheduler/leaderLock.js';
 import { Leadership } from '../../scheduler/leadership.js';
+import type { LeaderLockLike } from '../../scheduler/leadership.js';
+import { Emitter } from '../../state/emitter.js';
+import type { Disposable } from '../../state/emitter.js';
+
+/** A lock whose loss can be triggered on demand, which the real one cannot. */
+class FakeLock implements LeaderLockLike {
+  private held = false;
+  private readonly lostEmitter = new Emitter<void>();
+  grantNext = true;
+
+  get isHeld(): boolean {
+    return this.held;
+  }
+
+  acquire(): Promise<boolean> {
+    this.held = this.grantNext;
+    return Promise.resolve(this.held);
+  }
+
+  giveUp(): Promise<void> {
+    this.held = false;
+    return Promise.resolve();
+  }
+
+  onLost(listener: () => void): Disposable {
+    return this.lostEmitter.event(listener);
+  }
+
+  /** Simulates the file system reporting that the lock was compromised. */
+  loseIt(): void {
+    this.held = false;
+    this.lostEmitter.fire(undefined);
+  }
+}
 
 function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void> {
   const started = Date.now();
@@ -102,6 +136,29 @@ describe('leadership', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(follower.isLeader, false);
     assert.equal(await follower.tryAcquire(), false);
+  });
+
+  it('reports a lost lock and goes back to trying', async () => {
+    const lock = new FakeLock();
+    const leadership = new Leadership({ lock, retryMs: 10, retryJitterMs: 0 });
+    const seen: boolean[] = [];
+    leadership.onDidChange((isLeader) => seen.push(isLeader));
+
+    leadership.start();
+    await waitFor(() => leadership.isLeader);
+
+    // The lock disappears without this window releasing it.
+    lock.grantNext = false;
+    lock.loseIt();
+    assert.equal(leadership.isLeader, false);
+    assert.deepEqual(seen, [true, false]);
+
+    // Once the lock is available again the window takes it back on its own.
+    lock.grantNext = true;
+    await waitFor(() => leadership.isLeader);
+    assert.deepEqual(seen, [true, false, true]);
+
+    await leadership.stop();
   });
 
   it('spreads retries out with a random offset', async () => {

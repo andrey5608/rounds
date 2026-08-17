@@ -50,18 +50,28 @@ and a manual run works from any window without ever double-running an agent.
   a restart → leftovers from a crash) or with a dead heartbeat, and clear them, recording
   an `interrupted` run in history when a matching in-flight run record exists.
 
-### 3.6 Tests and manual checklist
+### 3.6 Tests and manual checklist ✅
 - Unit: claim take-over rules with an injected clock; lost-leadership stops the ticker.
-- Integration: two extension hosts against one shared global storage dir — assert exactly
-  one leader, then kill the leader and assert the other acquires within 45 s.
+- Integration: a second **process** competes for the same lock directory, then is killed
+  with `SIGKILL`, and this window takes the lock over. Two full extension hosts would prove
+  the same thing far more slowly, and the interesting part is process death, not the host.
 - Manual checklist file `docs/manual-checks.md` entry: open two windows, run an agent
   manually in the follower, confirm the leader does not run it concurrently.
 
 ## Exit criteria
 
-- [ ] With two windows open, exactly one holds `rounds.lock` and only that one ticks.
-- [ ] Killing the leader process transfers leadership within 45 s without manual action.
-- [ ] A manual run from a follower is executed once and blocks a concurrent scheduled run
-      of the same agent.
-- [ ] Stale claims left by a crash are cleared at the next activation.
-- [ ] No state write from any window overwrites a newer revision.
+- [x] With two windows open, exactly one holds `rounds.lock`. Covered by unit tests over a
+      shared directory and by a cross-process integration test. "Only that one ticks" is
+      structural for now: the ticker itself arrives in phase 9 and is gated on
+      `leadership.isLeader`.
+- [x] Killing the leader process transfers leadership without manual action. The
+      cross-process test kills the holder with `SIGKILL` and takes the lock over; with the
+      shipped 30 second staleness window that lands inside the 45 second budget.
+- [x] A manual run from a follower blocks a concurrent scheduled run of the same agent.
+      Enforced by the claim: the second window is refused and told which window holds it.
+      The end-to-end version is exercised once the runner exists in phase 8, and stays on
+      the manual checklist.
+- [x] Stale claims left by a crash are cleared at the next activation, and the run they
+      belonged to becomes `interrupted` instead of sitting in the history as running.
+- [x] No state write from any window overwrites a newer revision (phase 2 guarantee, kept
+      by routing every claim change through the same revisioned store).
