@@ -39,7 +39,7 @@ The secret hygiene audit is deliberately a test rather than a design argument: e
 at — the state file, global state, the output channel — is something a user might paste into an issue
 report.
 
-### 12.3 Performance and resource checks
+### 12.3 Performance and resource checks ✅
 - Activation time measured with the built-in extension host profiler; target < 100 ms.
 - Ticker cost: one state read per 30 s tick; assert no per-tick file rewrite.
 - Tree refresh throttling verified (no refresh storm when many runs finish).

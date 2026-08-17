@@ -69,3 +69,27 @@ describe('setup checks inside the extension host', () => {
     assert.equal(stat.type, vscode.FileType.Directory);
   });
 });
+
+/**
+ * Activation cost, measured rather than asserted from a design argument.
+ *
+ * The number is reported so a regression is visible in the CI log; the assertion is a generous
+ * tripwire, because a shared runner's timing is not a benchmark and a tight bound would only produce
+ * flaky failures.
+ */
+describe('activation cost', () => {
+  it('activates promptly', async () => {
+    const extension = vscode.extensions.all.find(
+      (candidate) => (candidate.packageJSON as { name?: string }).name === 'rounds',
+    );
+    assert.ok(extension, 'the extension under test is not loaded');
+
+    const started = Date.now();
+    await extension.activate();
+    const elapsed = Date.now() - started;
+
+    // eslint-disable-next-line no-console
+    console.log(`activation took ${elapsed} ms`);
+    assert.ok(elapsed < 5000, `activation took ${elapsed} ms`);
+  });
+});
