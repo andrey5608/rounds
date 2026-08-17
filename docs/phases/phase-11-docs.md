@@ -69,17 +69,36 @@ Sections, in this order:
 ### 11.4 CHANGELOG ✅
 - Fill `## [1.0.0]` with the feature set grouped as Added / Known limitations.
 
-### 11.5 Documentation review pass
+### 11.5 Documentation review pass ✅
 - Re-read every user-facing string in the source (`package.json`, notifications, errors,
   tooltips) against: English-only, trademark rule, agent/run/source/tool vocabulary,
   no "job"/"task"/"cron job" as nouns.
 - Fix violations in the same pass; the language check script from phase 0 runs in CI.
 
+Result of the sweep, with the judgement calls recorded rather than left implicit:
+
+- No product name appears in the extension name, `displayName`, a command title, a view title or a
+  setting key. Checked by script over the manifest, and by the existing unit test.
+- `displayName` contains the word "Task", which `plan.md` mandates verbatim. The vocabulary rule
+  bans *job*, *task* and *cron job* as user-facing nouns for an agent or a run; the product's own
+  name is not one of those uses.
+- `jira` survives only as an internal discriminator and in the secret key, both named by `plan.md`.
+  Everything a user reads says "issue tracker" or "repository host".
+- Three messages name GitHub Copilot as an example of a language model provider. That is exactly the
+  descriptive use `plan.md` permits and the example it gives.
+- One input placeholder shows `https://example.atlassian.net` as a sample base URL. Kept: a
+  placeholder describing what to type is a description, and a sample URL nobody recognises helps
+  nobody.
+- No user-visible string uses *job*, *task* or *cron job* for an agent or a run. The single "different
+  jobs" in the code is a comment about two flows in the wizard.
+
 ## Exit criteria
 
-- [ ] README covers all 13 sections above, including both warning sections.
-- [ ] CONTRIBUTING contains working, followed-once recipes for a new tool and a new
-      connector.
-- [ ] Every user-facing string passes the vocabulary and trademark review.
-- [ ] CHANGELOG has a 1.0.0 entry.
-- [ ] The language check and dependency check pass in CI.
+- [x] README covers all 13 sections, including both warning sections, and the acceptable use links
+      were fetched and confirmed rather than written from memory.
+- [x] CONTRIBUTING contains the recipes for a new tool and a new connector, each written as the
+      sequence somebody follows, with the reason behind every constraint.
+- [x] Every user-facing string passes the vocabulary and trademark review; the judgement calls are
+      recorded above.
+- [x] CHANGELOG has a 1.0.0 entry, grouped as what was added and what the release cannot do.
+- [x] The language check and dependency check pass in CI, on Linux and on Windows.
