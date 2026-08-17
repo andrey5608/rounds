@@ -47,6 +47,7 @@ what changed, and report back.
 ## Documentation
 
 - [`plan.md`](./plan.md) — product specification and constraints
+- [`AGENTS.md`](./AGENTS.md) — working rules for contributors and AI assistants
 - [`docs/implementation-plan.md`](./docs/implementation-plan.md) — phases, milestones,
   conventions
 - [`docs/phases/`](./docs/phases/) — step-by-step plan for each phase
