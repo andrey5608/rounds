@@ -13,6 +13,16 @@ import type {
 } from './gateway.js';
 
 /**
+ * Vendors asked for explicitly when a bare request comes back empty.
+ *
+ * Consent is an authentication dialog, and the editor can only raise it for a provider it knows is
+ * being asked for. A request with no selector returns the models this extension is *already* allowed
+ * to use — which, before consent, is none, and no dialog appears. Naming the vendor is what turns
+ * "nothing happened" into a prompt. One entry per known provider; adding another is one line.
+ */
+const CONSENT_VENDORS = ['copilot'];
+
+/**
  * The only place in this code base that resolves language models.
  *
  * `selectChatModels` triggers the consent prompt on its first call, so it must never run
@@ -22,7 +32,15 @@ import type {
  */
 export class VscodeLanguageModelGateway implements LanguageModelGateway {
   async selectModels(): Promise<ModelInfo[]> {
-    const models = await this.resolveAll();
+    let models = await this.resolveAll();
+    if (models.length === 0) {
+      for (const vendor of CONSENT_VENDORS) {
+        models = await vscode.lm.selectChatModels({ vendor });
+        if (models.length > 0) {
+          break;
+        }
+      }
+    }
     return models.map((model) => ({
       id: model.id,
       name: model.name,

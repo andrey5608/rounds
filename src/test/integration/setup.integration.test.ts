@@ -93,3 +93,32 @@ describe('activation cost', () => {
     assert.ok(elapsed < 5000, `activation took ${elapsed} ms`);
   });
 });
+
+/**
+ * The gateway against the real editor API.
+ *
+ * The test editor has no language model provider, so the interesting assertion is not "models are
+ * found" but "asking is well formed": a malformed selector or a wrong call shape would throw here,
+ * which is exactly the failure that looked like nothing happening at all in a real installation.
+ */
+describe('language model gateway', () => {
+  it('asks the editor for models without throwing, provider or not', async () => {
+    const { VscodeLanguageModelGateway } = await import('../../model/vscodeGateway.js');
+    const gateway = new VscodeLanguageModelGateway();
+
+    const models = await gateway.selectModels();
+
+    assert.ok(Array.isArray(models), 'an array comes back');
+    // eslint-disable-next-line no-console
+    console.log(`the editor reported ${models.length} model(s): ${models.map((m) => m.id).join(', ') || 'none'}`);
+  });
+
+  it('reports model list changes', async () => {
+    const { VscodeLanguageModelGateway } = await import('../../model/vscodeGateway.js');
+    const gateway = new VscodeLanguageModelGateway();
+    const subscription = gateway.onDidChangeModels(() => undefined);
+
+    assert.equal(typeof subscription.dispose, 'function');
+    subscription.dispose();
+  });
+});

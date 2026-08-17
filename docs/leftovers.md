@@ -54,10 +54,12 @@ check. The counter must still be incremented, so the day's total stays truthful.
 
 Kept here because the next person deserves to know it was wrong once:
 
-- **Check Setup reported no model access with a working provider installed.** `selectChatModels()` was
-  asked once, and a provider that is still starting answers with an empty list. It now waits for the
-  editor's model-change event and re-queries, and the messages tell "not asked yet" apart from
-  "provider still starting". See [phase 4](./phases/phase-04-setup-consent.md).
+- **Check Setup reported no model access with a working provider installed, and granting it appeared
+  to do nothing.** Two causes, both mine. `selectChatModels()` was asked once, so a provider that had
+  not finished starting answered with an empty list; and the request named no vendor, so the editor
+  had no provider to raise its consent dialog for and silently returned nothing. It now waits for the
+  model-change event, and falls back to naming the vendor when a bare request comes back empty. See
+  [phase 4](./phases/phase-04-setup-consent.md).
 
 ## 5. Worth adding, not required
 

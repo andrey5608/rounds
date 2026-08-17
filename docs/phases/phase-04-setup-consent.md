@@ -42,6 +42,14 @@ Three changes:
   empty.
 - `refreshAfterProviderChange()` updates the cache when the provider list changes, and refuses unless
   consent is already recorded — so the subscription cannot cause a prompt nobody asked for.
+
+**Second correction, same report.** Waiting was not enough: a request with **no selector** returns the
+models this extension is *already allowed* to use, which before consent is none — and no dialog
+appears, because the editor cannot raise an authentication prompt for a provider nobody named. The
+gateway therefore falls back to naming the vendor (`{ vendor: 'copilot' }`) when the bare request comes
+back empty. The bare request stays first, so any provider is found without being listed; the vendor
+list exists only to trigger consent, and adding another provider is one line. A vendor string is an
+API argument, not a name in a title, so the trademark rule is untouched.
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
   mirrored into state (ids and labels only) so the tree and validation work without a
   new consent-triggering call.
