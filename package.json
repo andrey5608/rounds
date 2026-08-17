@@ -312,8 +312,9 @@
   "scripts": {
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "package": "node esbuild.js --production",
+    "package": "node scripts/clean.mjs dist && node esbuild.js --production",
     "check:bundle": "npm run package && node scripts/check-bundle.mjs",
+    "check:package": "node scripts/check-package.mjs",
     "clean": "node scripts/clean.mjs out dist",
     "compile:tests": "node scripts/clean.mjs out && tsc -p ./",
     "typecheck": "tsc -p ./ --noEmit",

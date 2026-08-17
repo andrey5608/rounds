@@ -1,11 +1,23 @@
-.vscode/**
+# Everything that is not needed to run the extension.
 .github/**
+.vscode/**
 src/**
 out/**
 docs/**
+coverage/**
+scripts/**
 node_modules/**
 plan.md
 AGENTS.md
 CLAUDE.md
+CONTRIBUTING.md
 tsconfig.json
+eslint.config.mjs
+esbuild.js
+.vscode-test.mjs
+.mocharc.json
+.c8rc.json
 .gitignore
+.editorconfig
+**/*.map
+**/*.ts

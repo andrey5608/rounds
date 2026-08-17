@@ -59,12 +59,20 @@ Not executed here: all of it needs a real tracker, a real repository host and a 
 The checklist is written; running it is a release step, and pretending otherwise would be the one
 thing this document must not do.
 
-### 12.5 Packaging
-- `npx @vscode/vsce package` produces a VSIX; inspect its contents for stray files
-  (`.vscodeignore` must exclude `docs/`? — keep `README.md`, `CHANGELOG.md`, `LICENSE`,
-  `dist/`; exclude `src/`, tests, fixtures, `plan.md`).
-- Install the VSIX into a clean profile and re-run the first-run experience end to end.
-- Verify the extension size and that `dist/extension.js` is the only bundled entry.
+### 12.5 Packaging ✅
+- `vsce package` produces an 88 KB VSIX containing five files: `package.json`, the README, the
+  licence, the changelog and `dist/extension.js`.
+- The first attempt shipped 403 KB, including **1.4 MB of coverage artefacts**, the guard scripts, the
+  ESLint config and the development sourcemap. Two things came out of that: `coverage/` was missing
+  from `.gitignore` and two artefact files had already been committed (now removed), and
+  `.vscodeignore` was written as a short list of guesses rather than a considered one.
+- Rather than fix it and hope, the file list is now an **allowlist** checked by
+  `scripts/check-package.mjs` (`npm run check:package`), which fails on anything unexpected and on
+  anything missing. Verified by deleting one exclusion and watching it fail.
+- `npm run package` cleans `dist/` first, so a production build cannot inherit the sourcemap a watch
+  build left behind.
+- Installing into a clean profile stays on the manual checklist: it needs a real editor and real
+  credentials to be worth anything.
 
 ### 12.6 Release checklist
 - [ ] `publisher` replaced with the real one (removing `TODO-PUBLISHER`).
