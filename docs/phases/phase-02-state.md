@@ -49,7 +49,7 @@ interface Agent {
   `promptResolution: { source; path?; usedSnapshot: boolean; hash?: string }`.
 - Secrets never appear in any of these types. Add a comment saying so.
 
-### 2.2 Schema versioning and validation
+### 2.2 Schema versioning and validation ✅
 - Persisted envelope: `{ schemaVersion: number; revision: number; agents: Agent[] }`.
 - Hand-written type guards in `src/state/validate.ts` (no new dependency). Unknown or
   malformed entries are dropped into a `quarantine` array and logged, never thrown away
