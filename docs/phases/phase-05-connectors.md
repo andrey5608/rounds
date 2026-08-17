@@ -7,7 +7,7 @@ normalized items, with typed auth/network/config errors and a `ping()` used by s
 
 ## Steps
 
-### 5.1 HTTP client (`src/connectors/http.ts`)
+### 5.1 HTTP client (`src/connectors/http.ts`) ✅
 - Thin wrapper over `fetch` with: per-request timeout (default 20 s, `AbortController`),
   JSON helpers, `User-Agent: rounds/<version>`.
 - **Host allowlist:** the request URL host must equal the configured Jira or Git base URL
@@ -15,9 +15,13 @@ normalized items, with typed auth/network/config errors and a `ping()` used by s
   "network calls limited to configured hosts" constraint is enforced mechanically.
 - Retries: only on `429` and `5xx`, max 3 attempts, exponential backoff honouring
   `Retry-After`. `4xx` other than 429 never retries.
+- Redirects are refused outright (`redirect: 'error'`) rather than followed and checked: a
+  redirect is precisely how a request to an allowed host ends up somewhere else carrying the
+  token.
 - All request/response logging goes through the redacting logger, bodies truncated.
 
-### 5.2 Error types (`src/connectors/errors.ts`)
+### 5.2 Error types (`src/connectors/errors.ts`) ✅
+Implemented before the client, which depends on them.
 - `AuthError` (401/403 → "token missing, expired or lacking scope"),
   `NetworkError` (DNS, timeout, connection reset, 5xx after retries),
   `RateLimitError` (429 with `retryAfter`),
