@@ -7,7 +7,7 @@ and a manual run works from any window without ever double-running an agent.
 
 ## Steps
 
-### 3.1 Leader lock (`src/scheduler/leaderLock.ts`)
+### 3.1 Leader lock (`src/scheduler/leaderLock.ts`) ✅
 - Lock file `rounds.lock` in `context.globalStorageUri` (the path from `plan.md`).
 - Use `proper-lockfile` with: `stale: 30_000`, `update: 10_000` (heartbeat),
   `retries: 0` on the acquire attempt, and an `onCompromised` handler.
