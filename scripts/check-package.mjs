@@ -17,9 +17,9 @@ const ALLOWED = new Set([
   'dist/extension.js',
   // The marketplace icon, the activity bar glyph the manifest points at, and the image the README
   // shows. The vector originals stay in the repository and out of the package.
-  'media/rounds-icon-128.png',
-  'media/rounds-activitybar.svg',
-  'media/rounds-lockup.png',
+  'docs/media/rounds-icon-128.png',
+  'docs/media/rounds-activitybar.svg',
+  'docs/media/rounds-lockup.png',
 ]);
 
 const result = spawnSync(

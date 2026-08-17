@@ -14,7 +14,7 @@
     "cron"
   ],
   "license": "MIT",
-  "icon": "media/rounds-icon-128.png",
+  "icon": "docs/media/rounds-icon-128.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/andrey5608/rounds.git"
@@ -111,7 +111,7 @@
         {
           "id": "rounds",
           "title": "Rounds",
-          "icon": "media/rounds-activitybar.svg"
+          "icon": "docs/media/rounds-activitybar.svg"
         }
       ]
     },

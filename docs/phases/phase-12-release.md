@@ -25,7 +25,7 @@ release checklist. Milestone **M4**.
 | Requests only to configured hosts | `fetch` called from one file only, and no other network client anywhere | `check-network.mjs` |
 | Host allowlist honoured | A path leaving the host is refused, and redirects are never followed | `http.unit.test.ts` |
 | Consent gate | `selectChatModels` called in one file; user action tokens confined to the UI layer | `check-consent-gate.mjs` |
-| English only | Letters outside ASCII in tracked text | `check-language.mjs` |
+| English descriptions | Letters outside ASCII in tracked text | `check-language.mjs` |
 | Trademarks | No product name in the extension name, command titles, view titles or setting keys | `contributions.unit.test.ts` |
 | Secret hygiene | A stored token appears in neither the state file, global state, the log, nor a header | `secretHygiene.unit.test.ts` |
 | Editor API external | The bundle requires `vscode` rather than containing it | `check-bundle.mjs` |
@@ -69,7 +69,7 @@ thing this document must not do.
   still references a sourcemap — the one signal that separates the two, since an unminified bundle
   passes every other audit. Verified in both directions.
 - **A marketplace README may not embed an SVG**: `vsce` refuses to package one and says so. The README
-  therefore shows a PNG rendered from `media/rounds-lockup.svg`, and links the vector source next to
+  therefore shows a PNG rendered from `docs/media/rounds-lockup.svg`, and links the vector source next to
   it. The vector originals stay in the repository and out of the package.
 - The first attempt shipped 403 KB, including **1.4 MB of coverage artefacts**, the guard scripts, the
   ESLint config and the development sourcemap. Two things came out of that: `coverage/` was missing
@@ -88,8 +88,8 @@ Three of these are the owner's to do, and the difference is stated rather than b
 because publishing is their decision, the last because it needs a real editor and real credentials.
 
 - [x] `publisher` is `rounds`, the id the owner registered. The extension id is `rounds.rounds`.
-- [x] `icon` is `media/rounds-icon-128.png`, from the brand assets the owner supplied. The activity
-      bar uses `media/rounds-activitybar.svg` instead of the codicon the plan originally named, and
+- [x] `icon` is `docs/media/rounds-icon-128.png`, from the brand assets the owner supplied. The activity
+      bar uses `docs/media/rounds-activitybar.svg` instead of the codicon the plan originally named, and
       `plan.md` was amended rather than left to contradict the manifest.
 - [ ] **Owner:** capture the README screenshots for the wizard. They need a real tracker and a
       signed-in provider, so the section is written in prose until then.

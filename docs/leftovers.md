@@ -18,7 +18,7 @@ decision, or a working installation.
 | Tag `v1.0.0` | Version and changelog say 1.0.0; no tag exists. Nothing blocks it any more | Tag the release commit, then `vsce publish` |
 
 Closed since this list was written: the icon and the activity bar glyph, from the brand assets in
-[`media/`](../media), and the publisher id, which is now `rounds`. What remains is the screenshots and
+[`docs/media/`](../media), and the publisher id, which is now `rounds`. What remains is the screenshots and
 the release act itself.
 
 ## 2. Needs a real environment

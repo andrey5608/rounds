@@ -55,7 +55,7 @@ is allowed, and what it does — lives in that object, so adding one is a file p
    export function createThingTool(): RoundsTool<ThingInput> {
      return {
        name: 'doThing',
-       description: 'English. The model reads this, and so does the user in the wizard.',
+       description: 'The model reads this, and so does the user in the wizard.',
        inputSchema: { type: 'object', properties: { … }, required: […], additionalProperties: false },
        parseInput(raw) { /* throw ToolInputError with a message the model can act on */ },
        checkPermission(input, context) { /* { allowed: true } or { allowed: false, reason } */ },

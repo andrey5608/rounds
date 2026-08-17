@@ -53,7 +53,7 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
 - Settings UI title: "Rounds"
 
 ### Views
-- Activity bar container id: `rounds`, title "Rounds", icon `media/rounds-activitybar.svg`
+- Activity bar container id: `rounds`, title "Rounds", icon `docs/media/rounds-activitybar.svg`
   (amended 2026-08-17: the owner supplied brand assets; this replaces the original codicon
   `$(history)`)
 - TreeView id: `rounds.agentsView`, title "Agents"

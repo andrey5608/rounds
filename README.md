@@ -1,4 +1,4 @@
-<img src="media/rounds-lockup.png" alt="Rounds" width="380">
+<img src="docs/media/rounds-lockup.png" alt="Rounds" width="380">
 
 # Rounds — Scheduled Task Agents
 
@@ -218,12 +218,12 @@ Deleting an agent never deletes files it already wrote.
 
 ## Brand assets
 
-The logo lives in [`media/`](./media): [`rounds-lockup.svg`](./media/rounds-lockup.svg) is the vector
-lockup shown above, with [`rounds-lockup.png`](./media/rounds-lockup.png) rendered from it because a
+The logo lives in [`docs/media/`](./media): [`rounds-lockup.svg`](./docs/media/rounds-lockup.svg) is the vector
+lockup shown above, with [`rounds-lockup.png`](./docs/media/rounds-lockup.png) rendered from it because a
 marketplace README may not embed an SVG. Also there:
-[`rounds-icon.svg`](./media/rounds-icon.svg) with its 128 and 512 pixel renders,
-[`rounds-activitybar.svg`](./media/rounds-activitybar.svg) for the activity bar, and
-[`rounds-wordmark.svg`](./media/rounds-wordmark.svg).
+[`rounds-icon.svg`](./docs/media/rounds-icon.svg) with its 128 and 512 pixel renders,
+[`rounds-activitybar.svg`](./docs/media/rounds-activitybar.svg) for the activity bar, and
+[`rounds-wordmark.svg`](./docs/media/rounds-wordmark.svg).
 
 ## Documentation
 

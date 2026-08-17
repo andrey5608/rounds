@@ -14,7 +14,7 @@ from Jira or a Git host, run a prompt through a language model, and store the re
 
 ## Language
 
-- **DO** write everything in the repository in English: code, comments, UI strings, error
+- **DO** write everything in the repository: code, comments, UI strings, error
   messages, commit messages, docs, tests.
 - **DO** reply to the user in his prompt language in chat — that is conversation, not repository
   content.
@@ -82,7 +82,7 @@ bypass any of them for convenience.
 
 - **DON'T** add `Co-Authored-By` trailers, "Generated with" footers, or any other AI
   attribution to commit messages or pull request bodies.
-- **DO** write commit messages in English: a short imperative subject, then a body
+- **DO** write commit messages: a short imperative subject, then a concise body
   explaining why when it is not obvious.
 - **DO** work on a feature branch. **DON'T** commit directly to `main`.
 - **DON'T** commit or push unless the user asks for it.

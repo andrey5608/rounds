@@ -61,7 +61,7 @@ export class ToolInputError extends Error {
  */
 export interface RoundsTool<TInput = unknown> {
   name: string;
-  /** English. The model reads this, and so does the user in the wizard. */
+  /** The model reads this, and so does the user in the wizard. */
   description: string;
   inputSchema: Record<string, unknown>;
   parseInput(raw: unknown): TInput;

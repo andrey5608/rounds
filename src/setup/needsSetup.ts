@@ -16,7 +16,7 @@ export type SetupProblem =
 export interface AgentReadiness {
   ready: boolean;
   problems: SetupProblem[];
-  /** English, one line, ready to show as a tooltip or a skip reason. */
+  /** One line, ready to show as a tooltip or a skip reason. */
   reason?: string;
 }
 
