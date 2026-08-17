@@ -81,7 +81,7 @@ interface Agent {
 - `get`, `set`, `delete`, `has`, and `onDidChange` re-exposed.
 - Guard test: no secret key string appears anywhere in `store.ts`/`fileStore.ts`.
 
-### 2.6 Run history (`src/state/history.ts`)
+### 2.6 Run history (`src/state/history.ts`) ✅
 - Stored under `rounds.history` as `Record<agentId, RunRecord[]>`, newest first.
 - `append(record)` trims to `rounds.executionHistoryLimit`; deleting an agent deletes
   its history; result files are **not** deleted (say so in the delete confirmation).
