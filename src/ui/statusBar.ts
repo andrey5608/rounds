@@ -62,6 +62,8 @@ function describe(state: StatusBarState): { text: string; tooltip: string } {
  */
 export class RoundsStatusBar {
   private readonly item: vscode.StatusBarItem;
+  private state: StatusBarState = { kind: 'idle', agentCount: 0 };
+  private isLeader = false;
 
   constructor() {
     this.item = vscode.window.createStatusBarItem(
@@ -76,9 +78,27 @@ export class RoundsStatusBar {
   }
 
   update(state: StatusBarState): void {
-    const { text, tooltip } = describe(state);
+    this.state = state;
+    this.render();
+  }
+
+  /**
+   * Records whether this window is the one that schedules runs.
+   *
+   * Worth surfacing: an agent that never fires is usually a sign that another window
+   * holds the scheduling lock, and without this the user has no way to tell.
+   */
+  setLeader(isLeader: boolean): void {
+    this.isLeader = isLeader;
+    this.render();
+  }
+
+  private render(): void {
+    const { text, tooltip } = describe(this.state);
     this.item.text = text;
-    this.item.tooltip = tooltip;
+    this.item.tooltip = this.isLeader
+      ? `${tooltip}\n\nThis window schedules runs.`
+      : `${tooltip}\n\nAnother window schedules runs; manual runs still work here.`;
   }
 
   dispose(): void {

@@ -21,7 +21,7 @@ and a manual run works from any window without ever double-running an agent.
 - On `deactivate()`, release the lock so another window can take over instantly.
 - Publish a context key `rounds.isLeader` for debugging and for the status bar tooltip.
 
-### 3.3 Leader-only scheduling
+### 3.3 Leader-only scheduling ✅
 - Only the leader creates the interval ticker (phase 9). Followers keep their UI live by
   reacting to `store.onDidChange` (the `mtime`/revision poll from step 2.4).
 - Any state write from a follower still goes through the revisioned store, so followers

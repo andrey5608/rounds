@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
 import type { ServiceContainer } from './container.js';
+import { LeaderLock } from './scheduler/leaderLock.js';
+import { Leadership } from './scheduler/leadership.js';
 import { CountersService } from './state/counters.js';
 import { FileStateBackend, StateFileWatcher } from './state/fileStore.js';
 import { HistoryService } from './state/history.js';
@@ -60,6 +62,13 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   const agentsView = registerAgentsView(extensionContext);
   const statusBar = new RoundsStatusBar();
 
+  // Only one window may schedule runs; the others stay responsive but tick-free.
+  const leaderLock = new LeaderLock({
+    directory: extensionContext.globalStorageUri.fsPath,
+    logger,
+  });
+  const leadership = new Leadership({ lock: leaderLock, logger });
+
   container = {
     extensionContext,
     output,
@@ -74,6 +83,8 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
       getGlobalLimit: () => settings.maxExecutionsPerDay,
       getTimeZone: () => settings.timezone,
     }),
+    leaderLock,
+    leadership,
     agentsView,
     statusBar,
     settings: () => settings,
@@ -85,12 +96,17 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     store,
     statusBar,
     stateWatcher,
+    leadership,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('rounds')) {
         settings = readSettings(vscode.workspace.getConfiguration());
         logger.debug('Settings changed; reloaded them.');
         agentsView.refresh();
       }
+    }),
+    leadership.onDidChange((isLeader) => {
+      statusBar.setLeader(isLeader);
+      void vscode.commands.executeCommand('setContext', 'rounds.isLeader', isLeader);
     }),
     store.onDidChange((change) => {
       void vscode.commands.executeCommand(
@@ -120,6 +136,7 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
     services.statusBar.update({ kind: 'idle', agentCount: state.agents.length });
     services.agentsView.refresh();
     await services.stateWatcher.start();
+    services.leadership.start();
     services.logger.info(
       `Rounds is ready with ${state.agents.length} agent(s) at state revision ${state.revision}.`,
     );
@@ -129,9 +146,11 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
 }
 
 /** Called when the extension is deactivated. Disposes everything activation created. */
-export function deactivate(): void {
-  // Everything created during activation is registered in `context.subscriptions`, which
-  // the editor disposes for us. Dropping the reference keeps deactivation honest for
-  // services added in later phases.
+export async function deactivate(): Promise<void> {
+  // Releasing the scheduling lock is awaited on purpose: another window can then take
+  // over at once instead of waiting for the lock to go stale.
+  await container?.leadership.stop();
+  // Everything else created during activation is registered in `context.subscriptions`,
+  // which the editor disposes for us.
   container = undefined;
 }
