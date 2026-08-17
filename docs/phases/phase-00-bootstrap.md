@@ -7,7 +7,7 @@ in the Extension Development Host, and is checked by CI.
 
 ## Steps
 
-### 0.1 Scaffold the extension into the existing repository
+### 0.1 Scaffold the extension into the existing repository ✅
 - Generate a standard `yo code` TypeScript extension **in place**, keeping `plan.md`,
   `README.md` and `docs/` untouched.
 - Resulting root files: `package.json`, `tsconfig.json`, `.vscodeignore`, `.gitignore`,

@@ -1,0 +1,21 @@
+{
+  "name": "rounds",
+  "version": "0.0.1",
+  "description": "Scheduled task agents that collect data from your trackers, run a prompt through a language model, and store the result.",
+  "license": "MIT",
+  "main": "./out/extension.js",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "activationEvents": [],
+  "contributes": {},
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/vscode": "^1.125.0",
+    "typescript": "^7.0.2"
+  }
+}

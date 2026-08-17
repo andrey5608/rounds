@@ -1,0 +1,11 @@
+.vscode/**
+.github/**
+src/**
+out/**
+docs/**
+node_modules/**
+plan.md
+AGENTS.md
+CLAUDE.md
+tsconfig.json
+.gitignore
