@@ -6,7 +6,12 @@ import type { FetchResult, SourceItem } from '../connectors/items.js';
 import type { IssueTrackerConnector } from '../connectors/jira.js';
 import { mapModelError } from '../model/errors.js';
 import type { LanguageModelGateway } from '../model/gateway.js';
-import { IterationCapError, RunCancelledError, runAgenticLoop } from '../model/loop.js';
+import {
+  EmptyResponseError,
+  IterationCapError,
+  RunCancelledError,
+  runAgenticLoop,
+} from '../model/loop.js';
 import { ModelNotFoundError } from '../setup/modelCatalog.js';
 import type { ModelCatalog } from '../setup/modelCatalog.js';
 import { evaluateReadiness } from '../setup/needsSetup.js';
@@ -52,6 +57,7 @@ export function describeFailure(error: unknown): { code: string; message: string
     error instanceof ConnectorError ||
     error instanceof ModelNotFoundError ||
     error instanceof IterationCapError ||
+    error instanceof EmptyResponseError ||
     error instanceof RunCancelledError
   ) {
     return { code: error.code, message: error.message };
@@ -253,6 +259,9 @@ export class AgentRunner {
         logger,
         isCancelled: request.isCancelled,
       });
+      logger.info(
+        `Model answer for prompt ${index + 1} of ${prompts.length}: ${outcome.text.length} character(s) after ${outcome.iterations} round(s), ${outcome.toolCalls.length} tool call(s).`,
+      );
       record.toolCalls.push(...outcome.toolCalls);
       sections.push(
         prompts.length > 1 ? `## ${prompt.label ?? `Item ${index + 1}`}\n\n${outcome.text}` : outcome.text,

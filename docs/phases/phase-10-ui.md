@@ -71,6 +71,12 @@ and per-step validation:
 10. **Output folder** — default or folder picker; writability probe.
 11. **Summary** — read-only confirmation listing everything, then save.
 
+- **Corrected after a real setup.** Creation asked eleven questions in a row, most with a sensible
+  default, and the token was a separate errand from the host it belongs to. Now: creation asks only
+  what an agent cannot work without, the optional settings are offered from the confirmation and from
+  the edit list, the token is asked for together with the connection, and the confirmation is a modal
+  message — a quick pick has a filter box, and a filter box on a confirmation reads as a field
+  somebody is supposed to fill in.
 - Creation is linear, editing is a field list: those are different jobs. Setting an agent up means
   answering every question once; changing one means finding that question again.
 - All the validation lives in `src/ui/wizard/steps.ts`, apart from the quick picks — that is the

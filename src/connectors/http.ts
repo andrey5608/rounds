@@ -195,7 +195,7 @@ export class HttpClient {
     }
     if (response.status === 404) {
       throw new ConfigError(
-        `The host ${this.host} does not know this path. Check the base URL and the repository or project it refers to.`,
+        `The host ${this.host} has nothing at ${new URL(url).pathname}. Either the base URL points at the wrong place, or the repository or project named in the agent does not exist there.`,
         detail,
       );
     }

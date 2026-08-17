@@ -1,6 +1,11 @@
 import * as assert from 'node:assert/strict';
 
-import { ConnectorFactory, authorizationHeader, resolveEndpoint } from '../../connectors/factory.js';
+import {
+  ConnectorFactory,
+  authorizationHeader,
+  resolveApiRoot,
+  resolveEndpoint,
+} from '../../connectors/factory.js';
 import { ConfigError } from '../../connectors/errors.js';
 import type { FetchLike, HttpResponseLike } from '../../connectors/http.js';
 import { Emitter } from '../../state/emitter.js';
@@ -217,5 +222,52 @@ describe('connector factory', () => {
 
     const result = await factory.ping(repos);
     assert.ok(!result.message.includes('super-secret-token'));
+  });
+});
+
+describe('where the API lives', () => {
+  const git = (baseUrl: string): EndpointConfig => ({
+    name: 'repos',
+    kind: 'git',
+    baseUrl,
+    authScheme: 'bearer',
+  });
+
+  it('sends github.com to its API host, not to a path under it', () => {
+    // The reported failure: /api/v3 under github.com is a 404 that reads as "you typed the repository
+    // wrong", which is the wrong thing to say to somebody who typed it correctly.
+    assert.equal(resolveApiRoot(git('https://github.com')), 'https://api.github.com/');
+    assert.equal(resolveApiRoot(git('https://www.github.com/')), 'https://api.github.com/');
+  });
+
+  it('leaves a base URL that already points at an API root alone', () => {
+    assert.equal(resolveApiRoot(git('https://api.github.com')), 'https://api.github.com/');
+  });
+
+  it('uses the enterprise path for a self-hosted installation', () => {
+    assert.equal(resolveApiRoot(git('https://git.example.invalid')), 'https://git.example.invalid/api/v3/');
+  });
+
+  it('names the hosts it does not speak instead of failing later with a 404', () => {
+    for (const host of [
+      'https://bitbucket.org',
+      'https://gitlab.com',
+      'https://dev.azure.com',
+      'https://codeberg.org',
+    ]) {
+      assert.throws(() => resolveApiRoot(git(host)), (error: unknown) => {
+        assert.ok(error instanceof ConfigError);
+        assert.match(error.message, /not supported yet/);
+        assert.match(error.message, /GitHub Enterprise Server/);
+        return true;
+      }, host);
+    }
+  });
+
+  it('builds the tracker API path from the configured host', () => {
+    assert.equal(
+      resolveApiRoot({ name: 'tracker', kind: 'jira', baseUrl: 'https://tracker.invalid/', authScheme: 'bearer' }),
+      'https://tracker.invalid/rest/api/2/',
+    );
   });
 });

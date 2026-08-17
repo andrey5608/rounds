@@ -2,7 +2,12 @@ import * as assert from 'node:assert/strict';
 
 import { LIMITS } from '../../agents/truncate.js';
 import type { LanguageModelGateway, ModelInfo, ModelRequest, ModelTurn } from '../../model/gateway.js';
-import { IterationCapError, RunCancelledError, runAgenticLoop } from '../../model/loop.js';
+import {
+  EmptyResponseError,
+  IterationCapError,
+  RunCancelledError,
+  runAgenticLoop,
+} from '../../model/loop.js';
 import { ToolRegistry } from '../../tools/registry.js';
 import type { ToolContext } from '../../tools/registry.js';
 
@@ -252,6 +257,30 @@ describe('agentic loop', () => {
     const sent = gateway.requests[1]?.messages[2]?.toolResults?.[0]?.content ?? '';
     assert.ok(sent.length < LIMITS.toolResult + 200);
     assert.match(sent, /\[truncated: \d+ of \d+ characters shown\]/);
+  });
+
+  it('treats an answer with no text and no tool calls as a failure', async () => {
+    // Reported from a real run: the record said "succeeded" and the summary said "the model returned
+    // no text", which is neither a result nor an explanation.
+    const gateway = new ScriptedGateway([{ text: '   ', toolCalls: [] }]);
+
+    await assert.rejects(
+      runAgenticLoop({
+        gateway,
+        registry: new ToolRegistry(),
+        modelId: 'model-a',
+        prompt: 'go',
+        enabledTools: [],
+        toolContext: context(),
+        logger: silentLogger,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof EmptyResponseError);
+        assert.equal(error.code, 'model.emptyResponse');
+        assert.match(error.message, /model-a/);
+        return true;
+      },
+    );
   });
 
   it('propagates a model failure instead of swallowing it', async () => {

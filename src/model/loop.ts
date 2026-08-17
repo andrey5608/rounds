@@ -8,6 +8,24 @@ import type { LanguageModelGateway, ModelMessage } from './gateway.js';
 /** How many times the model may ask for tools before the run is stopped. */
 export const MAX_ITERATIONS = 10;
 
+/**
+ * Thrown when the model produced nothing at all.
+ *
+ * Reported from a real run: the record said "succeeded" and the summary said "the model returned no
+ * text", which tells the user neither what happened nor what to do. An answer with no text and no tool
+ * calls is a failed run, not a successful one that happens to be empty.
+ */
+export class EmptyResponseError extends Error {
+  readonly code = 'model.emptyResponse';
+
+  constructor(readonly modelId: string) {
+    super(
+      `The model "${modelId}" returned no text and asked for no tools. Check the extended log for what was sent, and try a different model or a simpler prompt.`,
+    );
+    this.name = 'EmptyResponseError';
+  }
+}
+
 export class IterationCapError extends Error {
   readonly code = 'model.iterationCap';
 
@@ -67,14 +85,28 @@ export async function runAgenticLoop(options: AgenticLoopOptions): Promise<Agent
       throw new RunCancelledError();
     }
 
+    const started = Date.now();
+    options.logger.debug(
+      `Round ${iteration}: sending ${messages.length} message(s) and ${tools.length} tool declaration(s) to ${options.modelId}.`,
+    );
     const turn = await options.gateway.sendRequest({
       modelId: options.modelId,
       messages,
       tools,
     });
+    options.logger.info(
+      `Round ${iteration} answered in ${Date.now() - started}ms: ${turn.text.length} character(s) of text, ${turn.toolCalls.length} tool call(s).`,
+    );
 
     if (turn.toolCalls.length === 0) {
-      options.logger.debug(`The model answered after ${iteration} round(s).`);
+      if (turn.text.trim().length === 0) {
+        // Nothing to write and nothing to act on: reporting this as a success would leave an empty
+        // result file and a history entry that says everything went well.
+        throw new EmptyResponseError(options.modelId);
+      }
+      options.logger.debug(
+        `The model answered after ${iteration} round(s); the answer starts: ${turn.text.slice(0, 200)}`,
+      );
       return { text: turn.text, toolCalls, iterations: iteration };
     }
 

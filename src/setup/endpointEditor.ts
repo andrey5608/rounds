@@ -107,6 +107,28 @@ export async function addOrUpdateEndpoint(
   return endpoint;
 }
 
+/**
+ * Adds a connection and asks for its token in the same breath.
+ *
+ * Reported from a real setup: configuring a host and entering its token were two separate items in
+ * two separate places, so a host looked configured while nothing could authenticate. They are one
+ * decision, so they are one flow; an existing token is reused rather than asked for again.
+ */
+export async function addConnection(
+  store: RoundsStore,
+  secrets: RoundsSecrets,
+  kind: SourceKind,
+): Promise<EndpointConfig | undefined> {
+  const endpoint = await addOrUpdateEndpoint(store, kind);
+  if (!endpoint) {
+    return undefined;
+  }
+  if (await secrets.has(SECRET_BY_KIND[kind])) {
+    return endpoint;
+  }
+  return (await enterToken(secrets, kind)) ? endpoint : undefined;
+}
+
 /** Asks for a token and puts it in secret storage. Nothing else ever sees it. */
 export async function enterToken(secrets: RoundsSecrets, kind: SourceKind): Promise<boolean> {
   const token = await vscode.window.showInputBox({

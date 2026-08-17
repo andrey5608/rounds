@@ -5,7 +5,7 @@ import { mapModelError } from '../../model/errors.js';
 import { describeModel } from '../../model/gateway.js';
 import { describeCron, minIntervalMinutes } from '../../scheduler/cron.js';
 import { userAction } from '../../setup/consentGate.js';
-import { addOrUpdateEndpoint, enterToken } from '../../setup/endpointEditor.js';
+import { addConnection, enterToken } from '../../setup/endpointEditor.js';
 import type { Agent, PersistedState } from '../../state/types.js';
 
 import {
@@ -99,6 +99,8 @@ type Field =
   | 'model'
   | 'tools'
   | 'schedule'
+  | 'timezone'
+  | 'startup'
   | 'limits'
   | 'outputFolder';
 
@@ -123,6 +125,12 @@ async function pickField(draft: AgentDraft): Promise<StepResult<Field>> {
     { label: 'Model', detail: draft.modelId, field: 'model' },
     { label: 'Tools', detail: draft.tools.join(', ') || 'none', field: 'tools' },
     { label: 'Schedule', detail: describeCron(draft.schedule), field: 'schedule' },
+    { label: 'Time zone', detail: draft.timezone ?? 'the setting, or the system zone', field: 'timezone' },
+    {
+      label: 'Start-up and missed runs',
+      detail: `${draft.runOnStartup ? 'runs on start-up' : 'does not run on start-up'}, missed: ${draft.missedRunPolicy}`,
+      field: 'startup',
+    },
     {
       label: 'Limits and time window',
       detail:
@@ -171,6 +179,10 @@ async function editField(
       return askTools(container, draft);
     case 'schedule':
       return askSchedule(container, draft);
+    case 'timezone':
+      return askTimeZone(draft);
+    case 'startup':
+      return askStartupBehaviour(draft);
     case 'limits':
       return askLimits(draft);
     case 'outputFolder':
@@ -191,16 +203,26 @@ async function runFullFlow(
     () => askModel(container, draft),
     () => askTools(container, draft),
     () => askSchedule(container, draft),
-    () => askLimits(draft),
-    () => askOutputFolder(draft),
-    () => confirm(draft),
   ];
   for (const step of steps) {
     if (!(await step())) {
       return false;
     }
   }
-  return true;
+
+  // The optional settings are offered from the confirmation rather than asked for on the way: the
+  // default answer to every one of them is right for most agents, and the review is where somebody
+  // notices they want something else.
+  for (;;) {
+    const decision = await confirm(draft);
+    if (decision === 'create') {
+      return true;
+    }
+    if (decision === 'cancel') {
+      return false;
+    }
+    await askAdvanced(container, draft);
+  }
 }
 
 async function askName(
@@ -267,7 +289,8 @@ async function askSource(container: ServiceContainer, draft: AgentDraft): Promis
   let state = await container.store.read();
   let endpoints = endpointsForKind(state, draft.sourceKind);
   if (endpoints.length === 0) {
-    const added = await addOrUpdateEndpoint(container.store, draft.sourceKind);
+    // The token belongs to this decision, not to a separate errand somewhere else.
+    const added = await addConnection(container.store, container.secrets, draft.sourceKind);
     if (!added) {
       return false;
     }
@@ -480,10 +503,10 @@ async function askTools(container: ServiceContainer, draft: AgentDraft): Promise
   return true;
 }
 
-async function askSchedule(container: ServiceContainer, draft: AgentDraft): Promise<boolean> {
+async function askTimeZone(draft: AgentDraft): Promise<boolean> {
   const timezone = await ask(
     vscode.window.showInputBox({
-      title: 'Time zone for this schedule (optional)',
+      title: 'Time zone for this schedule',
       value: draft.timezone ?? '',
       placeHolder: 'Europe/Berlin — leave empty to use the setting or the system zone',
       ignoreFocusOut: true,
@@ -494,7 +517,10 @@ async function askSchedule(container: ServiceContainer, draft: AgentDraft): Prom
     return false;
   }
   draft.timezone = timezone.trim().length > 0 ? timezone.trim() : undefined;
+  return true;
+}
 
+async function askSchedule(container: ServiceContainer, draft: AgentDraft): Promise<boolean> {
   const schedule = await ask(
     vscode.window.showInputBox({
       title: 'Schedule',
@@ -522,6 +548,61 @@ async function askSchedule(container: ServiceContainer, draft: AgentDraft): Prom
     }
   }
 
+  return true;
+}
+
+/**
+ * The questions with a sensible default, asked only when somebody goes looking for them.
+ *
+ * Creation asks what an agent cannot work without. Everything here — the time zone, the start-up and
+ * missed-run behaviour, a stricter daily limit, a time window, a folder of its own — has a default
+ * that is right for most agents, and eleven modal prompts in a row is a worse way to learn that than
+ * a field list you open when you need it.
+ */
+async function askAdvanced(container: ServiceContainer, draft: AgentDraft): Promise<boolean> {
+  const picked = await vscode.window.showQuickPick(
+    [
+      { label: 'Time zone', detail: draft.timezone ?? 'the setting, or the system zone', value: 'timezone' as const },
+      {
+        label: 'Behaviour around start-up',
+        detail: `${draft.runOnStartup ? 'runs on start-up' : 'does not run on start-up'}, missed runs: ${draft.missedRunPolicy === 'skip' ? 'skipped' : 'caught up once'}`,
+        value: 'startup' as const,
+      },
+      {
+        label: 'Limits and time window',
+        detail:
+          [
+            draft.maxExecutionsPerDay ? `${draft.maxExecutionsPerDay} run(s) per day` : undefined,
+            draft.allowedTimeStart && draft.allowedTimeEnd
+              ? `only ${draft.allowedTimeStart} to ${draft.allowedTimeEnd}`
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join(', ') || 'the global limit, any time of day',
+        value: 'limits' as const,
+      },
+      { label: 'Result folder', detail: draft.outputFolder ?? 'the default folder', value: 'outputFolder' as const },
+    ],
+    { title: 'Which optional setting would you like to change?', ignoreFocusOut: true },
+  );
+  if (!picked) {
+    return false;
+  }
+  switch (picked.value) {
+    case 'timezone':
+      return askTimeZone(draft);
+    case 'startup':
+      return askStartupBehaviour(draft);
+    case 'limits':
+      return askLimits(draft);
+    case 'outputFolder':
+      return askOutputFolder(draft);
+  }
+  void container;
+  return true;
+}
+
+async function askStartupBehaviour(draft: AgentDraft): Promise<boolean> {
   const startup = await ask(
     vscode.window.showQuickPick(
       [
@@ -542,10 +623,7 @@ async function askSchedule(container: ServiceContainer, draft: AgentDraft): Prom
         { label: 'Skip it', detail: 'Wait for the next scheduled time.', value: 'skip' as const },
         { label: 'Run it once', detail: 'Catch up with a single run.', value: 'runOnce' as const },
       ],
-      {
-        title: 'What if a run came due while the editor was closed?',
-        ignoreFocusOut: true,
-      },
+      { title: 'What if a run came due while the editor was closed?', ignoreFocusOut: true },
     ),
   );
   if (cancelled(missed)) {
@@ -636,19 +714,28 @@ async function askOutputFolder(draft: AgentDraft): Promise<boolean> {
 }
 
 /** Last look before the agent is stored. */
-async function confirm(draft: AgentDraft): Promise<boolean> {
+async function confirm(draft: AgentDraft): Promise<'create' | 'advanced' | 'cancel'> {
   const lines = [
-    `Name: ${draft.name}`,
     `Mode: ${draft.executionMode === 'api' ? 'run and store the result' : 'open the prompt in chat'}`,
     `Source: ${draft.sourceKind === 'jira' ? `${draft.endpointName}, query ${draft.jql ?? ''}` : `${draft.endpointName}, ${draft.repo ?? ''}`}`,
     `Prompt: ${draft.promptSource === 'inline' ? 'written here' : draft.promptFile ?? ''}`,
     `Model: ${draft.modelId}`,
     `Tools: ${draft.tools.join(', ') || 'none'}`,
     `Schedule: ${describeCron(draft.schedule)}${draft.timezone ? ` (${draft.timezone})` : ''}`,
+    `Runs on start-up: ${draft.runOnStartup ? 'yes' : 'no'}; missed runs: ${draft.missedRunPolicy === 'skip' ? 'skipped' : 'caught up once'}`,
+    `Limits: ${draft.maxExecutionsPerDay ? `${draft.maxExecutionsPerDay} per day` : 'the global limit'}${draft.allowedTimeStart && draft.allowedTimeEnd ? `, only ${draft.allowedTimeStart} to ${draft.allowedTimeEnd}` : ''}`,
+    `Results: ${draft.outputFolder ?? 'the default folder'}`,
   ];
-  const choice = await vscode.window.showQuickPick(['Create the agent', 'Cancel'], {
-    title: lines.join(' · '),
-    ignoreFocusOut: true,
-  });
-  return choice === 'Create the agent';
+  // A modal message, not a quick pick: a quick pick carries a filter box, and a filter box on a
+  // confirmation reads as a field somebody is supposed to fill in.
+  const choice = await vscode.window.showInformationMessage(
+    `Create the agent "${draft.name}"?`,
+    { modal: true, detail: lines.join('\n') },
+    'Create',
+    'Optional Settings',
+  );
+  if (choice === 'Create') {
+    return 'create';
+  }
+  return choice === 'Optional Settings' ? 'advanced' : 'cancel';
 }

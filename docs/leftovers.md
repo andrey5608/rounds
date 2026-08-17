@@ -66,8 +66,30 @@ Kept here because the next person deserves to know it was wrong once:
   whether the language model API is present, and which installed extensions look like providers and
   whether they activated. See [phase 2](./phases/phase-02-state.md).
 
+- **A run against github.com always failed with a 404.** The API root was built by appending the
+  GitHub Enterprise Server path to whatever base URL was configured, which is wrong for github.com:
+  its API lives on `api.github.com`. The resulting message blamed the repository name, which is the
+  worst thing to tell somebody who typed it correctly. Resolution is now per host, and a 404 names the
+  path that was missing.
+- **An empty model answer was recorded as a successful run** whose summary read "the model returned no
+  text" — neither a result nor an explanation. An answer with no text and no tool calls is now a failed
+  run with its own code, and every round logs how long it took, how much text came back and how many
+  tools were asked for.
+- **"Another window holds the scheduling lock" repeated forever with one window open.** A compromised
+  lock was forgotten without being released, so the process could hold a lock it no longer knew about
+  and refuse itself every fifteen seconds. The handle is released before it is dropped, and the refusal
+  is reported once per change with whether the holder is alive or the lock is waiting to go stale.
+- **The wizard asked eleven questions in a row, several of them optional.** Creation now asks only what
+  an agent cannot work without; the rest keeps its default and is reachable from the confirmation and
+  from Edit Agent. The token is asked for together with the host it belongs to, and the confirmation is
+  a modal message rather than a quick pick, whose filter box read as a field to fill in.
+
 ## 5. Worth adding, not required
 
+- **Support for other repository hosts.** Rounds speaks the GitHub REST API, so github.com and GitHub
+  Enterprise Server work. Bitbucket, GitLab, Azure DevOps and Gitea have different API shapes and are
+  now refused by name rather than failing later with a 404. Adding one means adding a connector; the
+  recipe is in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - **A dedicated daylight-saving transition test.** Time zone handling is proven across zones on the
   same instant, and every next run is recomputed when the zone setting changes, but no test pins a
   real DST date. Noted in [phase 9](./phases/phase-09-scheduler.md). Pick a transition date in a zone

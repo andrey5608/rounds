@@ -15,11 +15,53 @@ const SECRET_BY_KIND: Record<SourceKind, SecretName> = {
   git: 'gitToken',
 };
 
-/** API path appended to the configured host root, per source kind. */
-const API_PATH: Record<SourceKind, string> = {
-  jira: '/rest/api/2/',
-  git: '/api/v3/',
-};
+/**
+ * Where the API lives, given what the user typed as the base URL.
+ *
+ * The hosted service and a self-hosted installation do not agree on this. github.com serves its API
+ * from a different host entirely (`api.github.com`), while an enterprise installation serves it from
+ * `/api/v3/` under its own host. Appending the enterprise path to github.com produces
+ * `https://github.com/api/v3/...`, which is a 404 that reads as "you typed the repository wrong" —
+ * exactly the wrong thing to tell somebody who typed it correctly.
+ */
+export function resolveApiRoot(endpoint: EndpointConfig): string {
+  const trimmed = endpoint.baseUrl.replace(/\/+$/, '');
+  if (endpoint.kind === 'jira') {
+    return `${trimmed}/rest/api/2/`;
+  }
+
+  let host: string;
+  try {
+    host = new URL(trimmed).host.toLowerCase();
+  } catch {
+    throw new ConfigError(`"${endpoint.baseUrl}" is not a valid base URL.`);
+  }
+
+  if (host === 'github.com' || host === 'www.github.com') {
+    return 'https://api.github.com/';
+  }
+  if (host === 'api.github.com' || host.startsWith('api.')) {
+    // Already pointed at an API root.
+    return `${trimmed}/`;
+  }
+  if (UNSUPPORTED_HOSTS.some((pattern) => pattern.test(host))) {
+    throw new ConfigError(
+      `${host} is not supported yet. Rounds speaks the GitHub REST API, so it works with github.com and with GitHub Enterprise Server installations. Support for other hosts means adding a connector; see CONTRIBUTING.md.`,
+    );
+  }
+  // A self-hosted installation of the supported kind.
+  return `${trimmed}/api/v3/`;
+}
+
+/** Hosts whose API is a different shape entirely, recognised so the message can say so. */
+const UNSUPPORTED_HOSTS = [
+  /(^|\.)bitbucket\.org$/,
+  /(^|\.)gitlab\.com$/,
+  /(^|\.)dev\.azure\.com$/,
+  /(^|\.)visualstudio\.com$/,
+  /(^|\.)gitea\./,
+  /(^|\.)codeberg\.org$/,
+];
 
 export interface ConnectorFactoryOptions {
   secrets: RoundsSecrets;
@@ -87,7 +129,7 @@ export class ConnectorFactory {
       );
     }
     return new HttpClient({
-      baseUrl: `${endpoint.baseUrl.replace(/\/+$/, '')}${API_PATH[endpoint.kind]}`,
+      baseUrl: resolveApiRoot(endpoint),
       headers: { Authorization: authorizationHeader(endpoint, token) },
       fetch: this.options.fetch,
       logger: this.options.logger,

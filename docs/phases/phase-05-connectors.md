@@ -71,6 +71,12 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
 - Keep the implementation provider-agnostic: one `GitProvider` interface, one concrete
   REST implementation for v1, selected by a `provider` field on the source so a second
   provider is an added file, not a rewrite.
+- **Corrected after a real setup:** the API root is resolved per host rather than by appending one
+  fixed path. github.com serves its API from `api.github.com`, while an enterprise installation serves
+  it from `/api/v3/` under its own host; appending the enterprise path to github.com produced a 404
+  whose message blamed the repository name. Hosts with a different API shape — Bitbucket, GitLab, Azure
+  DevOps, Gitea — are refused by name, because "not supported yet" is a fact somebody can act on and a
+  404 is not.
 
 ### 5.6 Connector factory and credential wiring (`src/connectors/factory.ts`) ✅
 - `createConnector(source, secrets, settings, logger)` resolves the base URL and the
