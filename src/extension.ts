@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 
+import type { ServiceContainer } from './container.js';
 import { registerAgentsView } from './ui/agentsView.js';
+import { registerCommands } from './ui/commands.js';
+
+let container: ServiceContainer | undefined;
 
 /**
  * Entry point called by the editor when the extension is activated.
@@ -13,14 +17,17 @@ import { registerAgentsView } from './ui/agentsView.js';
  *    from a user-initiated action, so it lives behind the consent gate instead.
  * 2. Never perform network calls and never show modal dialogs.
  * 3. Keep the synchronous part small; anything slower is deferred to a later tick.
- *
- * Services are wired up in step 1.7 and grow with the following phases.
  */
-export function activate(context: vscode.ExtensionContext): void {
-  registerAgentsView(context);
+export function activate(extensionContext: vscode.ExtensionContext): void {
+  const agentsView = registerAgentsView(extensionContext);
+  container = { extensionContext, agentsView };
+  registerCommands(container);
 }
 
 /** Called when the extension is deactivated. Disposes everything activation created. */
 export function deactivate(): void {
-  // Nothing to dispose yet.
+  // Everything created during activation is registered in `context.subscriptions`,
+  // which the editor disposes for us. Dropping the reference keeps deactivation honest
+  // for services added in later phases.
+  container = undefined;
 }

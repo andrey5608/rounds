@@ -87,10 +87,12 @@ Title `Rounds`, all keys under the `rounds.` prefix:
 - Every key gets a `markdownDescription` in English; enums get `enumDescriptions`.
 - Numeric keys get `minimum`/`maximum` so the settings UI validates them.
 
-### 1.7 Service container and command stubs
+### 1.7 Service container and command stubs ✅
 - `src/extension.ts` builds a small container object (logger, state store, secrets,
   later: catalog, scheduler, runner, tree provider) and passes it explicitly. No global
   singletons, no service locator.
+- The `ServiceContainer` type lives in `src/container.ts` rather than in `extension.ts`,
+  so the layers below can import it without importing the entry point back.
 - Register all 11 commands as stubs that log and show
   `Not implemented yet` — replaced phase by phase.
 - `deactivate()` disposes everything: subscriptions, timers, lock, output channel.
