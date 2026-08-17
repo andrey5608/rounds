@@ -7,7 +7,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 
 ## Steps
 
-### 1.1 Extension identity
+### 1.1 Extension identity ✅
 - `name`: `rounds`
 - `displayName`: `Rounds — Scheduled Task Agents`
 - `publisher`: `TODO-PUBLISHER` (placeholder stays until the owner provides one)

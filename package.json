@@ -1,9 +1,27 @@
 {
   "name": "rounds",
+  "displayName": "Rounds — Scheduled Task Agents",
+  "publisher": "TODO-PUBLISHER",
   "version": "0.0.1",
-  "description": "Scheduled task agents that collect data from your trackers, run a prompt through a language model, and store the result.",
+  "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "agents",
+    "schedule",
+    "automation",
+    "cron"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrey5608/rounds.git"
+  },
   "main": "./dist/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
   "engines": {
     "vscode": "^1.95.0"
   },
