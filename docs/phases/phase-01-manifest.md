@@ -24,7 +24,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
   dialogs.
 - Keep activation under ~50 ms of synchronous work; defer everything else.
 
-### 1.3 Views
+### 1.3 Views ✅
 ```jsonc
 "viewsContainers": {
   "activitybar": [{ "id": "rounds", "title": "Rounds", "icon": "$(history)" }]

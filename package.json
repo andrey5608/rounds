@@ -28,7 +28,32 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "contributes": {},
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "rounds",
+          "title": "Rounds",
+          "icon": "$(history)"
+        }
+      ]
+    },
+    "views": {
+      "rounds": [
+        {
+          "id": "rounds.agentsView",
+          "name": "Agents"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "rounds.agentsView",
+        "when": "!rounds.hasAgents",
+        "contents": "No agents yet. An agent visits a source on a schedule, runs your prompt through a language model and stores the result.\n[Create Agent](command:rounds.createAgent)\n[Check Setup](command:rounds.checkSetup)"
+      }
+    ]
+  },
   "scripts": {
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",

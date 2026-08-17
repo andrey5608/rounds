@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 
+import { registerAgentsView } from './ui/agentsView.js';
+
 /**
  * Entry point called by the editor when the extension is activated.
  *
@@ -14,8 +16,8 @@ import * as vscode from 'vscode';
  *
  * Services are wired up in step 1.7 and grow with the following phases.
  */
-export function activate(_context: vscode.ExtensionContext): void {
-  // Intentionally empty until the service container lands in step 1.7.
+export function activate(context: vscode.ExtensionContext): void {
+  registerAgentsView(context);
 }
 
 /** Called when the extension is deactivated. Disposes everything activation created. */
