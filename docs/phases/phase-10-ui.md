@@ -113,14 +113,23 @@ and per-step validation:
 - Integration: tree structure for agents with and without runs; context values match the
   menu `when` clauses; clicking a run opens the right document.
 - Unit: wizard step validation logic (pure functions separated from the QuickPick calls),
-  duplicate naming, delete confirmation text.
+  duplicate naming, delete confirmation text, draft round-trip, cursor and snapshot invalidation.
+- The tree tests are integration tests because `TreeItem` and `MarkdownString` only exist in the
+  host. One of them reads the menu `when` clauses out of the manifest and checks that every one of
+  them keys on a context value the tree actually produces — the two halves of that contract are
+  otherwise easy to drift apart.
 
 ## Exit criteria
 
-- [ ] An agent can be created, edited, duplicated, disabled, run and deleted entirely
-      from the UI.
-- [ ] The model QuickPick is populated live and never contains hardcoded names.
-- [ ] The tree shows enabled state, human-readable schedule, next run, and recent runs
-      with status icons.
-- [ ] Chat-mode limitations are visible wherever such runs appear.
-- [ ] No success notifications; failures are actionable and not repeated.
+- [x] An agent can be created, edited, duplicated, enabled or disabled, run and deleted entirely
+      from the UI; every one of the eleven commands has a real implementation.
+- [x] The model quick pick is populated by a live resolve through the consent gate and contains no
+      hardcoded names.
+- [x] The tree shows enabled state, human-readable schedule, next run and recent runs with status
+      icons, and its context values are checked against the manifest menus.
+- [x] Chat-mode limitations appear in the run tooltip, in the detail document and in the run summary
+      stored in the history.
+- [x] Scheduled successes are silent; failures notify once per agent per day with an action, and a
+      manual run always reports its outcome because the user asked for it.
+- [ ] Not done in this phase: the confirmation that lets a manual run exceed the daily limit
+      deliberately. It is listed in step 9.4 and remains open.
