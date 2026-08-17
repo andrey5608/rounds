@@ -1,11 +1,31 @@
-.vscode/**
+# Everything that is not needed to run the extension.
+temp/**
+# Brand sources. Only the icon, the activity bar glyph and the README image are needed in a package;
+# the vector originals and the preview live in the repository for whoever edits them next.
+media/rounds-icon.svg
+media/rounds-icon-512.png
+media/rounds-lockup.svg
+media/rounds-wordmark.svg
+media/rounds-brand-preview.png
 .github/**
+.vscode/**
 src/**
 out/**
 docs/**
+coverage/**
+scripts/**
 node_modules/**
 plan.md
 AGENTS.md
 CLAUDE.md
+CONTRIBUTING.md
 tsconfig.json
+eslint.config.mjs
+esbuild.js
+.vscode-test.mjs
+.mocharc.json
+.c8rc.json
 .gitignore
+.editorconfig
+**/*.map
+**/*.ts

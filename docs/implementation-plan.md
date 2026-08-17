@@ -83,6 +83,11 @@ pure logic stays unit-testable outside the extension host.
 Phases 4, 5 and 7 have no dependency on each other and can run in parallel once phase 2
 lands. Phase 3 can also run in parallel with 4/5/7.
 
+All thirteen phases are complete. What they did not close is collected in
+[leftovers.md](./leftovers.md): three items that need a marketplace identity or a design decision,
+the checks that need a real installation, and one feature from the specification that is genuinely
+missing — a manual run cannot yet exceed the daily limit on purpose.
+
 ## Cross-cutting conventions
 
 - **Errors:** every failure path produces a typed error with a stable `code`, a

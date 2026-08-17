@@ -15,8 +15,19 @@ export type MissedRunPolicy = 'skip' | 'runOnce';
 /** What an agent does when its prompt file cannot be read at run time. */
 export type PromptFileFallback = 'snapshot' | 'blockWhenResolvable' | 'blockAlways';
 
-/** Outcome of a single run. */
-export type RunStatus = 'succeeded' | 'failed' | 'skipped' | 'handedOff' | 'interrupted';
+/**
+ * Outcome of a single run.
+ *
+ * `running` is written when a run starts and replaced when it finishes; a `running` record
+ * whose claim is dead means the window disappeared mid-run and becomes `interrupted`.
+ */
+export type RunStatus =
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped'
+  | 'handedOff'
+  | 'interrupted';
 
 /** What caused a run to start. */
 export type RunTrigger = 'schedule' | 'manual' | 'startup' | 'missedRun';
@@ -151,6 +162,72 @@ export interface DailyCounters {
   capNotifiedAt?: string;
 }
 
+/**
+ * A window's claim on an agent while a run is in flight.
+ *
+ * Claims live in the shared state rather than in memory because the window that runs an
+ * agent manually is not necessarily the window that schedules it.
+ */
+export interface RunClaim {
+  windowId: string;
+  runId: string;
+  startedAt: string;
+  /** Refreshed while the run is in flight; a stale value means the window died. */
+  heartbeatAt: string;
+}
+
+/** How an endpoint authenticates. Cloud trackers usually want basic, self-hosted bearer. */
+export type AuthScheme = 'basic' | 'bearer';
+
+/**
+ * A configured base URL an agent can point at.
+ *
+ * Agents reference an endpoint by name so several agents can share one host without
+ * repeating its URL. The token itself never lives here: it stays in secret storage, one per
+ * source kind, which is the pair of keys plan.md defines.
+ */
+export interface EndpointConfig {
+  name: string;
+  kind: SourceKind;
+  baseUrl: string;
+  authScheme: AuthScheme;
+  /** Needed by basic authentication, where the token is the password. */
+  username?: string;
+}
+
+/** A model as the editor reported it. Ids and labels only; no credentials involved. */
+export interface CachedModel {
+  id: string;
+  name: string;
+  vendor: string;
+  family: string;
+}
+
+export type CheckStatus = 'pass' | 'warn' | 'fail';
+
+export interface CheckOutcome {
+  id: string;
+  title: string;
+  status: CheckStatus;
+  message: string;
+}
+
+/**
+ * What setup has established so far.
+ *
+ * Cached here so the tree, the wizard and agent validation can work without triggering a
+ * consent prompt: resolving models is only allowed from a user-initiated action.
+ */
+export interface SetupState {
+  /** Set the first time the user granted access to the language model API. */
+  consentGrantedAt?: string;
+  models?: CachedModel[];
+  modelsFetchedAt?: string;
+  firstRunNoticeShownAt?: string;
+  lastCheckAt?: string;
+  lastCheckResults?: CheckOutcome[];
+}
+
 /** History is kept per agent, newest first. */
 export type RunHistory = Record<string, RunRecord[]>;
 
@@ -162,4 +239,9 @@ export interface PersistedState {
   agents: Agent[];
   history: RunHistory;
   counters: DailyCounters;
+  /** Keyed by agent id. Absent means no window is running that agent. */
+  runClaims: Record<string, RunClaim>;
+  setup: SetupState;
+  /** Configured base URLs, keyed by the name agents reference. */
+  endpoints: Record<string, EndpointConfig>;
 }

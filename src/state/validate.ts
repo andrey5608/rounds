@@ -1,10 +1,14 @@
 import type {
   Agent,
+  EndpointConfig,
   AgentSchedule,
   AgentSource,
   DailyCounters,
   PersistedState,
   PromptConfig,
+  CachedModel,
+  CheckOutcome,
+  RunClaim,
   RunHistory,
   RunRecord,
 } from './types.js';
@@ -14,7 +18,7 @@ export const CURRENT_SCHEMA_VERSION = 1;
 
 /** An entry that could not be understood, kept aside instead of being dropped silently. */
 export interface QuarantineEntry {
-  kind: 'envelope' | 'agent' | 'run' | 'counters';
+  kind: 'envelope' | 'agent' | 'run' | 'counters' | 'claim' | 'endpoint';
   reason: string;
   value: unknown;
 }
@@ -52,6 +56,123 @@ export function emptyState(localDate: string): PersistedState {
     agents: [],
     history: {},
     counters: { localDate, global: 0, perAgent: {} },
+    runClaims: {},
+    setup: {},
+    endpoints: {},
+  };
+}
+
+function validateEndpoint(value: unknown): EndpointConfig | string {
+  if (!isRecord(value)) {
+    return 'endpoint is not an object';
+  }
+  if (!isNonEmptyString(value.name)) {
+    return 'endpoint.name must be a non-empty string';
+  }
+  if (!isOneOf(value.kind, ['jira', 'git'] as const)) {
+    return 'endpoint.kind must be jira or git';
+  }
+  if (!isNonEmptyString(value.baseUrl)) {
+    return 'endpoint.baseUrl must be a non-empty string';
+  }
+  const endpoint: EndpointConfig = {
+    name: value.name,
+    kind: value.kind,
+    baseUrl: value.baseUrl,
+    authScheme: isOneOf(value.authScheme, ['basic', 'bearer'] as const)
+      ? value.authScheme
+      : 'bearer',
+  };
+  if (isString(value.username)) {
+    endpoint.username = value.username;
+  }
+  return endpoint;
+}
+
+/**
+ * Reads the setup slice.
+ *
+ * Nothing here is critical: a missing or malformed value only means the user is asked to
+ * run the setup command again, so unreadable parts are dropped rather than quarantined.
+ */
+function validateSetup(value: unknown): PersistedState['setup'] {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const setup: PersistedState['setup'] = {};
+  if (isString(value.consentGrantedAt)) {
+    setup.consentGrantedAt = value.consentGrantedAt;
+  }
+  if (isString(value.modelsFetchedAt)) {
+    setup.modelsFetchedAt = value.modelsFetchedAt;
+  }
+  if (isString(value.firstRunNoticeShownAt)) {
+    setup.firstRunNoticeShownAt = value.firstRunNoticeShownAt;
+  }
+  if (isString(value.lastCheckAt)) {
+    setup.lastCheckAt = value.lastCheckAt;
+  }
+  if (Array.isArray(value.models)) {
+    const models: CachedModel[] = [];
+    for (const candidate of value.models) {
+      if (
+        isRecord(candidate) &&
+        isNonEmptyString(candidate.id) &&
+        isString(candidate.name) &&
+        isString(candidate.vendor) &&
+        isString(candidate.family)
+      ) {
+        models.push({
+          id: candidate.id,
+          name: candidate.name,
+          vendor: candidate.vendor,
+          family: candidate.family,
+        });
+      }
+    }
+    setup.models = models;
+  }
+  if (Array.isArray(value.lastCheckResults)) {
+    const results: CheckOutcome[] = [];
+    for (const candidate of value.lastCheckResults) {
+      if (
+        isRecord(candidate) &&
+        isNonEmptyString(candidate.id) &&
+        isString(candidate.title) &&
+        isOneOf(candidate.status, ['pass', 'warn', 'fail'] as const) &&
+        isString(candidate.message)
+      ) {
+        results.push({
+          id: candidate.id,
+          title: candidate.title,
+          status: candidate.status,
+          message: candidate.message,
+        });
+      }
+    }
+    setup.lastCheckResults = results;
+  }
+  return setup;
+}
+
+function validateClaim(value: unknown): RunClaim | string {
+  if (!isRecord(value)) {
+    return 'claim is not an object';
+  }
+  if (!isNonEmptyString(value.windowId)) {
+    return 'claim.windowId must be a non-empty string';
+  }
+  if (!isNonEmptyString(value.runId)) {
+    return 'claim.runId must be a non-empty string';
+  }
+  if (!isString(value.startedAt) || !isString(value.heartbeatAt)) {
+    return 'claim.startedAt and claim.heartbeatAt must be strings';
+  }
+  return {
+    windowId: value.windowId,
+    runId: value.runId,
+    startedAt: value.startedAt,
+    heartbeatAt: value.heartbeatAt,
   };
 }
 
@@ -234,7 +355,14 @@ export function validateRunRecord(value: unknown): RunRecord | string {
   if (!isString(value.startedAt)) {
     return 'run.startedAt must be a string';
   }
-  const statuses = ['succeeded', 'failed', 'skipped', 'handedOff', 'interrupted'] as const;
+  const statuses = [
+    'running',
+    'succeeded',
+    'failed',
+    'skipped',
+    'handedOff',
+    'interrupted',
+  ] as const;
   if (!isOneOf(value.status, statuses)) {
     return `run.status must be one of ${statuses.join(', ')}`;
   }
@@ -379,6 +507,30 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
     }
   }
 
+  const runClaims: Record<string, RunClaim> = {};
+  if (isRecord(migrated.runClaims)) {
+    for (const [agentId, candidate] of Object.entries(migrated.runClaims)) {
+      const claim = validateClaim(candidate);
+      if (isString(claim)) {
+        quarantine.push({ kind: 'claim', reason: claim, value: candidate });
+      } else {
+        runClaims[agentId] = claim;
+      }
+    }
+  }
+
+  const endpoints: Record<string, EndpointConfig> = {};
+  if (isRecord(migrated.endpoints)) {
+    for (const [name, candidate] of Object.entries(migrated.endpoints)) {
+      const endpoint = validateEndpoint(candidate);
+      if (isString(endpoint)) {
+        quarantine.push({ kind: 'endpoint', reason: endpoint, value: candidate });
+      } else {
+        endpoints[name] = endpoint;
+      }
+    }
+  }
+
   const counters = validateCounters(migrated.counters, localDate);
   if (isString(counters)) {
     if (migrated.counters !== undefined) {
@@ -393,6 +545,9 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
       agents,
       history,
       counters: isString(counters) ? emptyState(localDate).counters : counters,
+      runClaims,
+      setup: validateSetup(migrated.setup),
+      endpoints,
     },
     quarantine,
   };

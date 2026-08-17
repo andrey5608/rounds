@@ -101,6 +101,12 @@ interface Agent {
 - Central redaction: token values from the secret store, `Authorization` headers, and
   `user:pass@` in URLs are replaced with `***` before writing.
 - Scoped child loggers: `logger.scope('run:<runId>')`.
+- Added later, after a real installation reported "I pressed the button and nothing happened": a second
+  sink writes **every** line to `logs/rounds-<date>.log` in the global storage folder, whatever
+  `rounds.logLevel` says. The channel is for watching and obeys the setting; the file is for reporting,
+  because a user should not have to reproduce a problem twice because the detail was discarded the
+  first time. One file per day, five kept, two megabytes each, redacted before writing, and a failure
+  in the sink is reported rather than thrown — a broken log must not break a run.
 
 ### 2.9 Status bar (`src/ui/statusBar.ts`, wired now, refined in phase 10) ✅
 - Item with id `rounds.status`, alignment right, command `rounds.showOutput`.

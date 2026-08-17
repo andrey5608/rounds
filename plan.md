@@ -22,8 +22,10 @@ what changed, and report back.
 ### Manifest
 - `name`: "rounds"
 - `displayName`: "Rounds — Scheduled Task Agents"
-- `publisher`: "TODO-PUBLISHER" (leave this placeholder; do not guess)
-- Full extension id resolves to `TODO-PUBLISHER.rounds`
+- `publisher`: "rounds" (supplied by the owner on 2026-08-17; until then the manifest carried a
+  `TODO-PUBLISHER` placeholder, because guessing a publisher id is not something to do on somebody
+  else's behalf)
+- Full extension id resolves to `rounds.rounds`
 
 ### Trademark rule
 Do NOT put "Copilot", "GitHub", "Jira", "Atlassian", "VS Code" or "Visual Studio" in
@@ -51,7 +53,9 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
 - Settings UI title: "Rounds"
 
 ### Views
-- Activity bar container id: `rounds`, title "Rounds", codicon `$(history)`
+- Activity bar container id: `rounds`, title "Rounds", icon `media/rounds-activitybar.svg`
+  (amended 2026-08-17: the owner supplied brand assets; this replaces the original codicon
+  `$(history)`)
 - TreeView id: `rounds.agentsView`, title "Agents"
 - Welcome view (no agents yet) points at `rounds.createAgent` and `rounds.checkSetup`
 

@@ -34,12 +34,16 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Unit tests with coverage
+        run: npm run test:coverage
 
       - name: Integration tests
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:integration
 
-      - name: Production bundle
-        run: npm run package
+      - name: Production bundle and bundle audit
+        run: npm run check:bundle
+
+      - name: Package contents audit
+        if: runner.os == 'Linux'
+        run: npm run check:package

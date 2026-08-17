@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { SETTING_KEYS } from '../../state/settings.js';
@@ -8,10 +8,12 @@ interface Manifest {
   name: string;
   displayName: string;
   publisher: string;
+  version: string;
+  icon: string;
   contributes: {
     commands: { command: string; title: string; category?: string }[];
     configuration: { title: string; properties: Record<string, unknown> };
-    viewsContainers: { activitybar: { id: string; title: string }[] };
+    viewsContainers: { activitybar: { id: string; title: string; icon: string }[] };
     views: Record<string, { id: string; name: string }[]>;
   };
 }
@@ -46,7 +48,7 @@ describe('manifest contributions', () => {
   it('declares the expected identity', () => {
     assert.equal(manifest.name, 'rounds');
     assert.equal(manifest.displayName, 'Rounds — Scheduled Task Agents');
-    assert.equal(manifest.publisher, 'TODO-PUBLISHER');
+    assert.equal(manifest.publisher, 'rounds');
   });
 
   it('declares the settings listed in the code base', () => {
@@ -74,6 +76,39 @@ describe('manifest contributions', () => {
         `title "${command.title}" repeats the category, which the editor already prepends`,
       );
     }
+  });
+
+  it('points at icon files that exist', () => {
+    const root = resolve(__dirname, '../../..');
+    const paths = [
+      manifest.icon,
+      ...manifest.contributes.viewsContainers.activitybar.map((container) => container.icon),
+    ];
+
+    for (const path of paths) {
+      assert.ok(path, 'an icon path is declared');
+      // A missing icon leaves the view container blank without an error anywhere.
+      assert.ok(existsSync(resolve(root, path)), `${path} is declared but not in the repository`);
+    }
+  });
+
+  it('declares none of the contributions v1 leaves out', () => {
+    // The out-of-scope list is a promise about the shipped manifest, so it is checked there rather
+    // than remembered: a chat participant or a language model tool would change what the extension
+    // is, not just what it can do.
+    const contributes = manifest.contributes as unknown as Record<string, unknown>;
+    for (const key of ['chatParticipants', 'languageModelTools', 'configurationDefaults']) {
+      assert.equal(contributes[key], undefined, `v1 must not contribute ${key}`);
+    }
+  });
+
+  it('agrees with the changelog about the version', () => {
+    const changelog = readFileSync(resolve(__dirname, '../../../CHANGELOG.md'), 'utf8');
+    assert.match(
+      changelog,
+      new RegExp(`^## \\[${manifest.version.replace(/\./g, '\\.')}\\]`, 'm'),
+      `CHANGELOG.md has no entry for version ${manifest.version}`,
+    );
   });
 
   it('keeps product names out of identifiers and titles', () => {

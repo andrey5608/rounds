@@ -7,7 +7,7 @@ no JSON editing. Minimal and functional; no custom styling in v1.
 
 ## Steps
 
-### 10.1 Tree data provider (`src/ui/agentsTree.ts`)
+### 10.1 Tree data provider (`src/ui/agentsView.ts`) ✅
 - Root level: agents, sorted by name.
   - `label`: agent name.
   - `description`: human-readable schedule + next run (`Every day at 09:00 · next in 3 h`).
@@ -21,26 +21,32 @@ no JSON editing. Minimal and functional; no custom styling in v1.
 - Chat-mode runs show `$(comment-discussion)` and a tooltip explaining that the output
   was not captured.
 
-### 10.2 Refresh strategy
+### 10.2 Refresh strategy ✅
 - Refresh on: `store.onDidChange`, run start/finish events, configuration change,
   leadership change.
-- A single throttled 60 s timer updates relative "next run" text; never a per-second
-  timer.
+- A single 60 s timer updates the relative "next run" text; never a per-second timer, since the
+  text changes by the minute and a repaint costs more than it is worth.
+- The tree renders from a snapshot built once per refresh (`buildViewData`), so secret lookups and
+  readiness evaluation happen once rather than once per row, and the presentation logic is a pure
+  function of its input.
 - `rounds.refreshView` forces a full refresh and re-evaluates `needsSetup` from cache
   (it does not trigger consent or network pings).
 
-### 10.3 Item activation
+### 10.3 Item activation ✅
 - Clicking a run with a result file opens that file in the editor.
 - Clicking a `handedOff` or file-less run opens a read-only detail view built as a
   Markdown virtual document (`TextDocumentContentProvider`, scheme `rounds`), showing the
   record fields and the error.
+- Both go through the editor's built-in `vscode.open` command with the right URI. Giving the item
+  its own `rounds.*` command would have meant inventing an identifier the specification does not
+  list, and the v1 command list has none for opening a result.
 - Clicking an agent expands it; the wizard is reached through `Edit Agent`.
 
-### 10.4 Welcome view and empty states
+### 10.4 Welcome view and empty states ✅
 - No agents → welcome view from phase 1 (`Create Agent`, `Check Setup`).
 - Agents exist but none has runs → a child node `No runs yet` with a `Run Now` hint.
 
-### 10.5 Creation wizard (`src/ui/wizard/`)
+### 10.5 Creation wizard (`src/ui/wizard/`) ✅
 Multi-step QuickPick/InputBox flow with working back navigation (`QuickInput` buttons)
 and per-step validation:
 
@@ -65,15 +71,24 @@ and per-step validation:
 10. **Output folder** — default or folder picker; writability probe.
 11. **Summary** — read-only confirmation listing everything, then save.
 
-- The step definitions are data, so `Edit Agent` reuses them with prefilled values and
-  jumps straight to a step list instead of a linear flow.
+- Creation is linear, editing is a field list: those are different jobs. Setting an agent up means
+  answering every question once; changing one means finding that question again.
+- All the validation lives in `src/ui/wizard/steps.ts`, apart from the quick picks — that is the
+  part worth testing, since driving a quick pick from a test proves little and breaks whenever a
+  label changes.
+- The schedule step shows the frequency warning as a modal confirmation, so a sub-threshold schedule
+  needs a deliberate "use it anyway".
+- Changing the prompt file or the repository drops the stored snapshot and cursor of the previous
+  one: keeping them would mean falling back to the wrong prompt, or skipping items the new source
+  never showed.
 
-### 10.6 Remaining commands
+### 10.6 Remaining commands ✅
 - `rounds.editAgent` — step list of the wizard fields for an existing agent.
 - `rounds.duplicateAgent` — deep copy with a new id, name `<name> (copy)`, `enabled:
   false`, cleared `lastRunAt`/`nextRunAt`/cursor.
 - `rounds.deleteAgent` — modal confirmation naming the agent, stating that result files
-  are kept and history is removed; deletes secrets only if no other agent uses them.
+  are kept and history is removed. Tokens are **never** deleted with an agent: they are shared per
+  source kind, so removing one agent would take the credentials of the others with it.
 - `rounds.toggleAgent` — flips `enabled` and recomputes `nextRunAt`.
 - `rounds.openResultFolder` — reveals the resolved output folder in the OS file manager.
 - `rounds.showHistory` — QuickPick of the agent's runs (status icon, timestamp, summary);
@@ -98,14 +113,23 @@ and per-step validation:
 - Integration: tree structure for agents with and without runs; context values match the
   menu `when` clauses; clicking a run opens the right document.
 - Unit: wizard step validation logic (pure functions separated from the QuickPick calls),
-  duplicate naming, delete confirmation text.
+  duplicate naming, delete confirmation text, draft round-trip, cursor and snapshot invalidation.
+- The tree tests are integration tests because `TreeItem` and `MarkdownString` only exist in the
+  host. One of them reads the menu `when` clauses out of the manifest and checks that every one of
+  them keys on a context value the tree actually produces — the two halves of that contract are
+  otherwise easy to drift apart.
 
 ## Exit criteria
 
-- [ ] An agent can be created, edited, duplicated, disabled, run and deleted entirely
-      from the UI.
-- [ ] The model QuickPick is populated live and never contains hardcoded names.
-- [ ] The tree shows enabled state, human-readable schedule, next run, and recent runs
-      with status icons.
-- [ ] Chat-mode limitations are visible wherever such runs appear.
-- [ ] No success notifications; failures are actionable and not repeated.
+- [x] An agent can be created, edited, duplicated, enabled or disabled, run and deleted entirely
+      from the UI; every one of the eleven commands has a real implementation.
+- [x] The model quick pick is populated by a live resolve through the consent gate and contains no
+      hardcoded names.
+- [x] The tree shows enabled state, human-readable schedule, next run and recent runs with status
+      icons, and its context values are checked against the manifest menus.
+- [x] Chat-mode limitations appear in the run tooltip, in the detail document and in the run summary
+      stored in the history.
+- [x] Scheduled successes are silent; failures notify once per agent per day with an action, and a
+      manual run always reports its outcome because the user asked for it.
+- [ ] Not done in this phase: the confirmation that lets a manual run exceed the daily limit
+      deliberately. It is listed in step 9.4 and tracked in [../leftovers.md](../leftovers.md).

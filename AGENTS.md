@@ -16,7 +16,7 @@ from Jira or a Git host, run a prompt through a language model, and store the re
 
 - **DO** write everything in the repository in English: code, comments, UI strings, error
   messages, commit messages, docs, tests.
-- **DO** reply to the user in Russian in chat — that is conversation, not repository
+- **DO** reply to the user in his prompt language in chat — that is conversation, not repository
   content.
 - **DON'T** leave any non-English text in tracked files.
 
@@ -24,7 +24,8 @@ from Jira or a Git host, run a prompt through a language model, and store the re
 
 - **DO** copy identifiers verbatim from `plan.md`: the `rounds.` prefixes, the 11 command
   ids, the 11 setting keys, view ids, `globalState` keys, `secrets` keys.
-- **DO** keep `"publisher": "TODO-PUBLISHER"` until the owner supplies a real one.
+- **DO** keep `"publisher": "rounds"`. It is the owner's marketplace publisher id, not a guess to be
+  changed.
 - **DON'T** invent new command ids, setting keys or alternative names. If something is
   missing from the spec, ask instead of guessing.
 - **DON'T** put `Copilot`, `GitHub`, `Jira`, `Atlassian`, `VS Code` or `Visual Studio` in
@@ -98,4 +99,7 @@ bypass any of them for convenience.
 - **DO** add tests in the same phase as the code: pure logic as unit tests without the
   extension host, `vscode`-touching code as integration tests.
 - **DON'T** perform real network calls in tests; use fixtures.
+- **DON'T** hardcode POSIX paths in assertions or provoke a failure through the operating system.
+  Build path expectations from `node:path`, or assert on shape, and inject failures instead. CI runs
+  on Windows and Linux, and both have caught tests that only held on a Mac.
 - **DON'T** report a phase as done while its exit criteria in `docs/phases/` are unmet.

@@ -14,6 +14,14 @@ export interface LogSink {
 
 export interface LoggerOptions {
   sink: LogSink;
+  /**
+   * A sink that receives every line, whatever the configured level is.
+   *
+   * The channel is for watching and obeys `rounds.logLevel`; this one is for reporting. A user who
+   * says "nothing happened" should not have to reproduce the problem twice because the detail was
+   * discarded the first time.
+   */
+  verboseSink?: LogSink;
   /** Read fresh on every line so a settings change applies immediately. */
   getLevel: () => LogLevel;
   /** Secret values seen so far, replaced verbatim before a line is written. */
@@ -84,14 +92,20 @@ export class Logger {
   }
 
   private write(threshold: LogLevel, label: string, message: string): void {
+    const timestamp = this.clock.now().toISOString();
+    const scope = this.options.scope ? ` [${this.options.scope}]` : '';
+    const safe = redact(message, this.options.getRedactions?.() ?? []);
+    const line = `[${timestamp}] [${label}]${scope} ${safe}`;
+
+    // Redaction happens before either sink sees the line, so the file is as safe to share as the
+    // channel is to show.
+    this.options.verboseSink?.append(line);
+
     const level = this.options.getLevel();
     if (LEVEL_RANK[level] < LEVEL_RANK[threshold] || level === 'none') {
       return;
     }
-    const timestamp = this.clock.now().toISOString();
-    const scope = this.options.scope ? ` [${this.options.scope}]` : '';
-    const safe = redact(message, this.options.getRedactions?.() ?? []);
-    this.options.sink.append(`[${timestamp}] [${label}]${scope} ${safe}`);
+    this.options.sink.append(line);
   }
 }
 

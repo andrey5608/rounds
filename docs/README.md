@@ -4,6 +4,8 @@
 | --- | --- |
 | [implementation-plan.md](./implementation-plan.md) | Master implementation plan: phases, milestones, conventions, traceability to `plan.md`. |
 | [phases/](./phases/) | One file per phase with numbered steps and exit criteria. |
+| [leftovers.md](./leftovers.md) | Everything the plan did not close, with the reason: owner decisions, checks that need a real environment, and the one missing feature. |
+| [manual-checks.md](./manual-checks.md) | The checks that need eyes rather than a test runner. |
 
 The product specification lives in [`../plan.md`](../plan.md). That file is the single
 source of truth for names, identifiers and constraints. Whenever this documentation and

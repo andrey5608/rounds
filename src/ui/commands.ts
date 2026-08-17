@@ -1,6 +1,19 @@
 import * as vscode from 'vscode';
 
 import type { ServiceContainer } from '../container.js';
+import { checkSetupCommand } from '../setup/checkSetupCommand.js';
+
+import {
+  createAgentCommand,
+  deleteAgentCommand,
+  duplicateAgentCommand,
+  editAgentCommand,
+  openResultFolderCommand,
+  showHistoryCommand,
+  toggleAgentCommand,
+} from './agentCommands.js';
+import { runNowCommand } from './runNowCommand.js';
+import { refreshView } from './viewState.js';
 
 /**
  * Every command this extension contributes.
@@ -25,38 +38,101 @@ export const COMMAND_IDS = [
 export type CommandId = (typeof COMMAND_IDS)[number];
 
 /**
- * Placeholder implementations. Each phase replaces the stubs it owns:
- * setup in phase 4, run now in phase 8, the rest in phase 10.
+ * Last resort for a command that has no handler.
+ *
+ * Every declared command is implemented, and the guard test keeps the two lists in step, so this
+ * only fires if somebody adds an id and forgets the handler — in which case saying so is far better
+ * than a command that silently does nothing.
  */
-function notImplemented(commandId: CommandId): void {
-  // The notification is deliberately not awaited: a command should return as soon as it
-  // has been handled, and nothing depends on the user dismissing the message.
-  void vscode.window.showInformationMessage(`${commandId} is not implemented yet.`);
+function missingHandler(commandId: CommandId): void {
+  // Not awaited on purpose: a command returns as soon as it has been handled.
+  void vscode.window.showErrorMessage(
+    `${commandId} has no implementation. This is a bug in Rounds.`,
+  );
 }
 
-/**
- * Commands that are already backed by real services.
- *
- * The rest keep their stub until the phase that owns them: setup in phase 4, run now in
- * phase 8, agent management in phase 10.
- */
-function implemented(container: ServiceContainer): Partial<Record<CommandId, () => void>> {
+/** Every command, now that each one has an implementation. */
+function implemented(
+  container: ServiceContainer,
+): Partial<Record<CommandId, (argument?: unknown) => void>> {
   return {
+    'rounds.createAgent': () => {
+      void runAndReport(container, 'rounds.createAgent', () => createAgentCommand(container));
+    },
+    'rounds.editAgent': (argument) => {
+      void runAndReport(container, 'rounds.editAgent', () => editAgentCommand(container, argument));
+    },
+    'rounds.duplicateAgent': (argument) => {
+      void runAndReport(container, 'rounds.duplicateAgent', () =>
+        duplicateAgentCommand(container, argument),
+      );
+    },
+    'rounds.deleteAgent': (argument) => {
+      void runAndReport(container, 'rounds.deleteAgent', () =>
+        deleteAgentCommand(container, argument),
+      );
+    },
+    'rounds.toggleAgent': (argument) => {
+      void runAndReport(container, 'rounds.toggleAgent', () =>
+        toggleAgentCommand(container, argument),
+      );
+    },
+    'rounds.openResultFolder': (argument) => {
+      void runAndReport(container, 'rounds.openResultFolder', () =>
+        openResultFolderCommand(container, argument),
+      );
+    },
+    'rounds.showHistory': (argument) => {
+      void runAndReport(container, 'rounds.showHistory', () =>
+        showHistoryCommand(container, argument),
+      );
+    },
+    'rounds.runNow': (argument) => {
+      void runAndReport(container, 'rounds.runNow', () =>
+        runNowCommand(container, argument as Parameters<typeof runNowCommand>[1]),
+      );
+    },
+    'rounds.checkSetup': () => {
+      void runAndReport(container, 'rounds.checkSetup', () => checkSetupCommand(container));
+    },
     'rounds.showOutput': () => {
       container.output.show();
     },
     'rounds.refreshView': () => {
-      container.agentsView.refresh();
-      void container.store.refreshFromExternalChange();
+      void runAndReport(container, 'rounds.refreshView', async () => {
+        await container.store.refreshFromExternalChange();
+        await refreshView(container);
+      });
     },
   };
+}
+
+/**
+ * Runs a command body and reports a failure instead of leaving an unhandled rejection.
+ *
+ * A command that throws silently is worse than one that fails loudly: the user pressed
+ * something and nothing happened, with no trace anywhere.
+ */
+async function runAndReport(
+  container: ServiceContainer,
+  commandId: CommandId,
+  body: () => Promise<void>,
+): Promise<void> {
+  try {
+    await body();
+  } catch (error) {
+    container.logger.error(`${commandId} failed: ${String(error)}`);
+    await vscode.window.showErrorMessage(
+      `${commandId} failed: ${String(error)}. Open the Rounds output for details.`,
+    );
+  }
 }
 
 /** Registers all commands and ties their lifetime to the extension. */
 export function registerCommands(container: ServiceContainer): void {
   const handlers = implemented(container);
   for (const commandId of COMMAND_IDS) {
-    const handler = handlers[commandId] ?? (() => notImplemented(commandId));
+    const handler = handlers[commandId] ?? (() => missingHandler(commandId));
     container.extensionContext.subscriptions.push(
       vscode.commands.registerCommand(commandId, handler),
     );

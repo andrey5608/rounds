@@ -8,15 +8,71 @@ action.
 
 ## Steps
 
-### 4.1 Consent gate (`src/setup/consentGate.ts`)
+### 4.1 Consent gate (`src/setup/consentGate.ts`) ✅
 - Single choke point: `requestModels(reason: UserAction)` — the only place in the code
   base allowed to call `vscode.lm.selectChatModels`.
 - It accepts a `UserAction` token that can only be created by command handlers and
   wizard steps. Scheduler code cannot construct one; a lint rule or a private-symbol
   brand enforces it.
-- Add a unit/AST test asserting `selectChatModels` appears in exactly one file.
+- `scripts/check-consent-gate.mjs` (part of `npm run check`) asserts two things:
+  `selectChatModels(...)` is *called* in exactly one file, `src/model/vscodeGateway.ts` — the
+  check looks for a call rather than the word, so explaining the rule in a comment stays
+  possible — and
+  `userAction(` is only called from `src/setup/`, `src/ui/` or the entry point — never from
+  the scheduler, runner or connectors. Both rules were verified to fail on a deliberate
+  violation. The guard normalizes path separators before comparing: `path.relative` answers in the
+  host separator, so on Windows every prefix test silently failed and the guard reported that no
+  file is where it is.
 
-### 4.2 Model catalog (`src/setup/modelCatalog.ts`)
+### 4.2 Model catalog (`src/setup/modelCatalog.ts`) ✅
+
+**Corrected after a real installation reported the fault.** With GitHub Copilot installed and signed
+in, Check Setup still said access had not been granted, and asking for it appeared to do nothing.
+Cause: `selectChatModels()` was asked once, and a provider that has not finished starting reports an
+empty list. One empty answer was then treated as "no models available", which told a user with a
+working provider to go and install one.
+
+Three changes:
+
+- `list(action, { waitForProviderMs })` waits for `lm.onDidChangeChatModels` and re-queries when the
+  first answer is empty. The editor's own documentation says the list "might have changed and
+  extensions should re-query"; that event is the only way to tell "no provider" from "not ready yet".
+- The wording distinguishes the two states: "Rounds has not asked the editor yet" before the first
+  attempt, and "the provider may still be initialising" when consent is on record but the list is
+  empty.
+- `refreshAfterProviderChange()` updates the cache when the provider list changes, and refuses unless
+  consent is already recorded — so the subscription cannot cause a prompt nobody asked for.
+
+**Second correction, same report.** Waiting was not enough: a request with **no selector** returns the
+models this extension is *already allowed* to use, which before consent is none — and no dialog
+appears, because the editor cannot raise an authentication prompt for a provider nobody named. The
+gateway therefore falls back to naming the vendor (`{ vendor: 'copilot' }`) when the bare request comes
+back empty. The bare request stays first, so any provider is found without being listed; the vendor
+list exists only to trigger consent, and adding another provider is one line. A vendor string is an
+API argument, not a name in a title, so the trademark rule is untouched.
+
+**Third correction: the call itself could hang.** The extended log from the same installation stopped at
+"Resolving language models" with nothing after it — `selectChatModels` never resolved, so the progress
+notification sat on the screen indefinitely and no branch of the code was ever reached. An unbounded
+await on another extension's API is a hang waiting to happen. Now:
+
+- one request has a 45 second deadline, after which it is reported rather than awaited — the promise
+  cannot be cancelled, so what changes is that Rounds stops waiting, and a late answer is picked up by
+  the next request;
+- the progress notification is `cancellable`, so there is a button to dismiss it, and cancelling
+  actually stops the wait rather than only hiding it;
+- the log records the start of each request and how long it took, so "it hung" is visible in the file
+  instead of having to be inferred from a missing line.
+
+**Outcome.** The same installation works after updating the editor from 1.110 to 1.133: the request
+answers in about seven seconds and reports one model, `auto` from vendor `copilotcli`. Two things
+follow. The 45 second deadline is comfortably above a real answer time, so it will not fire on a slow
+but working provider. And a provider need not fill in every field — that model has an empty family —
+so `describeModel` drops empty parts and falls back to the id, instead of showing "copilotcli · " in
+the picker.
+
+Worth noting for anyone reading a similar report: an editor version can be the cause. Nothing in the
+code changed between the failing and working attempt on that machine.
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
   mirrored into state (ids and labels only) so the tree and validation work without a
   new consent-triggering call.
@@ -25,7 +81,7 @@ action.
 - `hasConsent()` → derived from whether a previous successful `list` happened; persisted
   as `consentGrantedAt`.
 
-### 4.3 Language model error mapping (`src/model/errors.ts`)
+### 4.3 Language model error mapping (`src/model/errors.ts`) ✅
 Map `LanguageModelError` and provider errors to typed, actionable results:
 
 | Condition | Code | User-facing action |
@@ -36,7 +92,7 @@ Map `LanguageModelError` and provider errors to typed, actionable results:
 | Request blocked | `model.blocked` | Show the provider message verbatim |
 | Anything else | `model.unknown` | Include the original message, point at the output channel |
 
-### 4.4 Setup checks registry (`src/setup/checks.ts`)
+### 4.4 Setup checks registry (`src/setup/checks.ts`) ✅
 Each check is an object `{ id, title, run(): Promise<CheckResult>, fix?: Command }`,
 where `CheckResult` is `pass | warn | fail` plus an English message.
 
@@ -50,10 +106,20 @@ where `CheckResult` is `pass | warn | fail` plus an English message.
 6. `rateLimits` — `jitterSeconds` in range, `maxExecutionsPerDay` sane, and no enabled
    agent has a cron firing more often than `rounds.minimumIntervalWarning`; `warn`.
 
-Ordering is fixed; checks 2 and 3 are skipped with a `warn` when no agent uses that
-source yet.
+Ordering is fixed; checks 2 and 3 `warn` when no base URL is configured and nobody uses
+that source, and `fail` when an agent does use it. Reachability can only be verified once
+the connectors exist (phase 5): until a `pingEndpoint` function is supplied the check
+reports `warn` — "configured, not verified" — rather than claiming a pass it did not earn.
 
-### 4.5 `rounds.checkSetup` command (`src/setup/checkSetupCommand.ts`)
+Base URLs need somewhere to live, and the settings keys are fixed by `plan.md`, so an
+`endpoints` map was added to the state: name, kind, base URL and auth scheme. Tokens stay in
+secret storage, one per source kind, which is the pair of keys `plan.md` defines; endpoints
+of the same kind therefore share a token.
+
+The whole registry takes its dependencies as plain data and small functions, so every
+combination of missing prerequisites is just another context object in a unit test.
+
+### 4.5 `rounds.checkSetup` command (`src/setup/checkSetupCommand.ts`) ✅
 - Runs all checks with progress notification, then shows a QuickPick listing each check
   with a `$(pass)/$(warning)/$(error)` icon and its message.
 - Selecting an item invokes its Fix action: grant model access (calls `requestModels`
@@ -63,29 +129,45 @@ source yet.
 - Results are cached in state so the tree can render a `needsSetup` badge without re-running
   network pings.
 
-### 4.6 First-activation nudge
+### 4.6 First-activation nudge ✅
 - On first activation ever, show a non-modal information message: what the extension
   does in one sentence + a `Check Setup` button + `Don't show again`.
 - Never auto-run consent. Record `firstRunNoticeShownAt` in state.
 
-### 4.7 `needsSetup` agent state
+### 4.7 `needsSetup` agent state ✅
 - Derive per agent: missing consent, unknown `modelId`, missing secret for its source, or
   unwritable output folder.
 - Agents in `needsSetup` are never executed by the scheduler; a scheduled attempt records
   a `skipped` run with reason `needsSetup` (at most once per day per agent to avoid
-  history spam).
+  history spam). The skip itself is wired up with the scheduler in phase 9; readiness is
+  what phase 4 provides.
+- Readiness is computed from **cached** information only. Asking the provider whether a
+  model still exists would trigger a consent prompt, which a background tick must never do.
+  An empty model cache therefore means "unknown", not "model missing" — that case is already
+  reported as missing consent.
 
-### 4.8 Tests
+### 4.8 Tests ✅
 - Unit: check registry results for every combination of missing prerequisites; error
   mapping table; `needsSetup` derivation.
-- Integration: `rounds.checkSetup` runs end-to-end against a stubbed connector and a
-  stubbed `vscode.lm` wrapper; asserts no `selectChatModels` call happens on activation.
+- Integration: the check registry runs inside a real extension host against the live
+  configuration, a real folder probe and a real secret answer. The command's quick pick
+  cannot be driven from a test, so everything up to the point where the user picks an item is
+  what gets verified there.
+- "No consent prompt on activation" is a **structural** guarantee rather than an observed
+  one: the only path to the gateway needs a user action token, and the guard script confines
+  token creation to `src/setup/` and `src/ui/`. `src/extension.ts` is deliberately excluded,
+  and that rule was verified by making activation create a token and watching the guard fail.
 
 ## Exit criteria
 
-- [ ] A fresh profile shows no consent prompt until the user runs `Check Setup` or the
-      creation wizard.
-- [ ] `selectChatModels` is referenced in exactly one source file, guarded by the gate.
-- [ ] Every setup check reports pass/warn/fail with a working Fix action.
-- [ ] An agent with an unknown `modelId` is reported as `needsSetup` and is not run.
-- [ ] Model resolution never falls back to a different model.
+- [x] A fresh profile shows no consent prompt until the user runs `Check Setup` or the
+      creation wizard. Guaranteed structurally: reaching the gateway needs a user action
+      token, and activation cannot create one. Verified by breaking it on purpose.
+- [x] `selectChatModels` is referenced in exactly one source file, guarded by the gate, and
+      `npm run check` fails when a second call site appears.
+- [x] Every setup check reports pass/warn/fail with a message, and each one has a fix:
+      grant access, add a base URL, store a token, choose a folder, open the setting.
+- [x] An agent with an unknown `modelId` is reported as not ready, with a readable reason.
+      The scheduler skip that uses this lands with the ticker in phase 9.
+- [x] Model resolution never falls back to a different model: it refreshes once, then fails
+      with the list of valid ids.

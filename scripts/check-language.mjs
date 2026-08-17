@@ -7,7 +7,7 @@
  * are not letters and are therefore allowed.
  */
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { extname, join, relative, resolve } from 'node:path';
+import { extname, join, relative, resolve, sep } from 'node:path';
 
 const ROOT = resolve('.');
 const TARGETS = [
@@ -61,7 +61,8 @@ for (const file of files) {
   for (const [index, line] of lines.entries()) {
     for (const character of line) {
       if (character.codePointAt(0) > 127 && LETTER.test(character) && !ALLOWED.has(character)) {
-        failures.push(`${relative(ROOT, file)}:${index + 1}: non-English letter ${JSON.stringify(character)}`);
+        const shown = relative(ROOT, file).split(sep).join('/');
+        failures.push(`${shown}:${index + 1}: non-English letter ${JSON.stringify(character)}`);
         break;
       }
     }
