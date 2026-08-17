@@ -11,4 +11,4 @@ const forbidden = (): never => {
   );
 };
 
-globalThis.fetch = forbidden as unknown as typeof globalThis.fetch;
+globalThis.fetch = forbidden;
