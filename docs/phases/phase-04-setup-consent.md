@@ -8,13 +8,17 @@ action.
 
 ## Steps
 
-### 4.1 Consent gate (`src/setup/consentGate.ts`)
+### 4.1 Consent gate (`src/setup/consentGate.ts`) ✅
 - Single choke point: `requestModels(reason: UserAction)` — the only place in the code
   base allowed to call `vscode.lm.selectChatModels`.
 - It accepts a `UserAction` token that can only be created by command handlers and
   wizard steps. Scheduler code cannot construct one; a lint rule or a private-symbol
   brand enforces it.
-- Add a unit/AST test asserting `selectChatModels` appears in exactly one file.
+- `scripts/check-consent-gate.mjs` (part of `npm run check`) asserts two things:
+  `selectChatModels` appears in exactly one file, `src/model/vscodeGateway.ts`, and
+  `userAction(` is only called from `src/setup/`, `src/ui/` or the entry point — never from
+  the scheduler, runner or connectors. Both rules were verified to fail on a deliberate
+  violation.
 
 ### 4.2 Model catalog (`src/setup/modelCatalog.ts`)
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
