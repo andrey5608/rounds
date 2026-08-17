@@ -67,7 +67,7 @@ Declare all v1 ids with category `Rounds` and titles written **without** the cat
   selection? No — keep them visible and let them prompt with a QuickPick of agents when
   invoked without an argument (decided in phase 10).
 
-### 1.6 Configuration
+### 1.6 Configuration ✅
 Title `Rounds`, all keys under the `rounds.` prefix:
 
 | Key | Type | Default | Notes |

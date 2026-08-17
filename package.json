@@ -114,6 +114,124 @@
         }
       ]
     },
+    "configuration": {
+      "title": "Rounds",
+      "properties": {
+        "rounds.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Master switch for scheduled runs. When off, agents only run when you start them manually."
+        },
+        "rounds.timezone": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "IANA time zone name used to evaluate schedules, daily limits and result file names, for example `Europe/Berlin`. Leave empty to use the system time zone. An agent may override this."
+        },
+        "rounds.jitterSeconds": {
+          "type": "number",
+          "default": 600,
+          "minimum": 0,
+          "maximum": 1800,
+          "markdownDescription": "Maximum random delay before a scheduled run. Spreading runs out reduces the chance that automated requests look like abuse to your model provider. Manual runs are never delayed."
+        },
+        "rounds.maxExecutionsPerDay": {
+          "type": "number",
+          "default": 24,
+          "minimum": 1,
+          "maximum": 1000,
+          "markdownDescription": "Maximum number of runs across all agents per local day. An agent may set a lower limit of its own."
+        },
+        "rounds.minimumIntervalWarning": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 1440,
+          "markdownDescription": "Warn when a schedule fires more often than this many minutes."
+        },
+        "rounds.manualRunNextRunPolicy": {
+          "type": "string",
+          "default": "advance",
+          "enum": [
+            "advance",
+            "fromNow"
+          ],
+          "enumDescriptions": [
+            "Keep the already scheduled next run.",
+            "Recompute the next run from the time of the manual run."
+          ],
+          "markdownDescription": "What happens to the next scheduled run after you start an agent manually."
+        },
+        "rounds.defaultOutputFolder": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path of the folder that receives result files. Leave empty to store them inside the extension's global storage. An agent may override this."
+        },
+        "rounds.scriptWhitelist": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Commands the `runScript` tool is allowed to execute. Nothing outside this list runs, so an empty list disables the tool.",
+          "items": {
+            "type": "object",
+            "required": [
+              "command"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "Executable name or absolute path. Executed directly, never through a shell."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Allowed argument patterns. A pattern may end with * to allow any suffix. Omit to allow no arguments."
+              }
+            }
+          }
+        },
+        "rounds.executionHistoryLimit": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 1000,
+          "markdownDescription": "How many runs to keep in the history of each agent. Result files are never deleted."
+        },
+        "rounds.promptFileFallback": {
+          "type": "string",
+          "default": "snapshot",
+          "enum": [
+            "snapshot",
+            "blockWhenResolvable",
+            "blockAlways"
+          ],
+          "enumDescriptions": [
+            "Use the stored snapshot of the prompt file when the file cannot be read.",
+            "Fail the run when the file cannot be read but a snapshot exists.",
+            "Always fail the run when the file cannot be read."
+          ],
+          "markdownDescription": "What an agent does when its prompt file is missing or unreadable at run time."
+        },
+        "rounds.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "none",
+            "error",
+            "info",
+            "debug"
+          ],
+          "enumDescriptions": [
+            "Log nothing.",
+            "Log failures only.",
+            "Log runs and their outcomes.",
+            "Log everything, including tool calls and scheduling decisions."
+          ],
+          "markdownDescription": "Verbosity of the Rounds output channel."
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {
