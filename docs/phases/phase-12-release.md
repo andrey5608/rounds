@@ -45,13 +45,19 @@ report.
 - Tree refresh throttling verified (no refresh storm when many runs finish).
 - Memory: soak run shows no unbounded growth in history or in-memory caches.
 
-### 12.4 Failure-mode rehearsal (manual checklist in `docs/manual-checks.md`)
-- Revoke the Jira token mid-schedule → failed run with an actionable message.
-- Delete the prompt file → behaviour matches each of the three fallback policies.
-- Remove the configured model from the provider → run fails with the valid-id list.
-- Disconnect the network → typed `NetworkError`, retry then failure, no crash.
-- Fill the disk / make the output folder read-only → failed run, clear message.
-- Close VS Code over a due time → missed-run policy applies at next startup.
+### 12.4 Failure-mode rehearsal (manual checklist in `docs/manual-checks.md`) ✅
+The list lives in `docs/manual-checks.md`, where each failure is paired with the automated test that
+already covers its logic. That pairing is the point: what a person is verifying by hand is that the
+message reaching the user is the right one, not that the branch is taken — a test can prove the
+branch, and cannot judge the wording.
+
+Covered: a revoked token mid-schedule, a deleted prompt file under each fallback policy, a model that
+disappeared from the provider, a disconnected network, a read-only result folder, a full disk, an
+editor closed over a due time, the daily limit, and a chat handoff.
+
+Not executed here: all of it needs a real tracker, a real repository host and a signed-in provider.
+The checklist is written; running it is a release step, and pretending otherwise would be the one
+thing this document must not do.
 
 ### 12.5 Packaging
 - `npx @vscode/vsce package` produces a VSIX; inspect its contents for stray files
