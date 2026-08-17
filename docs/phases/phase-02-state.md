@@ -102,7 +102,7 @@ interface Agent {
   `user:pass@` in URLs are replaced with `***` before writing.
 - Scoped child loggers: `logger.scope('run:<runId>')`.
 
-### 2.9 Status bar (`src/ui/statusBar.ts`, wired now, refined in phase 10)
+### 2.9 Status bar (`src/ui/statusBar.ts`, wired now, refined in phase 10) ✅
 - Item with id `rounds.status`, alignment right, command `rounds.showOutput`.
 - Text reflects: disabled / needs setup / next run time / running / last run failed.
 

@@ -34,11 +34,31 @@ function notImplemented(commandId: CommandId): void {
   void vscode.window.showInformationMessage(`${commandId} is not implemented yet.`);
 }
 
+/**
+ * Commands that are already backed by real services.
+ *
+ * The rest keep their stub until the phase that owns them: setup in phase 4, run now in
+ * phase 8, agent management in phase 10.
+ */
+function implemented(container: ServiceContainer): Partial<Record<CommandId, () => void>> {
+  return {
+    'rounds.showOutput': () => {
+      container.output.show();
+    },
+    'rounds.refreshView': () => {
+      container.agentsView.refresh();
+      void container.store.refreshFromExternalChange();
+    },
+  };
+}
+
 /** Registers all commands and ties their lifetime to the extension. */
 export function registerCommands(container: ServiceContainer): void {
+  const handlers = implemented(container);
   for (const commandId of COMMAND_IDS) {
+    const handler = handlers[commandId] ?? (() => notImplemented(commandId));
     container.extensionContext.subscriptions.push(
-      vscode.commands.registerCommand(commandId, () => notImplemented(commandId)),
+      vscode.commands.registerCommand(commandId, handler),
     );
   }
 }
