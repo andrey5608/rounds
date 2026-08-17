@@ -17,17 +17,27 @@ release checklist. Milestone **M4**.
 
 - Coverage target: 80% lines on `src/state`, `src/scheduler`, `src/agents`, `src/tools`.
 
-### 12.2 Constraint audits (each one a script or a test, not a manual promise)
-- **No LLM SDK** — dependency check from step 0.5, plus a bundle grep for known SDK
-  identifiers.
-- **No model HTTP calls** — grep the bundle for model provider hostnames; assert all
-  outbound calls go through `src/connectors/http.ts` (single `fetch` call site test).
-- **Host allowlist** — integration test attempting a foreign host, expecting a rejection.
-- **Consent gate** — AST test: exactly one `selectChatModels` call site.
-- **English-only** — CI language check.
-- **Trademarks** — test over `package.json` contribution titles and setting keys.
-- **Secret hygiene** — test that a dump of `globalState`, of the state file and of the
-  output channel contains no token value.
+### 12.2 Constraint audits (each one a script or a test, not a manual promise) ✅
+| Constraint | How it is checked | Where |
+| --- | --- | --- |
+| No language model SDK | Declared dependencies, and the shipped bundle searched for SDK paths | `check-dependencies.mjs`, `check-bundle.mjs` |
+| No direct model HTTP call | The bundle searched for provider endpoints and for anything shaped like a model API key | `check-bundle.mjs` |
+| Requests only to configured hosts | `fetch` called from one file only, and no other network client anywhere | `check-network.mjs` |
+| Host allowlist honoured | A path leaving the host is refused, and redirects are never followed | `http.unit.test.ts` |
+| Consent gate | `selectChatModels` called in one file; user action tokens confined to the UI layer | `check-consent-gate.mjs` |
+| English only | Letters outside ASCII in tracked text | `check-language.mjs` |
+| Trademarks | No product name in the extension name, command titles, view titles or setting keys | `contributions.unit.test.ts` |
+| Secret hygiene | A stored token appears in neither the state file, global state, the log, nor a header | `secretHygiene.unit.test.ts` |
+| Editor API external | The bundle requires `vscode` rather than containing it | `check-bundle.mjs` |
+| Bundle size | A tripwire, not a budget: an order-of-magnitude jump means a dependency came along | `check-bundle.mjs` |
+
+`npm run check` runs the five source-level guards; `npm run check:bundle` builds and audits what
+actually ships, and CI runs both. The two new guards were verified to fail on a deliberate second
+`fetch` call site and on a second network client.
+
+The secret hygiene audit is deliberately a test rather than a design argument: every place it looks
+at — the state file, global state, the output channel — is something a user might paste into an issue
+report.
 
 ### 12.3 Performance and resource checks
 - Activation time measured with the built-in extension host profiler; target < 100 ms.
