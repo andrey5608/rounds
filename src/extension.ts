@@ -5,6 +5,8 @@ import { LeaderLock } from './scheduler/leaderLock.js';
 import { Leadership } from './scheduler/leadership.js';
 import { recoverStaleClaims } from './scheduler/recovery.js';
 import { RunClaims } from './scheduler/runClaims.js';
+import { VscodeLanguageModelGateway } from './model/vscodeGateway.js';
+import { ModelCatalog } from './setup/modelCatalog.js';
 import { CountersService } from './state/counters.js';
 import { FileStateBackend, StateFileWatcher } from './state/fileStore.js';
 import { HistoryService } from './state/history.js';
@@ -89,6 +91,11 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     leaderLock,
     leadership,
     runClaims,
+    models: new ModelCatalog({
+      gateway: new VscodeLanguageModelGateway(),
+      store,
+      logger,
+    }),
     agentsView,
     statusBar,
     settings: () => settings,

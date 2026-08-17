@@ -16,7 +16,7 @@ from Jira or a Git host, run a prompt through a language model, and store the re
 
 - **DO** write everything in the repository in English: code, comments, UI strings, error
   messages, commit messages, docs, tests.
-- **DO** reply to the user in Russian in chat — that is conversation, not repository
+- **DO** reply to the user in his prompt language in chat — that is conversation, not repository
   content.
 - **DON'T** leave any non-English text in tracked files.
 

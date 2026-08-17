@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import type { ServiceContainer } from '../container.js';
+import { checkSetupCommand } from '../setup/checkSetupCommand.js';
 
 /**
  * Every command this extension contributes.
@@ -42,6 +43,9 @@ function notImplemented(commandId: CommandId): void {
  */
 function implemented(container: ServiceContainer): Partial<Record<CommandId, () => void>> {
   return {
+    'rounds.checkSetup': () => {
+      void runAndReport(container, 'rounds.checkSetup', () => checkSetupCommand(container));
+    },
     'rounds.showOutput': () => {
       container.output.show();
     },
@@ -50,6 +54,27 @@ function implemented(container: ServiceContainer): Partial<Record<CommandId, () 
       void container.store.refreshFromExternalChange();
     },
   };
+}
+
+/**
+ * Runs a command body and reports a failure instead of leaving an unhandled rejection.
+ *
+ * A command that throws silently is worse than one that fails loudly: the user pressed
+ * something and nothing happened, with no trace anywhere.
+ */
+async function runAndReport(
+  container: ServiceContainer,
+  commandId: CommandId,
+  body: () => Promise<void>,
+): Promise<void> {
+  try {
+    await body();
+  } catch (error) {
+    container.logger.error(`${commandId} failed: ${String(error)}`);
+    await vscode.window.showErrorMessage(
+      `${commandId} failed: ${String(error)}. Open the Rounds output for details.`,
+    );
+  }
 }
 
 /** Registers all commands and ties their lifetime to the extension. */

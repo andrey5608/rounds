@@ -67,7 +67,7 @@ of the same kind therefore share a token.
 The whole registry takes its dependencies as plain data and small functions, so every
 combination of missing prerequisites is just another context object in a unit test.
 
-### 4.5 `rounds.checkSetup` command (`src/setup/checkSetupCommand.ts`)
+### 4.5 `rounds.checkSetup` command (`src/setup/checkSetupCommand.ts`) ✅
 - Runs all checks with progress notification, then shows a QuickPick listing each check
   with a `$(pass)/$(warning)/$(error)` icon and its message.
 - Selecting an item invokes its Fix action: grant model access (calls `requestModels`
