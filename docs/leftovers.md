@@ -79,6 +79,12 @@ Kept here because the next person deserves to know it was wrong once:
   lock was forgotten without being released, so the process could hold a lock it no longer knew about
   and refuse itself every fifteen seconds. The handle is released before it is dropped, and the refusal
   is reported once per change with whether the holder is alive or the lock is waiting to go stale.
+- **Bitbucket was refused rather than supported.** Naming the host in the error was an improvement
+  over a 404, but "not supported yet" is still a dead end for somebody whose pull requests live there.
+  Both Bitbucket APIs now have a connector — the hosted service and the self-hosted product, which
+  share a name and almost nothing else — chosen by a `provider` field on the connection. The wizard
+  asks which API a host speaks only when the address does not say, which is exactly the self-hosted
+  case. See [phase 5](./phases/phase-05-connectors.md).
 - **The wizard asked eleven questions in a row, several of them optional.** Creation now asks only what
   an agent cannot work without; the rest keeps its default and is reachable from the confirmation and
   from Edit Agent. The token is asked for together with the host it belongs to, and the confirmation is
@@ -86,9 +92,10 @@ Kept here because the next person deserves to know it was wrong once:
 
 ## 5. Worth adding, not required
 
-- **Support for other repository hosts.** Rounds speaks the GitHub REST API, so github.com and GitHub
-  Enterprise Server work. Bitbucket, GitLab, Azure DevOps and Gitea have different API shapes and are
-  now refused by name rather than failing later with a 404. Adding one means adding a connector; the
+- **Support for the remaining repository hosts.** Rounds speaks the GitHub REST API and both Bitbucket
+  APIs, so github.com, GitHub Enterprise Server, bitbucket.org and a self-hosted Bitbucket installation
+  work. GitLab, Azure DevOps and Gitea have different API shapes and are refused by name rather than
+  failing later with a 404. Adding one means adding a connector next to the three that exist; the
   recipe is in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - **A dedicated daylight-saving transition test.** Time zone handling is proven across zones on the
   same instant, and every next run is recomputed when the zone setting changes, but no test pins a

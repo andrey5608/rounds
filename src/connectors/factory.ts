@@ -1,7 +1,9 @@
 import type { RoundsSecrets, SecretName } from '../state/secrets.js';
 import type { StoreLogger } from '../state/store.js';
-import type { AgentSource, EndpointConfig, SourceKind } from '../state/types.js';
+import type { AgentSource, EndpointConfig, GitProvider, SourceKind } from '../state/types.js';
 
+import { BitbucketConnector } from './bitbucket.js';
+import { BitbucketServerConnector } from './bitbucketServer.js';
 import { ConfigError } from './errors.js';
 import { RestGitConnector } from './git.js';
 import type { RepositoryHostConnector } from './git.js';
@@ -30,11 +32,15 @@ export function resolveApiRoot(endpoint: EndpointConfig): string {
     return `${trimmed}/rest/api/2/`;
   }
 
-  let host: string;
-  try {
-    host = new URL(trimmed).host.toLowerCase();
-  } catch {
-    throw new ConfigError(`"${endpoint.baseUrl}" is not a valid base URL.`);
+  const host = hostOf(endpoint);
+  const provider = resolveProvider(endpoint);
+  if (provider === 'bitbucket') {
+    return host.endsWith('bitbucket.org') ? 'https://api.bitbucket.org/2.0/' : `${trimmed}/2.0/`;
+  }
+  if (provider === 'bitbucketServer') {
+    // A self-hosted installation serves its own REST version from its own host, and may sit under a
+    // context path (`https://tools.example/bitbucket`), so the path is appended rather than replaced.
+    return trimmed.endsWith('/rest/api/1.0') ? `${trimmed}/` : `${trimmed}/rest/api/1.0/`;
   }
 
   if (host === 'github.com' || host === 'www.github.com') {
@@ -46,16 +52,59 @@ export function resolveApiRoot(endpoint: EndpointConfig): string {
   }
   if (UNSUPPORTED_HOSTS.some((pattern) => pattern.test(host))) {
     throw new ConfigError(
-      `${host} is not supported yet. Rounds speaks the GitHub REST API, so it works with github.com and with GitHub Enterprise Server installations. Support for other hosts means adding a connector; see CONTRIBUTING.md.`,
+      `${host} is not supported yet. Rounds speaks the GitHub API (github.com and GitHub Enterprise Server) and the Bitbucket APIs (Bitbucket Cloud and self-hosted Bitbucket). Support for another host means adding a connector; see CONTRIBUTING.md.`,
     );
   }
   // A self-hosted installation of the supported kind.
   return `${trimmed}/api/v3/`;
 }
 
+function hostOf(endpoint: EndpointConfig): string {
+  try {
+    return new URL(endpoint.baseUrl.replace(/\/+$/, '')).host.toLowerCase();
+  } catch {
+    throw new ConfigError(`"${endpoint.baseUrl}" is not a valid base URL.`);
+  }
+}
+
+/**
+ * Which API a repository host speaks.
+ *
+ * The stored value wins, because a self-hosted installation cannot be recognised from its address.
+ * Otherwise the host says it: bitbucket.org is Bitbucket Cloud, anything else is assumed to speak the
+ * GitHub API, which is what a self-hosted enterprise installation does.
+ */
+export function resolveProvider(endpoint: EndpointConfig): GitProvider {
+  if (endpoint.provider) {
+    return endpoint.provider;
+  }
+  return providerFromHost(endpoint.baseUrl) ?? 'github';
+}
+
+const BITBUCKET_CLOUD = /(^|\.)bitbucket\.org$/;
+const GITHUB_HOSTS = new Set(['github.com', 'www.github.com', 'api.github.com']);
+
+/**
+ * The provider the address itself announces, or `undefined` when it announces nothing.
+ *
+ * The wizard uses the `undefined` case to decide whether to ask: a self-hosted installation can be
+ * either, and guessing wrong sends every request to paths the host has never heard of.
+ */
+export function providerFromHost(baseUrl: string): GitProvider | undefined {
+  let host: string;
+  try {
+    host = new URL(baseUrl.trim().replace(/\/+$/, '')).host.toLowerCase();
+  } catch {
+    return undefined;
+  }
+  if (BITBUCKET_CLOUD.test(host)) {
+    return 'bitbucket';
+  }
+  return GITHUB_HOSTS.has(host) ? 'github' : undefined;
+}
+
 /** Hosts whose API is a different shape entirely, recognised so the message can say so. */
 const UNSUPPORTED_HOSTS = [
-  /(^|\.)bitbucket\.org$/,
   /(^|\.)gitlab\.com$/,
   /(^|\.)dev\.azure\.com$/,
   /(^|\.)visualstudio\.com$/,
@@ -151,10 +200,15 @@ export class ConnectorFactory {
     if (endpoint.kind !== 'git') {
       throw new ConfigError(`The connection "${endpoint.name}" is not a repository host.`);
     }
-    return new RestGitConnector({
-      http: await this.httpFor(endpoint),
-      browseBaseUrl: endpoint.baseUrl,
-    });
+    const http = await this.httpFor(endpoint);
+    switch (resolveProvider(endpoint)) {
+      case 'bitbucket':
+        return new BitbucketConnector({ http, browseBaseUrl: endpoint.baseUrl });
+      case 'bitbucketServer':
+        return new BitbucketServerConnector({ http, browseBaseUrl: endpoint.baseUrl });
+      default:
+        return new RestGitConnector({ http, browseBaseUrl: endpoint.baseUrl });
+    }
   }
 
   /** Reachability test used by the setup check. Never throws; it reports. */

@@ -38,7 +38,8 @@ export interface RequestOptions {
   /** Path relative to the base URL, or an absolute URL on the same host. */
   path: string;
   method?: string;
-  query?: Record<string, string | number | undefined>;
+  /** A value may repeat: some APIs express "any of these" as the same parameter several times. */
+  query?: Record<string, string | number | string[] | undefined>;
   body?: unknown;
   headers?: Record<string, string>;
 }
@@ -96,7 +97,11 @@ export class HttpClient {
       );
     }
     for (const [key, value] of Object.entries(query ?? {})) {
-      if (value !== undefined) {
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          url.searchParams.append(key, entry);
+        }
+      } else if (value !== undefined) {
         url.searchParams.set(key, String(value));
       }
     }

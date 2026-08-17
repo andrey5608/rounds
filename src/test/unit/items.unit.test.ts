@@ -1,6 +1,11 @@
 import * as assert from 'node:assert/strict';
 
-import { byUpdatedAtDescending, itemsAfterCursor, newestCursor } from '../../connectors/items.js';
+import {
+  byUpdatedAtDescending,
+  itemsAfterCursor,
+  newestCursor,
+  toIsoTimestamp,
+} from '../../connectors/items.js';
 import type { SourceItem } from '../../connectors/items.js';
 
 function item(id: string, updatedAt: string): SourceItem {
@@ -50,5 +55,25 @@ describe('source items', () => {
       itemsAfterCursor(items, '2026-08-17T10:00:00.000Z').map((entry) => entry.id),
       ['new'],
     );
+  });
+});
+
+describe('timestamps from hosts that disagree', () => {
+  it('brings every shape to the same one, so comparing strings stays honest', () => {
+    assert.equal(toIsoTimestamp('2026-08-17T09:00:00Z'), '2026-08-17T09:00:00.000Z');
+    assert.equal(toIsoTimestamp('2026-08-17T09:00:00.000000+00:00'), '2026-08-17T09:00:00.000Z');
+    assert.equal(toIsoTimestamp('2026-08-17T11:00:00+02:00'), '2026-08-17T09:00:00.000Z');
+    assert.equal(toIsoTimestamp(Date.parse('2026-08-17T09:00:00Z')), '2026-08-17T09:00:00.000Z');
+  });
+
+  it('treats an absent timestamp as absent rather than as the epoch', () => {
+    assert.equal(toIsoTimestamp(undefined), '');
+    assert.equal(toIsoTimestamp(null), '');
+    assert.equal(toIsoTimestamp(''), '');
+  });
+
+  it('passes an unparseable value through instead of dropping it', () => {
+    // An odd string still orders consistently against itself; an empty one would reset the cursor.
+    assert.equal(toIsoTimestamp('yesterday afternoon'), 'yesterday afternoon');
   });
 });

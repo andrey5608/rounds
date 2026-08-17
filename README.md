@@ -42,7 +42,9 @@ and report back.
 - An active Language Model API provider — for example GitHub Copilot — installed and signed in.
   Rounds never talks to a model directly; it asks the editor, which is why no model API key is
   involved anywhere.
-- A base URL and an API token for the tracker or repository host you want an agent to read.
+- A base URL and an API token for the tracker or repository host you want an agent to read. Issue
+  trackers speak the Jira REST API; repository hosts speak the GitHub API (github.com and Enterprise
+  Server) or either Bitbucket API (bitbucket.org and self-hosted installations).
 
 ## Install and set up
 
@@ -52,7 +54,9 @@ and report back.
    - **Language model access** — grant it when the editor asks. This is the only moment a consent
      prompt appears, and it appears because you asked for it.
    - **Issue tracker connection** and **Repository host connection** — enter the base URL, choose how
-     the host authenticates, and enter the token. Tokens go into the editor's secret storage.
+     the host authenticates, and enter the token. Tokens go into the editor's secret storage. A
+     repository host is also asked which API it speaks, unless its address already says: github.com
+     and bitbucket.org are recognised, a self-hosted installation cannot be.
    - **Result folder** — where result files are written; the default is inside the extension's
      storage folder.
    - **Script whitelist** — a warning until you list commands the `runScript` tool may run. An empty

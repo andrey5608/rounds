@@ -45,7 +45,7 @@ export function validateMaxResults(value: string): string | undefined {
 export function validateRepo(value: string): string | undefined {
   return /^[^/\s]+\/[^/\s]+$/.test(value.trim())
     ? undefined
-    : 'Enter the owner and the repository, for example octo/rounds.';
+    : 'Enter the owner and the repository, for example octo/rounds. On a self-hosted Bitbucket host that is the project key and the repository, for example ROUNDS/rounds.';
 }
 
 export function validateJql(value: string): string | undefined {

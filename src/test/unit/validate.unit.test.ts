@@ -114,6 +114,32 @@ describe('state validation', () => {
     assert.equal(outcome.quarantine.length, 0);
   });
 
+  it('keeps the provider a connection was configured with, and only a known one', () => {
+    // Which connector runs is this field. A value that survives a reload as something else would
+    // silently send every request to paths the host has never heard of.
+    const stored = (provider: unknown): unknown => ({
+      schemaVersion: 1,
+      revision: 1,
+      agents: [],
+      history: {},
+      counters: { localDate: LOCAL_DATE, global: 0, perAgent: {} },
+      endpoints: {
+        repos: { name: 'repos', kind: 'git', baseUrl: 'https://bitbucket.example.invalid', authScheme: 'bearer', provider },
+      },
+    });
+
+    for (const provider of ['github', 'bitbucket', 'bitbucketServer']) {
+      assert.equal(
+        normalizeState(stored(provider), LOCAL_DATE).state.endpoints.repos?.provider,
+        provider,
+      );
+    }
+    assert.equal(
+      normalizeState(stored('gitlab'), LOCAL_DATE).state.endpoints.repos?.provider,
+      undefined,
+    );
+  });
+
   it('stamps the current schema version on migrated envelopes', () => {
     const migrated = migrate({ schemaVersion: 1, revision: 0 }) as { schemaVersion: number };
     assert.equal(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
