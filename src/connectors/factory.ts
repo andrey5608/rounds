@@ -82,6 +82,7 @@ export function resolveProvider(endpoint: EndpointConfig): GitProvider {
 }
 
 const BITBUCKET_CLOUD = /(^|\.)bitbucket\.org$/;
+const BITBUCKET_SERVER = /^.*(bitbucket|stash).*$/;
 const GITHUB_HOSTS = new Set(['github.com', 'www.github.com', 'api.github.com']);
 
 /**
@@ -99,6 +100,9 @@ export function providerFromHost(baseUrl: string): GitProvider | undefined {
   }
   if (BITBUCKET_CLOUD.test(host)) {
     return 'bitbucketCloud';
+  }
+  if (BITBUCKET_SERVER.test(host)) {
+    return 'bitbucketServer';
   }
   return GITHUB_HOSTS.has(host) ? 'github' : undefined;
 }
