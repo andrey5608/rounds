@@ -151,6 +151,20 @@ export interface DailyCounters {
   capNotifiedAt?: string;
 }
 
+/**
+ * A window's claim on an agent while a run is in flight.
+ *
+ * Claims live in the shared state rather than in memory because the window that runs an
+ * agent manually is not necessarily the window that schedules it.
+ */
+export interface RunClaim {
+  windowId: string;
+  runId: string;
+  startedAt: string;
+  /** Refreshed while the run is in flight; a stale value means the window died. */
+  heartbeatAt: string;
+}
+
 /** History is kept per agent, newest first. */
 export type RunHistory = Record<string, RunRecord[]>;
 
@@ -162,4 +176,6 @@ export interface PersistedState {
   agents: Agent[];
   history: RunHistory;
   counters: DailyCounters;
+  /** Keyed by agent id. Absent means no window is running that agent. */
+  runClaims: Record<string, RunClaim>;
 }

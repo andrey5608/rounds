@@ -27,7 +27,7 @@ and a manual run works from any window without ever double-running an agent.
 - Any state write from a follower still goes through the revisioned store, so followers
   are never read-only, only tick-free.
 
-### 3.4 Per-agent run claim
+### 3.4 Per-agent run claim ✅
 - A manual run may start in a follower window while the leader is about to run the same
   agent on schedule. Prevent overlap with a **claim** in state, not only in memory:
   `runClaims: Record<agentId, { windowId: string; startedAt: string; heartbeatAt: string }>`.
@@ -37,6 +37,13 @@ and a manual run works from any window without ever double-running an agent.
 - The runner refreshes `heartbeatAt` every 30 s while a run is in flight and clears the
   claim in a `finally` block.
 - `windowId` is a per-activation uuid stored in memory only.
+- Claims are carried by the **state file only**, not by global state: `plan.md` fixes the
+  four global state keys and a claim is not one of them. The file is also the channel that
+  actually orders concurrent writes. A window reduced to the global-state fallback sees no
+  claims, which is safe — the worst case is one duplicate run in a setup whose storage
+  directory is already broken.
+- Adding `runClaims` to the envelope needs no migration: a missing field normalizes to an
+  empty object, which is exactly the correct starting value.
 
 ### 3.5 Crash and stale-state recovery
 - On activation, scan `runClaims` for entries owned by this `windowId` (impossible after

@@ -100,6 +100,7 @@ describe('state store', () => {
       agents: [],
       history: {},
       counters: { localDate: '2026-08-17', global: 0, perAgent: {} },
+      runClaims: {},
     });
 
     let phantom = 100;

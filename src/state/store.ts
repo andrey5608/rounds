@@ -78,6 +78,15 @@ export class MementoBackend implements StateBackend {
     });
   }
 
+  /**
+   * Note what is missing here: run claims.
+   *
+   * plan.md fixes the four global state keys, and a claim is deliberately not one of
+   * them. Claims travel between windows through the state file, which is the channel that
+   * actually orders concurrent writes. A window that has to fall back to global state
+   * simply sees no claims, which is safe: the worst case is one duplicate run in a setup
+   * whose storage directory is already broken.
+   */
   async save(state: PersistedState): Promise<void> {
     await this.memento.update(STATE_KEYS.agents, state.agents);
     await this.memento.update(STATE_KEYS.history, state.history);

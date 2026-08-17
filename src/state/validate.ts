@@ -5,6 +5,7 @@ import type {
   DailyCounters,
   PersistedState,
   PromptConfig,
+  RunClaim,
   RunHistory,
   RunRecord,
 } from './types.js';
@@ -14,7 +15,7 @@ export const CURRENT_SCHEMA_VERSION = 1;
 
 /** An entry that could not be understood, kept aside instead of being dropped silently. */
 export interface QuarantineEntry {
-  kind: 'envelope' | 'agent' | 'run' | 'counters';
+  kind: 'envelope' | 'agent' | 'run' | 'counters' | 'claim';
   reason: string;
   value: unknown;
 }
@@ -52,6 +53,28 @@ export function emptyState(localDate: string): PersistedState {
     agents: [],
     history: {},
     counters: { localDate, global: 0, perAgent: {} },
+    runClaims: {},
+  };
+}
+
+function validateClaim(value: unknown): RunClaim | string {
+  if (!isRecord(value)) {
+    return 'claim is not an object';
+  }
+  if (!isNonEmptyString(value.windowId)) {
+    return 'claim.windowId must be a non-empty string';
+  }
+  if (!isNonEmptyString(value.runId)) {
+    return 'claim.runId must be a non-empty string';
+  }
+  if (!isString(value.startedAt) || !isString(value.heartbeatAt)) {
+    return 'claim.startedAt and claim.heartbeatAt must be strings';
+  }
+  return {
+    windowId: value.windowId,
+    runId: value.runId,
+    startedAt: value.startedAt,
+    heartbeatAt: value.heartbeatAt,
   };
 }
 
@@ -379,6 +402,18 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
     }
   }
 
+  const runClaims: Record<string, RunClaim> = {};
+  if (isRecord(migrated.runClaims)) {
+    for (const [agentId, candidate] of Object.entries(migrated.runClaims)) {
+      const claim = validateClaim(candidate);
+      if (isString(claim)) {
+        quarantine.push({ kind: 'claim', reason: claim, value: candidate });
+      } else {
+        runClaims[agentId] = claim;
+      }
+    }
+  }
+
   const counters = validateCounters(migrated.counters, localDate);
   if (isString(counters)) {
     if (migrated.counters !== undefined) {
@@ -393,6 +428,7 @@ export function normalizeState(raw: unknown, localDate: string): ValidationOutco
       agents,
       history,
       counters: isString(counters) ? emptyState(localDate).counters : counters,
+      runClaims,
     },
     quarantine,
   };
