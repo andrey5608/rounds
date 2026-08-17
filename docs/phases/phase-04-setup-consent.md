@@ -82,12 +82,17 @@ combination of missing prerequisites is just another context object in a unit te
   does in one sentence + a `Check Setup` button + `Don't show again`.
 - Never auto-run consent. Record `firstRunNoticeShownAt` in state.
 
-### 4.7 `needsSetup` agent state
+### 4.7 `needsSetup` agent state ✅
 - Derive per agent: missing consent, unknown `modelId`, missing secret for its source, or
   unwritable output folder.
 - Agents in `needsSetup` are never executed by the scheduler; a scheduled attempt records
   a `skipped` run with reason `needsSetup` (at most once per day per agent to avoid
-  history spam).
+  history spam). The skip itself is wired up with the scheduler in phase 9; readiness is
+  what phase 4 provides.
+- Readiness is computed from **cached** information only. Asking the provider whether a
+  model still exists would trigger a consent prompt, which a background tick must never do.
+  An empty model cache therefore means "unknown", not "model missing" — that case is already
+  reported as missing consent.
 
 ### 4.8 Tests
 - Unit: check registry results for every combination of missing prerequisites; error
