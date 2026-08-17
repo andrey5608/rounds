@@ -42,7 +42,7 @@ Sections, in this order:
     off).
 13. **Known limitations for v1** — the out-of-scope list from `plan.md`.
 
-### 11.2 CONTRIBUTING (`CONTRIBUTING.md`)
+### 11.2 CONTRIBUTING (`CONTRIBUTING.md`) ✅
 - Project layout and dependency direction (copy the architecture map).
 - Development loop: `npm run watch`, F5, running unit vs integration tests.
 - **Adding a tool** — the recipe: create `src/tools/<name>.ts` implementing `RoundsTool`,
@@ -53,8 +53,10 @@ Sections, in this order:
   factory and in the wizard's source step.
 - **Rules that are enforced mechanically** — English-only check, no LLM SDK dependency,
   trademark rule, `selectChatModels` only behind the consent gate.
-- Commit and PR conventions; keep `docs/implementation-plan.md` updated when a step
-  changes.
+- Commit and PR conventions; keep the relevant `docs/phases/` file updated when a step changes.
+- Also records the two testing habits this project learned the hard way: run each check separately
+  rather than chaining them with `&&`, and never let an assertion compare against a
+  re-implementation of the code under test.
 
 ### 11.3 Marketplace metadata
 - `icon` (128×128 PNG), `galleryBanner`, `repository`, `bugs`, `homepage` fields.
