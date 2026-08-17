@@ -8,12 +8,16 @@ all commands registered as stubs, activation free of any model call. Milestone *
 ## Steps
 
 ### 1.1 Extension identity ✅
+- `icon`: `media/rounds-icon-128.png`. Added later, when the owner supplied brand assets; the activity
+  bar glyph replaced the `$(history)` codicon at the same time and `plan.md` was amended to match,
+  because a specification that contradicts the shipped manifest gets "corrected" back by the next
+  reader.
 - `name`: `rounds`
 - `displayName`: `Rounds — Scheduled Task Agents`
 - `publisher`: `TODO-PUBLISHER` (placeholder stays until the owner provides one)
 - `description`: one English sentence, descriptive, no trademarks in a naming position.
 - `categories`: `["Other"]`; `keywords`: `["agents", "schedule", "automation", "cron"]`.
-- `icon` and `galleryBanner` are added in phase 11.
+- `galleryBanner` is added in phase 11.
 
 ### 1.2 Activation ✅
 - `activationEvents`: `onStartupFinished` plus the view activation is implicit from the
@@ -27,7 +31,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 ### 1.3 Views ✅
 ```jsonc
 "viewsContainers": {
-  "activitybar": [{ "id": "rounds", "title": "Rounds", "icon": "$(history)" }]
+  "activitybar": [{ "id": "rounds", "title": "Rounds", "icon": "media/rounds-activitybar.svg" }]
 },
 "views": {
   "rounds": [{ "id": "rounds.agentsView", "name": "Agents" }]

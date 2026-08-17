@@ -15,9 +15,11 @@ decision, or a working installation.
 | Item | Where it stands | How to close it |
 | --- | --- | --- |
 | `publisher` | `package.json` still says `TODO-PUBLISHER`, deliberately — `plan.md` forbids guessing one | Create the marketplace publisher, put its id in `package.json` |
-| `icon` | Not shipped. A placeholder graphic would read as a finished choice nobody made | Add a 128×128 PNG, set `icon` in `package.json` |
 | README screenshots | The "Creating your first agent" section is written in prose | Capture the wizard against a real tracker and a signed-in provider |
 | Tag `v1.0.0` | Version and changelog say 1.0.0; no tag exists | Tag the release commit once the items above are in |
+
+Closed since this list was written: the icon and the activity bar glyph. The owner supplied brand
+assets, which are in [`media/`](../media) and wired into the manifest.
 
 ## 2. Needs a real environment
 

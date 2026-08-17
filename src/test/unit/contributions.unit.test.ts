@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { SETTING_KEYS } from '../../state/settings.js';
@@ -9,10 +9,11 @@ interface Manifest {
   displayName: string;
   publisher: string;
   version: string;
+  icon: string;
   contributes: {
     commands: { command: string; title: string; category?: string }[];
     configuration: { title: string; properties: Record<string, unknown> };
-    viewsContainers: { activitybar: { id: string; title: string }[] };
+    viewsContainers: { activitybar: { id: string; title: string; icon: string }[] };
     views: Record<string, { id: string; name: string }[]>;
   };
 }
@@ -74,6 +75,20 @@ describe('manifest contributions', () => {
         !/^rounds\b/i.test(command.title),
         `title "${command.title}" repeats the category, which the editor already prepends`,
       );
+    }
+  });
+
+  it('points at icon files that exist', () => {
+    const root = resolve(__dirname, '../../..');
+    const paths = [
+      manifest.icon,
+      ...manifest.contributes.viewsContainers.activitybar.map((container) => container.icon),
+    ];
+
+    for (const path of paths) {
+      assert.ok(path, 'an icon path is declared');
+      // A missing icon leaves the view container blank without an error anywhere.
+      assert.ok(existsSync(resolve(root, path)), `${path} is declared but not in the repository`);
     }
   });
 

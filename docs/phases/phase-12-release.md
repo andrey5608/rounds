@@ -60,8 +60,12 @@ The checklist is written; running it is a release step, and pretending otherwise
 thing this document must not do.
 
 ### 12.5 Packaging ✅
-- `vsce package` produces an 88 KB VSIX containing five files: `package.json`, the README, the
-  licence, the changelog and `dist/extension.js`.
+- `vsce package` produces a VSIX containing eight files: `package.json`, the README, the licence, the
+  changelog, `dist/extension.js`, and the three brand assets an install needs — the marketplace icon,
+  the activity bar glyph and the README image.
+- **A marketplace README may not embed an SVG**: `vsce` refuses to package one and says so. The README
+  therefore shows a PNG rendered from `media/rounds-lockup.svg`, and links the vector source next to
+  it. The vector originals stay in the repository and out of the package.
 - The first attempt shipped 403 KB, including **1.4 MB of coverage artefacts**, the guard scripts, the
   ESLint config and the development sourcemap. Two things came out of that: `coverage/` was missing
   from `.gitignore` and two artefact files had already been committed (now removed), and
@@ -80,8 +84,9 @@ because publishing is their decision, the last because it needs a real editor an
 
 - [ ] **Owner:** replace `publisher` — it is still `TODO-PUBLISHER`, which is deliberate. Publishing
       requires a marketplace identity that only the owner has.
-- [ ] **Owner:** supply `icon` (128×128 PNG). Shipping a placeholder graphic would look like a
-      finished choice nobody made.
+- [x] `icon` is `media/rounds-icon-128.png`, from the brand assets the owner supplied. The activity
+      bar uses `media/rounds-activitybar.svg` instead of the codicon the plan originally named, and
+      `plan.md` was amended rather than left to contradict the manifest.
 - [ ] **Owner:** capture the README screenshots for the wizard. They need a real tracker and a
       signed-in provider, so the section is written in prose until then.
 - [x] Version is `1.0.0` and the changelog entry is dated. A test asserts the manifest and the

@@ -51,7 +51,9 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
 - Settings UI title: "Rounds"
 
 ### Views
-- Activity bar container id: `rounds`, title "Rounds", codicon `$(history)`
+- Activity bar container id: `rounds`, title "Rounds", icon `media/rounds-activitybar.svg`
+  (amended 2026-08-17: the owner supplied brand assets; this replaces the original codicon
+  `$(history)`)
 - TreeView id: `rounds.agentsView`, title "Agents"
 - Welcome view (no agents yet) points at `rounds.createAgent` and `rounds.checkSetup`
 

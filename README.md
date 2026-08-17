@@ -1,3 +1,5 @@
+<img src="media/rounds-lockup.png" alt="Rounds" width="380">
+
 # Rounds — Scheduled Task Agents
 
 A Visual Studio Code extension for **agents**: recurring tasks that collect data from an issue
@@ -192,6 +194,15 @@ Deleting an agent never deletes files it already wrote.
 - No execution while the editor is closed.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.
+
+## Brand assets
+
+The logo lives in [`media/`](./media): [`rounds-lockup.svg`](./media/rounds-lockup.svg) is the vector
+lockup shown above, with [`rounds-lockup.png`](./media/rounds-lockup.png) rendered from it because a
+marketplace README may not embed an SVG. Also there:
+[`rounds-icon.svg`](./media/rounds-icon.svg) with its 128 and 512 pixel renders,
+[`rounds-activitybar.svg`](./media/rounds-activitybar.svg) for the activity bar, and
+[`rounds-wordmark.svg`](./media/rounds-wordmark.svg).
 
 ## Documentation
 
