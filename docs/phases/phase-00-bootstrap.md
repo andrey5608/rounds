@@ -15,8 +15,10 @@ in the Extension Development Host, and is checked by CI.
 - `package.json` identity fields are filled properly in phase 1; here only what is
   needed to compile.
 
-### 0.2 Pin the platform baseline
-- `engines.vscode`: `^1.95.0`; `@types/vscode`: `^1.95.0`.
+### 0.2 Pin the platform baseline ✅
+- `engines.vscode`: `^1.95.0`; `@types/vscode`: `~1.95.0`.
+  The tilde range matters: `^1.95.0` also matches 1.125.0, which would let code compile
+  against APIs that do not exist in the declared baseline.
 - TypeScript 5.x, `@types/node` matching the Node version shipped with VS Code 1.95.
 - `tsconfig.json`: `"strict": true`, `"noUncheckedIndexedAccess": true`,
   `"target": "ES2022"`, `"module": "Node16"`, `"moduleResolution": "Node16"`,
