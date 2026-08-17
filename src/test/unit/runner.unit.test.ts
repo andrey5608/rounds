@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { ResultWriter } from '../../agents/resultWriter.js';
 import { AgentRunner } from '../../agents/runner.js';
 import type { ConnectorProvider, RunnerDependencies } from '../../agents/runner.js';
 import type { FetchResult } from '../../connectors/items.js';
@@ -93,6 +94,7 @@ async function harness(options: {
   consent?: boolean;
   secrets?: ('jiraToken' | 'gitToken')[];
   gateway?: FakeGateway;
+  resultWriter?: ResultWriter;
 }): Promise<Harness> {
   const directory = await mkdtemp(join(tmpdir(), 'rounds-runner-'));
   const resultsFolder = join(directory, 'results');
@@ -152,6 +154,7 @@ async function harness(options: {
     gateway,
     registry: createToolRegistry(),
     connectors,
+    resultWriter: options.resultWriter,
     settings: () => settings,
     globalStorage: directory,
     workspaceFolders: [directory],
@@ -407,14 +410,15 @@ describe('agent runner', () => {
   });
 
   it('reports a run in the history even when the result file cannot be written', async () => {
-    const { runner, store } = await harness({
-      agent: agent({ outputFolder: '/proc/definitely-not-writable' }),
+    // The failure is injected rather than provoked with an unwritable path: which paths refuse a
+    // write differs per platform, and a test that depends on that is a test that fails somewhere
+    // else for reasons of its own.
+    const failingWriter = new ResultWriter({
+      mkdirImpl: () => Promise.reject(new Error('read-only file system')),
     });
+    const { runner, store } = await harness({ agent: agent(), resultWriter: failingWriter });
 
-    const record = await runner.run({
-      agent: agent({ outputFolder: '/proc/definitely-not-writable' }),
-      trigger: 'manual',
-    });
+    const record = await runner.run({ agent: agent(), trigger: 'manual' });
 
     assert.equal(record.status, 'succeeded');
     assert.equal(record.resultFilePath, undefined);

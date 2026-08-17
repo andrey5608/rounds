@@ -120,6 +120,10 @@ A failure records a `skipped` or `failed` run with the specific reason — never
 - Unit: result file naming, slugging, collisions, front matter fields, folder fallback.
 - Unit: failed run always yields a history record.
 - Integration: `rounds.runNow` against fakes writes a real file into a temp folder.
+- Failures that a test needs are **injected**, never provoked through the operating system: which
+  paths refuse a write differs per platform, and a test that leans on that fails somewhere else for
+  reasons of its own. A CI runner proved the point with a two second timeout on a path that behaves
+  differently on Linux.
 
 ## Exit criteria
 

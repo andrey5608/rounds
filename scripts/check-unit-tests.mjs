@@ -7,7 +7,7 @@
  * the module only exists inside the extension host.
  */
 import { readdir, readFile } from 'node:fs/promises';
-import { dirname, extname, join, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 
 const SRC = resolve('src');
 const IMPORT_PATTERN = /(?:from\s+|require\()\s*['"]([^'"]+)['"]/g;
@@ -75,7 +75,12 @@ const failures = [];
 for (const test of unitTests) {
   const chain = await findVscodeImport(test);
   if (chain) {
-    failures.push(chain.map((part) => part.replace(`${resolve('.')}/`, '')).join(' -> '));
+    failures.push(
+      chain
+        .map((part) => relative(resolve('.'), part))
+        .map((part) => (sep === '/' ? part : part.split(sep).join('/')))
+        .join(' -> '),
+    );
   }
 }
 

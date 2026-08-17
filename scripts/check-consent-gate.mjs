@@ -11,7 +11,15 @@
  *    from the scheduler, the runner or the connectors.
  */
 import { readdir, readFile } from 'node:fs/promises';
-import { extname, join, relative, resolve } from 'node:path';
+import { extname, join, relative, resolve, sep } from 'node:path';
+
+/**
+ * Paths are compared with forward slashes.
+ *
+ * `path.relative` answers in the separator of the host, so on Windows every prefix test below
+ * silently failed and the guard reported that no file is where it is.
+ */
+const toPosix = (value) => (sep === '/' ? value : value.split(sep).join('/'));
 
 const ROOT = resolve('.');
 const SRC = resolve('src');
@@ -39,7 +47,7 @@ const failures = [];
 const selectChatModelsFiles = [];
 
 for (const file of files) {
-  const relativePath = relative(ROOT, file);
+  const relativePath = toPosix(relative(ROOT, file));
   const source = await readFile(file, 'utf8');
 
   if (/\bselectChatModels\s*\(/.test(source)) {

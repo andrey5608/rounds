@@ -20,7 +20,9 @@ action.
   possible — and
   `userAction(` is only called from `src/setup/`, `src/ui/` or the entry point — never from
   the scheduler, runner or connectors. Both rules were verified to fail on a deliberate
-  violation.
+  violation. The guard normalizes path separators before comparing: `path.relative` answers in the
+  host separator, so on Windows every prefix test silently failed and the guard reported that no
+  file is where it is.
 
 ### 4.2 Model catalog (`src/setup/modelCatalog.ts`) ✅
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and

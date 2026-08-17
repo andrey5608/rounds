@@ -57,8 +57,15 @@ describe('readFile tool', () => {
     assert.ok(!output.content.includes('token=abc'));
   });
 
-  it('refuses a symbolic link that points out of the workspace', async () => {
-    await symlink(join(outside, 'secrets.txt'), join(workspace, 'link.txt'));
+  it('refuses a symbolic link that points out of the workspace', async function () {
+    try {
+      await symlink(join(outside, 'secrets.txt'), join(workspace, 'link.txt'));
+    } catch (error) {
+      // Creating a link needs a privilege Windows does not grant by default. Skipping is honest;
+      // pretending the check passed would not be.
+      this.skip();
+      throw error;
+    }
     const output = await tool.execute({ path: 'link.txt' }, context([workspace]));
 
     assert.match(output.content, /Refused: .* through a link/);
