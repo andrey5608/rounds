@@ -218,7 +218,7 @@ Deleting an agent never deletes files it already wrote.
 
 ## Brand assets
 
-The logo lives in [`docs/media/`](./media): [`rounds-lockup.svg`](./docs/media/rounds-lockup.svg) is the vector
+The logo lives in [`docs/media/`](./docs/media): [`rounds-lockup.svg`](./docs/media/rounds-lockup.svg) is the vector
 lockup shown above, with [`rounds-lockup.png`](./docs/media/rounds-lockup.png) rendered from it because a
 marketplace README may not embed an SVG. Also there:
 [`rounds-icon.svg`](./docs/media/rounds-icon.svg) with its 128 and 512 pixel renders,
