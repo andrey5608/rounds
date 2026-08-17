@@ -34,7 +34,7 @@ in the Extension Development Host, and is checked by CI.
   compiled JavaScript while `compile` produces the bundle. `lint` and the test scripts
   only become functional once steps 0.4 and 0.5 install their tooling.
 
-### 0.4 Test harness
+### 0.4 Test harness ✅
 - Unit tests: Mocha over compiled pure modules in `src/**/*.unit.test.ts`, no `vscode`
   import allowed. Add a lint rule or a test that fails if a unit test imports `vscode`.
 - Integration tests: `@vscode/test-cli` + `@vscode/test-electron`, specs in
