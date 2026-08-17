@@ -41,7 +41,7 @@ in the Extension Development Host, and is checked by CI.
   `src/test/integration/**`, launched against a temporary user data dir.
 - Add one trivial test of each kind so both runners are proven green.
 
-### 0.5 Linting and formatting
+### 0.5 Linting and formatting ✅
 - ESLint with `typescript-eslint`, rules for: no floating promises, no unused vars,
   explicit module boundary types off, `curly`, `eqeqeq`.
 - Add a custom check script `scripts/check-language.mjs` that fails when non-ASCII
@@ -50,6 +50,10 @@ in the Extension Development Host, and is checked by CI.
   English-only rule mechanically.
 - Add a check that `package.json` `dependencies` contains no LLM SDK: fail on any
   package matching `openai|anthropic|@google|langchain|llamaindex|cohere|mistral`.
+- All three guards are wired into `npm run check` and were each verified to exit non-zero
+  on a deliberate violation. The language check scans `AGENTS.md`, `CLAUDE.md`, `plan.md`
+  and `.github/**` as well, and flags letters rather than symbols so that arrows, dashes
+  and emoji stay allowed.
 
 ### 0.6 Runtime dependencies (keep the list minimal)
 - `cron-parser` — next-run computation with timezone support.

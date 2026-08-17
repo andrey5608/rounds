@@ -15,19 +15,24 @@
     "package": "node esbuild.js --production",
     "compile:tests": "tsc -p ./",
     "typecheck": "tsc -p ./ --noEmit",
-    "lint": "eslint src scripts esbuild.js",
+    "lint": "eslint .",
+    "check": "node scripts/check-language.mjs && node scripts/check-dependencies.mjs && node scripts/check-unit-tests.mjs",
     "test:unit": "node scripts/check-unit-tests.mjs && npm run compile:tests && mocha \"out/**/*.unit.test.js\"",
     "test:integration": "npm run compile:tests && vscode-test",
     "test": "npm run test:unit && npm run test:integration"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.19.43",
     "@types/vscode": "~1.95.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
     "mocha": "^11.8.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0"
   }
 }
