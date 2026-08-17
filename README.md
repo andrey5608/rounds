@@ -199,6 +199,7 @@ Deleting an agent never deletes files it already wrote.
 - [`AGENTS.md`](./AGENTS.md) — working rules for contributors and AI assistants
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to add a tool or a connector
 - [`docs/implementation-plan.md`](./docs/implementation-plan.md) — phases, milestones, conventions
+- [`docs/leftovers.md`](./docs/leftovers.md) — what is not finished, and why
 
 ## License
 

@@ -132,4 +132,4 @@ and per-step validation:
 - [x] Scheduled successes are silent; failures notify once per agent per day with an action, and a
       manual run always reports its outcome because the user asked for it.
 - [ ] Not done in this phase: the confirmation that lets a manual run exceed the daily limit
-      deliberately. It is listed in step 9.4 and remains open.
+      deliberately. It is listed in step 9.4 and tracked in [../leftovers.md](../leftovers.md).

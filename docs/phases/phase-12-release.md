@@ -82,6 +82,8 @@ because publishing is their decision, the last because it needs a real editor an
       requires a marketplace identity that only the owner has.
 - [ ] **Owner:** supply `icon` (128×128 PNG). Shipping a placeholder graphic would look like a
       finished choice nobody made.
+- [ ] **Owner:** capture the README screenshots for the wizard. They need a real tracker and a
+      signed-in provider, so the section is written in prose until then.
 - [x] Version is `1.0.0` and the changelog entry is dated. A test asserts the manifest and the
       changelog agree about the version, so they cannot drift apart quietly.
 - [x] README carries both warnings: agents run only while the editor is open, and the acceptable use
@@ -110,4 +112,5 @@ because publishing is their decision, the last because it needs a real editor an
       publisher id, the icon, and the tag plus clean-profile install.
 
 Phase 12 is therefore complete in everything that does not require credentials or a marketplace
-identity, and those three gaps are named here rather than quietly ticked.
+identity, and those gaps are named here rather than quietly ticked. Every open item across all
+thirteen phases is collected in [../leftovers.md](../leftovers.md).

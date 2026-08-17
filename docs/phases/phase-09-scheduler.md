@@ -106,4 +106,5 @@ Milestone **M3**.
       and the start-up burst guard keeps a morning takeover from firing everything at once.
 - [x] Time zone handling is proven by clock tests across zones — the same instant is evaluated in
       UTC, Berlin and Tokyo — and every next run is recomputed when the time zone setting changes.
-      A dedicated DST transition case is still worth adding when a real DST date is picked.
+      A dedicated DST transition case is still worth adding when a real DST date is picked; it is
+      tracked in [../leftovers.md](../leftovers.md).
