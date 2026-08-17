@@ -28,8 +28,10 @@ export type CommandId = (typeof COMMAND_IDS)[number];
  * Placeholder implementations. Each phase replaces the stubs it owns:
  * setup in phase 4, run now in phase 8, the rest in phase 10.
  */
-async function notImplemented(commandId: CommandId): Promise<void> {
-  await vscode.window.showInformationMessage(`${commandId} is not implemented yet.`);
+function notImplemented(commandId: CommandId): void {
+  // The notification is deliberately not awaited: a command should return as soon as it
+  // has been handled, and nothing depends on the user dismissing the message.
+  void vscode.window.showInformationMessage(`${commandId} is not implemented yet.`);
 }
 
 /** Registers all commands and ties their lifetime to the extension. */

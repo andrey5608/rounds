@@ -77,6 +77,12 @@ describe('contribution guards', () => {
     assert.deepEqual(ids, ['rounds.agentsView']);
   });
 
+  it('executes every command without throwing', async () => {
+    for (const commandId of COMMAND_IDS) {
+      await vscode.commands.executeCommand(commandId);
+    }
+  });
+
   it('reads every contributed setting with a default value', () => {
     const configuration = vscode.workspace.getConfiguration();
     assert.equal(configuration.get('rounds.enabled'), true);

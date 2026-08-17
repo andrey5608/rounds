@@ -109,12 +109,25 @@ Title `Rounds`, all keys under the `rounds.` prefix:
   id, which is plain `rounds` and would swallow everything.
 - `compile:tests` now wipes `out/` first. Compiling on top of stale output kept running
   tests whose sources had been deleted, which made a green run meaningless.
+- `test:integration` now builds the bundle before launching the host. It previously only
+  compiled the tests, so the host loaded a stale `dist/extension.js`. Note that
+  `getCommands(true)` also returns commands that are merely *declared* in the manifest,
+  so that check alone cannot detect a missing registration — the test that executes every
+  command is the one that proves it.
 
 ## Exit criteria
 
-- [ ] Activity bar shows the `Rounds` container with the `Agents` view and its welcome
-      content.
-- [ ] All 11 commands appear in the palette as `Rounds: <title>` and run their stub.
-- [ ] All 11 settings appear in the settings UI under `Rounds` with English descriptions.
-- [ ] Startup produces no consent prompt, no network request, no error notification.
-- [ ] Contribution guard test and trademark test pass.
+- [x] Activity bar shows the `Rounds` container with the `Agents` view and its welcome
+      content. Verified structurally: the container, the view and the welcome block are
+      contributed, a data provider is registered, and the extension activates without
+      errors. The pixels themselves still deserve one look with F5.
+- [x] All 11 commands appear in the palette as `Rounds: <title>` and run their stub.
+      An integration test executes each of them; the palette entry follows from the
+      declared category and title, which the unit test checks.
+- [x] All 11 settings appear in the settings UI under `Rounds` with English descriptions.
+      The unit test compares the declared keys with the code base list and the integration
+      test reads their defaults from a live editor.
+- [x] Startup produces no consent prompt, no network request, no error notification.
+      No source file references `vscode.lm`, `selectChatModels` or `fetch`, and activation
+      is asserted to succeed.
+- [x] Contribution guard test and trademark test pass.
