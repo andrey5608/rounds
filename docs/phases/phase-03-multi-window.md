@@ -13,7 +13,7 @@ and a manual run works from any window without ever double-running an agent.
   `retries: 0` on the acquire attempt, and an `onCompromised` handler.
 - Expose `acquire(): Promise<boolean>`, `release()`, `isHeld`, `onLost` event.
 
-### 3.2 Leadership manager (`src/scheduler/leadership.ts`)
+### 3.2 Leadership manager (`src/scheduler/leadership.ts`) ✅
 - On activation, attempt acquisition **without blocking activation** (fire and forget).
 - If not acquired, retry every 15 s (with a small random offset so windows do not
   stampede). If lost (`onCompromised`), stop the ticker immediately and go back to
