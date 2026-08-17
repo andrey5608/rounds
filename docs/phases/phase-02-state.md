@@ -106,17 +106,29 @@ interface Agent {
 - Item with id `rounds.status`, alignment right, command `rounds.showOutput`.
 - Text reflects: disabled / needs setup / next run time / running / last run failed.
 
-### 2.10 Tests
+### 2.10 Tests ✅
 - Unit: revision conflict retry, mutator re-application, envelope migration, malformed
   entry quarantine, history cap, counter rollover across midnight in a non-UTC timezone,
   redaction of tokens in log lines.
 - Integration: write from one store instance, read from a second one pointed at the same
   storage path; simulate a stale writer and assert it reloads instead of overwriting.
+- Also covered: the settings reader (defaults, clamping, wrong types, malformed whitelist
+  entries) and a probe that the storage folder handed to the extension is writable.
+- 73 unit tests and 11 integration tests pass.
 
 ## Exit criteria
 
-- [ ] Agents, history, counters and revision survive a window reload.
-- [ ] A simulated concurrent write is detected and retried, with no lost update.
-- [ ] A corrupt `state.json` is quarantined and the extension still activates.
-- [ ] Tokens never appear in the output channel or in `globalState` dumps.
-- [ ] All phase-2 unit and integration tests pass.
+- [x] Agents, history, counters and revision survive a window reload. Covered by a unit
+      test over a temporary directory and by an integration test that reopens the store
+      inside the extension host.
+- [x] A simulated concurrent write is detected and retried, with no lost update. Covered
+      three ways: a backend that writes behind the store's back, two stores sharing one
+      directory, and ten concurrent updates in one window.
+- [x] A corrupt `state.json` is quarantined and the extension still activates. The backend
+      moves the file to `state.json.bad-<timestamp>`, falls back to global state, and
+      activation catches and logs load failures rather than throwing.
+- [x] Tokens never appear in the output channel or in `globalState` dumps. Enforced by
+      design (secrets live only in `RoundsSecrets`) and checked by tests: redaction of
+      values, URL credentials and authorization headers, plus a guard that the persistence
+      files never mention a secret key.
+- [x] All phase-2 unit and integration tests pass.
