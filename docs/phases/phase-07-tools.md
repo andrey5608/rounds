@@ -60,7 +60,9 @@ interface RoundsTool<TInput> {
 - Environment is a copy of the parent env minus variables matching
   `token|secret|password|passwd|key|credential`.
 - Arguments are matched **pairwise against the whitelist entry**, so a listed `npm test` does
-  not also allow `npm test --something`. Shell metacharacters need no special handling as a
+  not also allow `npm test --something`. The setting carries worked examples in its description and in
+  `examples`, and the README explains the matching rule — a whitelist nobody can write is a whitelist
+  that stays empty. Shell metacharacters need no special handling as a
   result: `test; rm -rf /` is simply an argument that matches no pattern, and there is no shell
   to interpret it even if it did.
 

@@ -1,6 +1,6 @@
 {
   "name": "rounds",
-  "displayName": "Rounds \u2014 Scheduled Task Agents",
+  "displayName": "Rounds — Scheduled Task Agents",
   "publisher": "rounds",
   "version": "1.0.0",
   "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
@@ -178,7 +178,7 @@
         "rounds.scriptWhitelist": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Commands the `runScript` tool is allowed to execute. Nothing outside this list runs, so an empty list disables the tool.",
+          "markdownDescription": "Commands the `runScript` tool is allowed to execute. Nothing outside this list runs, so an empty list disables the tool.\n\nEach entry names one command and the arguments it may be given. Arguments are matched **one for one**: an entry for `npm test` does not also allow `npm test --watch`. A pattern may end with `*` to accept any suffix, so `run lint*` allows `run lint` and `run lint:fix`.\n\n```json\n\"rounds.scriptWhitelist\": [\n  { \"command\": \"npm\", \"args\": [\"test\"] },\n  { \"command\": \"npm\", \"args\": [\"run\", \"lint*\"] },\n  { \"command\": \"git\", \"args\": [\"status\", \"--short\"] }\n]\n```\n\nCommands run directly, never through a shell, and only inside the workspace. `;`, `&&` and pipes are therefore ordinary text that matches no pattern rather than a way to chain commands.",
           "items": {
             "type": "object",
             "required": [
@@ -188,17 +188,59 @@
             "properties": {
               "command": {
                 "type": "string",
-                "description": "Executable name or absolute path. Executed directly, never through a shell."
+                "description": "Executable name or absolute path. Executed directly, never through a shell.",
+                "examples": [
+                  "npm",
+                  "git",
+                  "make"
+                ]
               },
               "args": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Allowed argument patterns. A pattern may end with * to allow any suffix. Omit to allow no arguments."
+                "description": "Allowed arguments, matched one for one against what the model asks for. A pattern may end with * to accept any suffix. Omit to allow the command with no arguments at all.",
+                "examples": [
+                  [
+                    "test"
+                  ],
+                  [
+                    "run",
+                    "lint*"
+                  ],
+                  [
+                    "status",
+                    "--short"
+                  ]
+                ]
               }
             }
-          }
+          },
+          "examples": [
+            [
+              {
+                "command": "npm",
+                "args": [
+                  "test"
+                ]
+              },
+              {
+                "command": "npm",
+                "args": [
+                  "run",
+                  "lint*"
+                ]
+              },
+              {
+                "command": "git",
+                "args": [
+                  "status",
+                  "--short"
+                ]
+              }
+            ]
+          ]
         },
         "rounds.executionHistoryLimit": {
           "type": "number",

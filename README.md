@@ -133,7 +133,7 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | `rounds.minimumIntervalWarning` | `30` | Warn about schedules firing more often than this, in minutes. |
 | `rounds.manualRunNextRunPolicy` | `advance` | Whether a manual run leaves the next scheduled run alone or restarts the interval. |
 | `rounds.defaultOutputFolder` | extension storage | Where result files go. |
-| `rounds.scriptWhitelist` | `[]` | Commands `runScript` may execute. Empty means none. |
+| `rounds.scriptWhitelist` | `[]` | Commands `runScript` may execute. Empty means none — see [below](#allowing-a-command-to-run). |
 | `rounds.executionHistoryLimit` | `50` | Runs kept per agent. Result files are never deleted. |
 | `rounds.promptFileFallback` | `snapshot` | What a run does when its prompt file cannot be read. |
 | `rounds.logLevel` | `info` | Verbosity of the Rounds output channel. |
@@ -153,6 +153,27 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | Rounds: Check Setup | Runs the six checks and offers to fix what failed |
 | Rounds: Refresh | Re-reads the state and repaints the view |
 | Rounds: Show Output | Opens the Rounds output channel |
+
+### Allowing a command to run
+
+The `runScript` tool refuses everything until you list what it may run. Each entry names one command
+and the arguments it may be given:
+
+```json
+"rounds.scriptWhitelist": [
+  { "command": "npm", "args": ["test"] },
+  { "command": "npm", "args": ["run", "lint*"] },
+  { "command": "git", "args": ["status", "--short"] }
+]
+```
+
+- Arguments are matched **one for one**. The first entry allows `npm test` and refuses
+  `npm test --watch`; add another entry if you want that too.
+- A pattern may end with `*` to accept any suffix, so `run lint*` allows both `run lint` and
+  `run lint:fix`.
+- Omit `args` to allow the command with no arguments at all.
+- Commands run directly, never through a shell, and only inside the workspace. `;`, `&&` and pipes are
+  ordinary text that matches no pattern, so they cannot be used to chain anything.
 
 ## Where results are stored
 

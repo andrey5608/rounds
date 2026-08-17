@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
 
+import { describeModel } from '../../model/gateway.js';
 import type {
   GatewayDisposable,
   LanguageModelGateway,
@@ -281,5 +282,30 @@ describe('model catalog', () => {
 
     await assert.rejects(catalog.list(userAction('check setup')), /consent was declined/);
     assert.equal(await catalog.hasConsent(), false);
+  });
+});
+
+describe('describing a model to a user', () => {
+  it('joins the parts a provider filled in', () => {
+    const described = describeModel({
+      id: 'gpt-x',
+      name: 'Model X',
+      vendor: 'vendor',
+      family: 'family',
+      version: '2',
+    });
+    assert.deepEqual(described, { label: 'Model X', detail: 'vendor · family · 2' });
+  });
+
+  it('drops the parts a provider left empty', () => {
+    // Reported from a real installation: vendor copilotcli, empty family, which rendered as
+    // "copilotcli · " in the picker.
+    const described = describeModel({ id: 'auto', name: 'auto', vendor: 'copilotcli', family: '' });
+    assert.deepEqual(described, { label: 'auto', detail: 'copilotcli' });
+  });
+
+  it('falls back to the id when there is nothing else to show', () => {
+    const described = describeModel({ id: 'auto', name: '   ', vendor: '', family: '' });
+    assert.deepEqual(described, { label: 'auto', detail: 'auto' });
   });
 });

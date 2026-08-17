@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { ConfigError } from '../connectors/errors.js';
 
+import { describeModel } from './gateway.js';
 import type {
   GatewayDisposable,
   LanguageModelGateway,
@@ -56,7 +57,18 @@ export class VscodeLanguageModelGateway implements LanguageModelGateway {
     }
     if (models.length > 0) {
       this.log?.(
-        `Models available: ${models.map((model) => `${model.id} (${model.vendor}/${model.family})`).join(', ')}.`,
+        `Models available: ${models
+          .map((model) => {
+            const described = describeModel({
+              id: model.id,
+              name: model.name,
+              vendor: model.vendor,
+              family: model.family,
+              version: model.version,
+            });
+            return `${model.id} (${described.detail})`;
+          })
+          .join(', ')}.`,
       );
     }
     return models.map((model) => ({

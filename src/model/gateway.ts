@@ -47,6 +47,25 @@ export interface ModelRequest {
   tools: { name: string; description: string; inputSchema: Record<string, unknown> }[];
 }
 
+/**
+ * How a model is described to a user.
+ *
+ * Providers do not all fill in every field: a real installation reported `auto` from vendor
+ * `copilotcli` with an empty family, which rendered as "copilotcli · " in the picker and
+ * "auto (copilotcli/)" in the log. Empty parts are dropped, and the id stands in for a missing name,
+ * because a quick pick row with a blank label cannot be chosen with any confidence.
+ */
+export function describeModel(model: ModelInfo): { label: string; detail: string } {
+  const detail = [model.vendor, model.family, model.version]
+    .map((part) => (part ?? '').trim())
+    .filter((part) => part.length > 0)
+    .join(' · ');
+  return {
+    label: model.name.trim().length > 0 ? model.name : model.id,
+    detail: detail.length > 0 ? detail : model.id,
+  };
+}
+
 export interface GatewayDisposable {
   dispose(): void;
 }

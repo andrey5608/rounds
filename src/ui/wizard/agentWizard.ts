@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { ServiceContainer } from '../../container.js';
 import { mapModelError } from '../../model/errors.js';
+import { describeModel } from '../../model/gateway.js';
 import { describeCron, minIntervalMinutes } from '../../scheduler/cron.js';
 import { userAction } from '../../setup/consentGate.js';
 import { addOrUpdateEndpoint, enterToken } from '../../setup/endpointEditor.js';
@@ -436,12 +437,15 @@ async function askModel(container: ServiceContainer, draft: AgentDraft): Promise
 
   const picked = await ask(
     vscode.window.showQuickPick(
-      models.map((model) => ({
-        label: model.name,
-        description: model.id === draft.modelId ? 'current' : undefined,
-        detail: `${model.vendor} · ${model.family}`,
-        id: model.id,
-      })),
+      models.map((model) => {
+        const described = describeModel(model);
+        return {
+          label: described.label,
+          description: model.id === draft.modelId ? 'current' : undefined,
+          detail: described.detail,
+          id: model.id,
+        };
+      }),
       { title: 'Which model should this agent use?', ignoreFocusOut: true },
     ),
   );

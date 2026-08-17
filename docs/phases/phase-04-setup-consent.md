@@ -63,6 +63,16 @@ await on another extension's API is a hang waiting to happen. Now:
   actually stops the wait rather than only hiding it;
 - the log records the start of each request and how long it took, so "it hung" is visible in the file
   instead of having to be inferred from a missing line.
+
+**Outcome.** The same installation works after updating the editor from 1.110 to 1.133: the request
+answers in about seven seconds and reports one model, `auto` from vendor `copilotcli`. Two things
+follow. The 45 second deadline is comfortably above a real answer time, so it will not fire on a slow
+but working provider. And a provider need not fill in every field — that model has an empty family —
+so `describeModel` drops empty parts and falls back to the id, instead of showing "copilotcli · " in
+the picker.
+
+Worth noting for anyone reading a similar report: an editor version can be the cause. Nothing in the
+code changed between the failing and working attempt on that machine.
 - `list(action)` → `{ models: ModelInfo[]; fetchedAt: string }`, cached in memory and
   mirrored into state (ids and labels only) so the tree and validation work without a
   new consent-triggering call.
