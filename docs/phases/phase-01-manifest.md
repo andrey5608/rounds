@@ -55,12 +55,14 @@ Declare all v1 ids with category `Rounds` and titles written **without** the cat
 | `rounds.refreshView` | Refresh |
 | `rounds.showOutput` | Show Output |
 
-### 1.5 Menus
+### 1.5 Menus ✅
 - `view/title` for `rounds.agentsView`: `rounds.createAgent` (group `navigation`),
   `rounds.refreshView` (`navigation`), `rounds.checkSetup`, `rounds.showOutput`.
 - `view/item/context`: agent items (`contextValue` starting with `rounds.agent`) get
-  run now / edit / duplicate / toggle / open result folder / show history / delete;
-  run items (`contextValue` `rounds.run`) get open result file.
+  run now / edit / duplicate / toggle / open result folder / show history / delete.
+- Run items get **no** context menu entry. Opening a result file is the item's default
+  click command (step 10.3), and the v1 command list has no id for it — inventing one
+  would break the "identifiers come from `plan.md`" rule.
 - `commandPalette` entries: hide the item-scoped commands that make no sense without a
   selection? No — keep them visible and let them prompt with a QuickPick of agents when
   invoked without an argument (decided in phase 10).

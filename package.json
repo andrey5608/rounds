@@ -114,6 +114,67 @@
         }
       ]
     },
+    "menus": {
+      "view/title": [
+        {
+          "command": "rounds.createAgent",
+          "when": "view == rounds.agentsView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "rounds.refreshView",
+          "when": "view == rounds.agentsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "rounds.checkSetup",
+          "when": "view == rounds.agentsView",
+          "group": "1_setup@1"
+        },
+        {
+          "command": "rounds.showOutput",
+          "when": "view == rounds.agentsView",
+          "group": "1_setup@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "rounds.runNow",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "inline@1"
+        },
+        {
+          "command": "rounds.toggleAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "inline@2"
+        },
+        {
+          "command": "rounds.editAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "1_modify@1"
+        },
+        {
+          "command": "rounds.duplicateAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "1_modify@2"
+        },
+        {
+          "command": "rounds.openResultFolder",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "2_results@1"
+        },
+        {
+          "command": "rounds.showHistory",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "2_results@2"
+        },
+        {
+          "command": "rounds.deleteAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "3_danger@1"
+        }
+      ]
+    },
     "viewsWelcome": [
       {
         "view": "rounds.agentsView",
