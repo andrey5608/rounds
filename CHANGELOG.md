@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file. The format foll
 
 Nothing yet.
 
-## [1.0.0]
+## [1.0.0] - 2026-08-17
 
 First release: recurring agents that collect data from an issue tracker or a repository host, send it
 through a prompt to a language model, and store the result.

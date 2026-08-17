@@ -2,7 +2,7 @@
   "name": "rounds",
   "displayName": "Rounds \u2014 Scheduled Task Agents",
   "publisher": "TODO-PUBLISHER",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
   "categories": [
     "Other"

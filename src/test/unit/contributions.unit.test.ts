@@ -8,6 +8,7 @@ interface Manifest {
   name: string;
   displayName: string;
   publisher: string;
+  version: string;
   contributes: {
     commands: { command: string; title: string; category?: string }[];
     configuration: { title: string; properties: Record<string, unknown> };
@@ -74,6 +75,25 @@ describe('manifest contributions', () => {
         `title "${command.title}" repeats the category, which the editor already prepends`,
       );
     }
+  });
+
+  it('declares none of the contributions v1 leaves out', () => {
+    // The out-of-scope list is a promise about the shipped manifest, so it is checked there rather
+    // than remembered: a chat participant or a language model tool would change what the extension
+    // is, not just what it can do.
+    const contributes = manifest.contributes as unknown as Record<string, unknown>;
+    for (const key of ['chatParticipants', 'languageModelTools', 'configurationDefaults']) {
+      assert.equal(contributes[key], undefined, `v1 must not contribute ${key}`);
+    }
+  });
+
+  it('agrees with the changelog about the version', () => {
+    const changelog = readFileSync(resolve(__dirname, '../../../CHANGELOG.md'), 'utf8');
+    assert.match(
+      changelog,
+      new RegExp(`^## \\[${manifest.version.replace(/\./g, '\\.')}\\]`, 'm'),
+      `CHANGELOG.md has no entry for version ${manifest.version}`,
+    );
   });
 
   it('keeps product names out of identifiers and titles', () => {

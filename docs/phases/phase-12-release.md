@@ -74,21 +74,40 @@ thing this document must not do.
 - Installing into a clean profile stays on the manual checklist: it needs a real editor and real
   credentials to be worth anything.
 
-### 12.6 Release checklist
-- [ ] `publisher` replaced with the real one (removing `TODO-PUBLISHER`).
-- [ ] Version set to `1.0.0`, CHANGELOG entry dated.
-- [ ] README warnings present: "runs only while VS Code is open" and the acceptable-use
-      disclaimer with links.
-- [ ] All CI checks green on the release commit; tag `v1.0.0`.
-- [ ] Out-of-scope items confirmed absent: no chat participant, no Language Model Tools
-      contribution, no background execution outside VS Code, no config sync.
-- [ ] A clean-profile install performs a full lifecycle: setup → create agent → manual run
-      → scheduled run → result file → history.
+### 12.6 Release checklist ✅ (as far as it can be, see below)
+Three of these are the owner's to do, and the difference is stated rather than blurred: the first two
+because publishing is their decision, the last because it needs a real editor and real credentials.
+
+- [ ] **Owner:** replace `publisher` — it is still `TODO-PUBLISHER`, which is deliberate. Publishing
+      requires a marketplace identity that only the owner has.
+- [ ] **Owner:** supply `icon` (128×128 PNG). Shipping a placeholder graphic would look like a
+      finished choice nobody made.
+- [x] Version is `1.0.0` and the changelog entry is dated. A test asserts the manifest and the
+      changelog agree about the version, so they cannot drift apart quietly.
+- [x] README carries both warnings: agents run only while the editor is open, and the acceptable use
+      disclaimer with links that were fetched and verified.
+- [x] Out-of-scope items confirmed absent, in the manifest rather than from memory: a test asserts no
+      `chatParticipants`, no `languageModelTools` and no `configurationDefaults` contribution. There
+      is no background execution because there is no code outside the extension host, and no config
+      sync because nothing writes outside `globalState` and the storage folder.
+- [x] Every automated check passes locally, each run on its own: `check`, `lint`, `typecheck`,
+      `test:coverage`, `test:integration`, `check:bundle`, `check:package`.
+- [ ] **Owner:** tag `v1.0.0` and install the VSIX into a clean profile for the full lifecycle —
+      Check Setup, create an agent, Run Now, one scheduled run, the result file, the history, delete.
+      The checklist for it is in `docs/manual-checks.md`.
 
 ## Exit criteria
 
-- [ ] Every audit in 12.2 exists as an automated check and passes.
-- [ ] The test matrix in 12.1 is complete and green.
-- [ ] The failure-mode rehearsal is executed and recorded.
-- [ ] A VSIX installs into a clean profile and completes the full lifecycle.
-- [ ] The release checklist is fully ticked.
+- [x] Every audit in 12.2 exists as an automated check and passes: seven guard scripts and the tests
+      they cannot replace, all wired into CI.
+- [x] The test matrix in 12.1 is complete and green: 435 unit tests and 34 integration tests, with
+      coverage gating the build at 80% and standing at 93%.
+- [ ] The failure-mode rehearsal is **written, not executed**. Every item needs a real tracker, a real
+      repository host and a signed-in model provider; the automated counterpart of each one passes.
+- [ ] A VSIX **builds** and its contents are audited down to five files; installing it into a clean
+      profile is the owner's step.
+- [ ] The release checklist is ticked except for the three items that belong to the owner: the
+      publisher id, the icon, and the tag plus clean-profile install.
+
+Phase 12 is therefore complete in everything that does not require credentials or a marketplace
+identity, and those three gaps are named here rather than quietly ticked.
