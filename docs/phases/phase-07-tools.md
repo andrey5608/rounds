@@ -7,7 +7,7 @@ tools with JSON schemas, permission checks and audit records.
 
 ## Steps
 
-### 7.1 Registry (`src/tools/registry.ts`)
+### 7.1 Registry (`src/tools/registry.ts`) ✅
 ```ts
 interface RoundsTool<TInput> {
   name: string;                       // stable id, used in agent.tools
@@ -26,13 +26,20 @@ interface RoundsTool<TInput> {
 - Registration happens in one file (`src/tools/index.ts`) so the CONTRIBUTING recipe is
   literally "add a file, add one line here".
 
-### 7.2 `readFile(path)` (`src/tools/readFile.ts`)
+### 7.2 `readFile(path)` (`src/tools/readFile.ts`) ✅
 - Resolve `path` against workspace folders only. Reject: absolute paths outside every
   workspace folder, `..` traversal after normalization, symlinks whose real path leaves
   the workspace (`fs.realpath` check), and paths matching a deny list
   (`.env*`, `*.pem`, `*.key`, `.git/**`, `**/node_modules/**` by default).
 - Reject binary content (null-byte sniff) and files above the size cap; return a clear
-  message instead of partial garbage.
+  message instead of partial garbage. The size is checked before the file is read, so an
+  enormous file never enters memory.
+- Workspace folders are resolved through `realpath` as well before comparing. A test caught
+  the alternative: on macOS `/var` is a link to `/private/var`, so comparing a real candidate
+  path against an unresolved root refused every perfectly ordinary file under a temporary
+  directory.
+- A relative path is tried against every workspace folder and an existing file wins over one
+  that merely could exist, which is what makes a second folder usable at all.
 
 ### 7.3 `listFiles(globPattern)` (`src/tools/listFiles.ts`)
 - Implemented with `vscode.workspace.findFiles(pattern, excludePattern, limit)`.
