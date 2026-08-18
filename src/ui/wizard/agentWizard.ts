@@ -5,7 +5,7 @@ import { mapModelError } from '../../model/errors.js';
 import { describeModel } from '../../model/gateway.js';
 import { describeCron, minIntervalMinutes } from '../../scheduler/cron.js';
 import { userAction } from '../../setup/consentGate.js';
-import { addConnection, enterToken } from '../../setup/endpointEditor.js';
+import { addConnection } from '../../setup/endpointEditor.js';
 import type { Agent, PersistedState } from '../../state/types.js';
 
 import {
@@ -17,11 +17,14 @@ import {
   validateJql,
   validateMaxResults,
   validatePromptText,
+  validateProject,
   validateRepo,
   describeScheduleInput,
   validateTimeWindow,
   validateTimeZoneInput,
 } from './steps.js';
+import { resolveProvider, tokenFor } from '../../connectors/factory.js';
+import { formatRepository, sourceVocabulary } from '../../agents/sourceLabels.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 
 import type { AgentDraft } from './steps.js';
@@ -118,7 +121,10 @@ async function pickField(draft: AgentDraft): Promise<StepResult<Field>> {
     },
     {
       label: 'Source',
-      detail: draft.sourceKind === 'jira' ? draft.jql : `${draft.repo ?? ''} (${draft.gitMode ?? ''})`,
+      detail:
+        draft.sourceKind === 'jira'
+          ? draft.jql
+          : `${formatRepository(draft.project ?? '', draft.repo ?? '')} (${draft.gitMode ?? ''})`,
       field: 'source',
     },
     {
@@ -316,9 +322,21 @@ async function askSource(container: ServiceContainer, draft: AgentDraft): Promis
   }
   draft.endpointName = endpoint;
 
-  const secretName = draft.sourceKind === 'jira' ? 'jiraToken' : 'gitToken';
-  if (!(await container.secrets.has(secretName)) && !(await enterToken(container.secrets, draft.sourceKind))) {
-    return false;
+  const chosen = state.endpoints[draft.endpointName];
+  if (chosen && !(await tokenFor(container.secrets, chosen))) {
+    // Per connection: two repository hosts hold two tokens, so "the git token exists" is not an
+    // answer to "can this connection authenticate".
+    const token = await vscode.window.showInputBox({
+      title: `Token for "${chosen.name}"`,
+      prompt: 'Stored in the editor secret storage, never in settings or in a result file.',
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: (value) => (value.trim().length === 0 ? 'Enter a token.' : undefined),
+    });
+    if (!token || !chosen.secretRef) {
+      return false;
+    }
+    await container.secrets.setForConnection(chosen.secretRef, token.trim());
   }
 
   if (draft.sourceKind === 'jira') {
@@ -351,11 +369,31 @@ async function askSource(container: ServiceContainer, draft: AgentDraft): Promis
     return true;
   }
 
+  // Which word this host uses decides the label: "owner" is right for one provider out of three.
+  const connection = state.endpoints[draft.endpointName];
+  const provider = connection ? resolveProvider(connection) : 'github';
+  const vocabulary = sourceVocabulary(provider);
+
+  const project = await ask(
+    vscode.window.showInputBox({
+      title: vocabulary.project,
+      prompt: vocabulary.hint,
+      value: draft.project ?? '',
+      placeHolder: vocabulary.example,
+      ignoreFocusOut: true,
+      validateInput: (input) => validateProject(input, provider),
+    }),
+  );
+  if (cancelled(project)) {
+    return false;
+  }
+  draft.project = project.trim();
+
   const repo = await ask(
     vscode.window.showInputBox({
       title: 'Repository',
       value: draft.repo ?? '',
-      placeHolder: 'octo/rounds',
+      placeHolder: 'rounds',
       ignoreFocusOut: true,
       validateInput: validateRepo,
     }),
@@ -798,7 +836,7 @@ async function askOutputFolder(draft: AgentDraft): Promise<boolean> {
 async function confirm(draft: AgentDraft): Promise<'create' | 'advanced' | 'cancel'> {
   const lines = [
     `Mode: ${draft.executionMode === 'api' ? 'run and store the result' : 'open the prompt in chat'}`,
-    `Source: ${draft.sourceKind === 'jira' ? `${draft.endpointName}, query ${draft.jql ?? ''}` : `${draft.endpointName}, ${draft.repo ?? ''}`}`,
+    `Source: ${draft.sourceKind === 'jira' ? `${draft.endpointName}, query ${draft.jql ?? ''}` : `${draft.endpointName}, ${formatRepository(draft.project ?? '', draft.repo ?? '')}`}`,
     `Prompt: ${draft.promptSource === 'inline' ? 'written here' : draft.promptFile ?? ''}`,
     `Model: ${draft.modelId}`,
     `Tools: ${draft.tools.join(', ') || 'none'}`,

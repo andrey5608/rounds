@@ -13,6 +13,7 @@ import {
   validateJql,
   validateMaxResults,
   validatePromptText,
+  validateProject,
   validateRepo,
   describeScheduleInput,
   validateScheduleInput,
@@ -63,13 +64,24 @@ describe('wizard validation', () => {
     assert.match(validateMaxResults('500') ?? '', /between 1 and 200/);
   });
 
-  it('validates a repository name', () => {
-    assert.equal(validateRepo('octo/rounds'), undefined);
-    // A project key and a personal project are both two segments, and both are valid there.
-    assert.equal(validateRepo('ROUNDS/rounds'), undefined);
-    assert.equal(validateRepo('~alex/rounds'), undefined);
-    assert.match(validateRepo('rounds') ?? '', /owner and the repository/);
-    assert.match(validateRepo('octo/rounds/extra') ?? '', /owner and the repository/);
+  it('validates the repository on its own', () => {
+    assert.equal(validateRepo('rounds'), undefined);
+    assert.match(validateRepo('') ?? '', /Enter the repository/);
+    // The half in front of it is a separate field since schema version 2, so a slash here is a
+    // sign somebody is still typing the old shape.
+    assert.match(validateRepo('octo/rounds') ?? '', /separate field/);
+  });
+
+  it('names the half in front of the repository the way the host does', () => {
+    assert.equal(validateProject('octo', 'github'), undefined);
+    assert.equal(validateProject('ROUNDS', 'bitbucketServer'), undefined);
+    // A personal Bitbucket project is written ~user, which the API accepts.
+    assert.equal(validateProject('~alex', 'bitbucketServer'), undefined);
+
+    assert.match(validateProject('', 'github') ?? '', /Enter the owner/);
+    assert.match(validateProject('', 'bitbucketCloud') ?? '', /Enter the workspace/);
+    assert.match(validateProject('', 'bitbucketServer') ?? '', /Enter the project key/);
+    assert.match(validateProject('octo/rounds', 'github') ?? '', /without a slash/);
   });
 
   it('requires a search query', () => {
@@ -202,12 +214,27 @@ describe('draft conversion', () => {
         sinceCursor: '2026-08-16T00:00:00.000Z',
       },
     });
-    const built = draftToAgent(
-      { ...agentToDraft(existing), repo: 'octo/other' },
-      NOW,
-      existing,
-    );
+
+    const built = draftToAgent({ ...agentToDraft(existing), repo: 'other' }, NOW, existing);
     // Keeping it would skip everything the new repository changed before now.
+    assert.equal(built.source.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
+  });
+
+  it('drops the cursor when only the project changed', () => {
+    // The same repository name under a different owner is a different repository, and a cursor
+    // that covers items the new one never showed would skip exactly what it should fetch first.
+    const existing = agent({
+      source: {
+        kind: 'git',
+        baseUrlRef: 'repos',
+        project: 'octo',
+        repo: 'rounds',
+        mode: 'newPullRequests',
+        sinceCursor: '2026-08-16T00:00:00.000Z',
+      },
+    });
+
+    const built = draftToAgent({ ...agentToDraft(existing), project: 'other' }, NOW, existing);
     assert.equal(built.source.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
   });
 

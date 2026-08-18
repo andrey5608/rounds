@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { validatePrompt } from '../../agents/placeholders.js';
+import { sourceVocabulary } from '../../agents/sourceLabels.js';
 import { describeCron, nextRuns, validateCron } from '../../scheduler/cron.js';
 import { parseTimeOfDay } from '../../scheduler/schedule.js';
-import type { Agent, PersistedState } from '../../state/types.js';
+import type { Agent, GitProvider, PersistedState } from '../../state/types.js';
 
 /**
  * Validation for the wizard, kept away from the quick pick calls.
@@ -42,10 +43,34 @@ export function validateMaxResults(value: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The half in front of the repository, named the way the chosen host names it.
+ *
+ * A personal Bitbucket project is written `~username`, which the API accepts and a rule written
+ * for GitHub would reject, so the message says so rather than the validator quietly refusing a
+ * form that works.
+ */
+export function validateProject(value: string, provider: GitProvider = 'github'): string | undefined {
+  const trimmed = value.trim();
+  const vocabulary = sourceVocabulary(provider);
+  if (trimmed.length === 0) {
+    return `Enter the ${vocabulary.project.toLowerCase()}. ${vocabulary.hint}`;
+  }
+  if (/[\s/]/.test(trimmed)) {
+    return `The ${vocabulary.project.toLowerCase()} is one value without a slash, for example ${vocabulary.example}.`;
+  }
+  return undefined;
+}
+
+/** The repository itself, without the half in front of it. */
 export function validateRepo(value: string): string | undefined {
-  return /^[^/\s]+\/[^/\s]+$/.test(value.trim())
-    ? undefined
-    : 'Enter the owner and the repository, for example octo/rounds. On a self-hosted Bitbucket host that is the project key and the repository, for example ROUNDS/rounds.';
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return 'Enter the repository, for example rounds.';
+  }
+  return /[\s/]/.test(trimmed)
+    ? 'Enter the repository on its own; its owner, workspace or project key is a separate field.'
+    : undefined;
 }
 
 export function validateJql(value: string): string | undefined {

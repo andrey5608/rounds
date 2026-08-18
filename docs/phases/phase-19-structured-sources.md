@@ -24,7 +24,7 @@ and nothing knows which project it reads.
 - `CURRENT_SCHEMA_VERSION` becomes 2, and a state written by version 2 must still be read by
   the validators without the migration running twice.
 
-### 19.2 Each provider's own word
+### 19.2 Each provider's own word ✅
 - One function returns the vocabulary for a provider: `github` → Owner, `bitbucketCloud` →
   Workspace, `bitbucketServer` → Project key. The wizard, the panel, the tooltip and the
   validation message all use it, so the field is labelled the way the host's own
@@ -34,6 +34,11 @@ and nothing knows which project it reads.
   clears a project that no longer means anything.
 - `~user` stays valid for self-hosted Bitbucket, and the validator says so in its message
   instead of rejecting a form the API accepts.
+- Done as `sourceVocabulary` in `src/agents/sourceLabels.ts`, with `validateProject` taking the
+  provider so the message uses the host's word. `validateRepo` now rejects a slash and says the
+  other half is a separate field — that is the shape somebody types out of habit.
+- The token question in the wizard also became per connection here: "the git token exists" stopped
+  being an answer to "can this connection authenticate" in phase 18.
 
 ### 19.3 Connectors take the pair ✅
 - `ListPullRequestsRequest` carries `project` and `repo` separately. Every connector already
