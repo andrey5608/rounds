@@ -72,9 +72,17 @@ export class RoundsStatusBar {
       100,
     );
     this.item.name = 'Rounds';
-    this.item.command = 'rounds.showOutput';
+    // The view, not the output channel. The channel is what somebody wants while a run is
+    // failing and the wrong destination the rest of the time; the tooltip still names it for
+    // the failure states, and Show Output is one palette entry away.
+    this.item.command = 'workbench.view.extension.rounds';
     this.update({ kind: 'idle', agentCount: 0 });
     this.item.show();
+  }
+
+  /** What clicking the item does. Exposed so a test can hold the contract to it. */
+  get command(): string | undefined {
+    return typeof this.item.command === 'string' ? this.item.command : this.item.command?.command;
   }
 
   update(state: StatusBarState): void {

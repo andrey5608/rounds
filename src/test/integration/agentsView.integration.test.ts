@@ -11,6 +11,7 @@ import {
 } from '../../ui/agentsView.js';
 import type { AgentsViewData } from '../../ui/agentsView.js';
 import { renderRunDetails, runDocumentUri } from '../../ui/runDetails.js';
+import { RoundsStatusBar } from '../../ui/statusBar.js';
 import { statusFor } from '../../ui/viewState.js';
 import type { Agent, RunRecord } from '../../state/types.js';
 import { emptyState } from '../../state/validate.js';
@@ -254,6 +255,17 @@ describe('agents view', () => {
 });
 
 describe('status bar state', () => {
+  it('leads to the view rather than to the output channel', () => {
+    // The channel is the right destination while something is failing and the wrong one the
+    // rest of the time, and the status bar item only gets one command.
+    const bar = new RoundsStatusBar();
+    try {
+      assert.equal(bar.command, 'workbench.view.extension.rounds');
+    } finally {
+      bar.dispose();
+    }
+  });
+
   it('reports a running agent first of all', () => {
     assert.deepEqual(statusFor(data({ agents: [agent()], running: ['agent-1'] }), true), {
       kind: 'running',

@@ -109,28 +109,32 @@ turning them up are both real requests and a boolean answers only one of them.
   to a window that went away mid-run, and inventing a number for it would be a lie repeated on
   every repaint.
 
-### 13.7 The status bar leads somewhere useful
+### 13.7 The status bar leads somewhere useful ✅
 - The item currently runs `rounds.showOutput`. The output channel is the right target
   while something is failing and the wrong one the rest of the time.
 - Click opens the Agents view (`workbench.view.extension.rounds`); the tooltip keeps
   naming the output channel for the failure states, where it is what a person wants.
+- Done. The item exposes its command so a test can hold the contract to it rather than the
+  destination being decided in a constructor nobody reads.
 
-### 13.8 Tests
+### 13.8 Tests ✅
 - Unit: the notifier's decisions and dedup keys against a fake `MessageHost` — including
   the coalesced frequency warning and `silent` still logging; `nextRuns` across a DST
   transition and with several expressions; the duration formatter.
 - Integration: the tooltip contains three future timestamps; a run row shows its item
   count; the status bar command id is the view, not the channel.
+- Done: 21 unit tests for the notifier, the preview and `nextRuns` (daylight saving included),
+  and 5 integration tests for the tooltip, the run rows and the status bar target.
 
 ## Exit criteria
 
-- [ ] Every notification in the extension is raised by `Notifier`, and `src/extension.ts`
+- [x] Every notification in the extension is raised by `Notifier`, and `src/extension.ts`
       contains no dedup logic of its own.
-- [ ] Four agents with sub-threshold schedules produce one warning on window start, not four.
-- [ ] `rounds.notifications: silent` produces no toast for a failed scheduled run, while the
+- [x] Four agents with sub-threshold schedules produce one warning on window start, not four.
+- [x] `rounds.notifications: silent` produces no toast for a failed scheduled run, while the
       log line, the status bar state and the run record are unchanged.
-- [ ] A valid cron expression shows its meaning and its next three fire times inside the input
+- [x] A valid cron expression shows its meaning and its next three fire times inside the input
       box, in the agent's timezone.
-- [ ] A run row states items and duration; a failed row states its error code.
-- [ ] `plan.md`, `package.json`, `SETTING_KEYS` and the README all list `rounds.notifications`,
+- [x] A run row states items and duration; a failed row states its error code.
+- [x] `plan.md`, `package.json`, `SETTING_KEYS` and the README all list `rounds.notifications`,
       and `contributions.unit.test.ts` passes.
