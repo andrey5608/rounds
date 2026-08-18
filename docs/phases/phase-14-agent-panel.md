@@ -12,7 +12,7 @@ documents. This phase adds the one surface that shows it, and stops there.
 
 ## Steps
 
-### 14.1 Decide what the panel is not
+### 14.1 Decide what the panel is not ✅
 - It is **read-only in this phase**. A webview form would be a second implementation of
   every validation rule in `src/ui/wizard/steps.ts`, and two implementations of a rule
   means one of them is wrong. [Phase 20](./phase-20-agent-editor.md) makes the panel the
@@ -25,7 +25,7 @@ documents. This phase adds the one surface that shows it, and stops there.
 - One panel, reused. A second agent replaces the content and keeps the tab; a panel per
   agent turns the editor into a wall of tabs nobody closes.
 
-### 14.2 Split the content out of the `vscode` layer
+### 14.2 Split the content out of the `vscode` layer ✅
 - `src/ui/panel/agentPanelContent.ts` — a pure function from a view model to an HTML
   string. No `vscode` import, therefore a unit test, the same split that makes
   `buildViewData` testable in phase 10.
@@ -34,7 +34,7 @@ documents. This phase adds the one surface that shows it, and stops there.
 - The view model is assembled by the same snapshot builder the tree uses, so the two
   surfaces can never disagree about whether an agent is ready to run.
 
-### 14.3 What it shows
+### 14.3 What it shows ✅
 - Header: name, enabled state, execution mode, and — for chat mode — the sentence saying
   the answer is not captured, in the same words as the run tooltip.
 - Schedule: the sentence from `describeCron`, the next three runs from `nextRuns`, the
@@ -50,7 +50,7 @@ documents. This phase adds the one surface that shows it, and stops there.
 - Actions: Run Now, Edit Agent, Open Result Folder — each one posts a message that the
   extension side turns into the existing command. The panel adds no behaviour of its own.
 
-### 14.4 Rules the webview has to hold to
+### 14.4 Rules the webview has to hold to ✅
 - `default-src 'none'` in the CSP, a nonce on the one inline script, `localResourceRoots`
   limited to the extension's own media folder. The extension may only talk to the
   configured hosts; a webview that could `fetch` would be a hole in that promise, and the
@@ -63,7 +63,7 @@ documents. This phase adds the one surface that shows it, and stops there.
   and lands in HTML; that is the one place in this extension where an injection is
   possible at all.
 
-### 14.5 Packaging and the guard scripts
+### 14.5 Packaging and the guard scripts ✅
 The panel's script lives in `media/agentPanel.js` — the first file the extension ships that
 is neither bundled by esbuild nor a brand asset — and all three guards have to learn about
 it in the same commit:
@@ -75,6 +75,10 @@ it in the same commit:
 - `scripts/check-language.mjs` lists its targets explicitly (`src`, `docs`, `scripts`,
   `.github`, and named files); `media` is not among them and has to be added, or the one
   file in the repository most likely to grow user-facing strings is the one nobody checks.
+- Done. `check-network` now walks `src` and `media` and accepts `.js` as well as `.ts`; it
+  reports how many files it scanned, so switching the folder off again would be visible.
+  ESLint also learned that `media/**` is a browser context — the alternative was turning
+  `no-undef` off for the one file that most needs it.
 
 ### 14.6 How the panel opens
 **Decided:** a contributed command `rounds.showAgent`, titled `Show Agent`, with an inline

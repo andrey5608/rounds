@@ -28,3 +28,5 @@ esbuild.js
 .editorconfig
 **/*.map
 **/*.ts
+# The agent panel's script is loaded by the webview as a file rather than bundled, so it ships.
+!media/agentPanel.js

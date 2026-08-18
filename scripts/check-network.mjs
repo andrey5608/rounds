@@ -15,7 +15,10 @@ import { readdir, readFile } from 'node:fs/promises';
 import { extname, join, relative, resolve, sep } from 'node:path';
 
 const ROOT = resolve('.');
-const SRC = resolve('src');
+// Both places code ships from. `src` is bundled; `media` is loaded by a webview as a file, and a
+// request from there would leave the host allowlist just as surely as one from the extension.
+const SCANNED = [resolve('src'), resolve('media')];
+const SCANNED_EXTENSIONS = new Set(['.ts', '.js']);
 const FETCH_ALLOWED = ['src/connectors/http.ts', 'src/test/support/noNetwork.ts'];
 const OTHER_CLIENTS = [
   { pattern: /\bnode:https?\b/, what: 'the node http or https module' },
@@ -33,7 +36,7 @@ async function walk(directory) {
     const full = join(directory, entry.name);
     if (entry.isDirectory()) {
       files.push(...(await walk(full)));
-    } else if (extname(entry.name) === '.ts') {
+    } else if (SCANNED_EXTENSIONS.has(extname(entry.name))) {
       files.push(full);
     }
   }
@@ -42,8 +45,12 @@ async function walk(directory) {
 
 const failures = [];
 const fetchCallers = [];
+const scanned = [];
+for (const root of SCANNED) {
+  scanned.push(...(await walk(root).catch(() => [])));
+}
 
-for (const file of await walk(SRC)) {
+for (const file of scanned) {
   const relativePath = toPosix(relative(ROOT, file));
   const source = await readFile(file, 'utf8');
 
@@ -76,4 +83,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`check-network: one fetch call site, no other network client`);
+console.log(
+  `check-network: ${scanned.length} file(s) scanned, one fetch call site, no other network client`,
+);

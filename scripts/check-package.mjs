@@ -20,6 +20,8 @@ const ALLOWED = new Set([
   'docs/media/rounds-icon-128.png',
   'docs/media/rounds-activitybar.svg',
   'docs/media/rounds-lockup.png',
+  // The agent panel's script. It is not bundled by esbuild: a webview loads it as a file.
+  'media/agentPanel.js',
 ]);
 
 const result = spawnSync(
