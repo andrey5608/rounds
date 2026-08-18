@@ -13,6 +13,7 @@ const ROOT = resolve('.');
 const TARGETS = [
   'src',
   'docs',
+  'media',
   'scripts',
   '.github',
   'README.md',

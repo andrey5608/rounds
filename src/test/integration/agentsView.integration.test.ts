@@ -4,11 +4,14 @@ import * as vscode from 'vscode';
 import {
   AgentsTreeDataProvider,
   describeAgent,
+  describeDuration,
   describeRelative,
+  describeRun,
   presentAgent,
 } from '../../ui/agentsView.js';
 import type { AgentsViewData } from '../../ui/agentsView.js';
 import { renderRunDetails, runDocumentUri } from '../../ui/runDetails.js';
+import { RoundsStatusBar } from '../../ui/statusBar.js';
 import { statusFor } from '../../ui/viewState.js';
 import type { Agent, RunRecord } from '../../state/types.js';
 import { emptyState } from '../../state/validate.js';
@@ -127,6 +130,50 @@ describe('agents view', () => {
     assert.equal(describeRelative(new Date('2026-08-17T05:00:00.000Z'), NOW), 'overdue');
   });
 
+  it('shows three upcoming runs in the tooltip, not one', () => {
+    // One timestamp tells you when. Three tell you whether the time zone is the one you meant,
+    // which is the mistake that otherwise surfaces a day later.
+    const scheduled = agent({
+      schedule: {
+        cronExpressions: ['0 9 * * *'],
+        runOnStartup: false,
+        missedRunPolicy: 'skip',
+        timezone: 'UTC',
+      },
+    });
+    const presentation = presentAgent(scheduled, data({ agents: [scheduled] }), NOW);
+
+    assert.match(presentation.tooltip.value, /Next runs:/);
+    assert.equal(presentation.tooltip.value.match(/2026/g)?.length, 3);
+  });
+
+  it('says what a run cost, not only how it ended', () => {
+    assert.equal(
+      describeRun(run({ sourceItemCount: 12, finishedAt: '2026-08-17T05:00:08.400Z' })),
+      '12 items · 8.4 s — Two issues need attention.',
+    );
+    assert.equal(
+      describeRun(run({ sourceItemCount: 1, finishedAt: '2026-08-17T05:00:00.250Z' })),
+      '1 item · 250 ms — Two issues need attention.',
+    );
+  });
+
+  it('leads a failed run with the code somebody searches the log for', () => {
+    const failed = run({
+      status: 'failed',
+      sourceItemCount: 0,
+      finishedAt: '2026-08-17T05:01:30.000Z',
+      summary: 'the host refused the token',
+      error: { code: 'connector.auth', message: 'the host refused the token' },
+    });
+    assert.equal(describeRun(failed), '1 min 30 s — connector.auth: the host refused the token');
+  });
+
+  it('says nothing about the duration of a run that never reported back', () => {
+    assert.equal(describeDuration(run({ finishedAt: undefined })), undefined);
+    assert.match(describeRun(run({ finishedAt: undefined, sourceItemCount: 3 })), /^3 items — /);
+  });
+
   it('uses context values the menus can key on', () => {
     const enabled = presentAgent(agent(), data({ agents: [agent()] }), NOW);
     assert.equal(enabled.contextValue, 'rounds.agent.enabled');
@@ -155,8 +202,15 @@ describe('agents view', () => {
       }
     ).contributes.menus['view/item/context'];
 
-    // Every agent-scoped menu entry keys on a value the tree actually produces.
-    const produced = ['rounds.agent.enabled', 'rounds.agent.disabled', 'rounds.agent.needsSetup'];
+    // Every item-scoped menu entry keys on a value one of the trees actually produces. Both views
+    // are checked here so a menu cannot key on a context value nothing sets.
+    const produced = [
+      'rounds.agent.enabled',
+      'rounds.agent.disabled',
+      'rounds.agent.needsSetup',
+      'rounds.connection.jira',
+      'rounds.connection.git',
+    ];
     for (const entry of menus) {
       const pattern = /viewItem =~ \/\^(?<prefix>[^/]+)\//.exec(entry.when);
       assert.ok(pattern, `menu entry has no viewItem test: ${entry.when}`);
@@ -208,6 +262,17 @@ describe('agents view', () => {
 });
 
 describe('status bar state', () => {
+  it('leads to the view rather than to the output channel', () => {
+    // The channel is the right destination while something is failing and the wrong one the
+    // rest of the time, and the status bar item only gets one command.
+    const bar = new RoundsStatusBar();
+    try {
+      assert.equal(bar.command, 'workbench.view.extension.rounds');
+    } finally {
+      bar.dispose();
+    }
+  });
+
   it('reports a running agent first of all', () => {
     assert.deepEqual(statusFor(data({ agents: [agent()], running: ['agent-1'] }), true), {
       kind: 'running',

@@ -214,6 +214,30 @@ describe('runScript tool', () => {
   const tool = createRunScriptTool();
   const whitelist: ScriptWhitelistEntry[] = [{ command: 'npm', args: ['test'] }];
 
+  it('refuses to run anything in a workspace the user has not trusted', () => {
+    // Opening a repository must not be enough to make it run commands, and the denial has to say
+    // what to do about it: "not permitted" with no next step is where support requests come from.
+    const result = tool.checkPermission(
+      { command: 'npm', args: ['test'] },
+      context({ scriptWhitelist: whitelist, workspaceTrusted: false }),
+    );
+
+    assert.equal(result.allowed, false);
+    assert.match(result.allowed === false ? result.reason : '', /not trusted/);
+    assert.match(result.allowed === false ? result.reason : '', /Manage Workspace Trust/);
+    assert.match(result.allowed === false ? result.reason : '', /take runScript off this agent/);
+  });
+
+  it('runs in a trusted workspace, and in one that never said', () => {
+    const input = { command: 'npm', args: ['test'] };
+    assert.equal(
+      tool.checkPermission(input, context({ scriptWhitelist: whitelist, workspaceTrusted: true })).allowed,
+      true,
+    );
+    // Absent means trusted: every existing caller and test predates the flag.
+    assert.equal(tool.checkPermission(input, context({ scriptWhitelist: whitelist })).allowed, true);
+  });
+
   it('rejects malformed input', () => {
     assert.throws(() => tool.parseInput({}), /"command" must be a non-empty string/);
     assert.throws(() => tool.parseInput({ command: 'npm', args: 'test' }), /must be an array/);

@@ -7,7 +7,9 @@ import type { FetchResult, SourceItem } from './items.js';
 export type GitMode = 'newPullRequests' | 'updatedPullRequests';
 
 export interface ListPullRequestsRequest {
-  /** `owner/name`, as the user writes it. */
+  /** Owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket. */
+  project: string;
+  /** The repository itself, without the half in front of it. */
   repo: string;
   mode: GitMode;
   /** ISO timestamp of the newest item already processed. */
@@ -26,10 +28,26 @@ export interface DiffResult {
  * Kept deliberately small and free of provider vocabulary: adding a second host means adding
  * a file that implements this, not touching the runner, the scheduler or the wizard.
  */
+/** One thing a picker can offer: an id to store and a name to show. */
+export interface NamedEntry {
+  id: string;
+  name?: string;
+}
+
 export interface RepositoryHostConnector {
   ping(): Promise<void>;
   listPullRequests(request: ListPullRequestsRequest): Promise<FetchResult>;
-  getDiff(repo: string, id: string, maxChars?: number): Promise<DiffResult>;
+  getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult>;
+  /**
+   * What this account can see, for the pickers in the agent wizard.
+   *
+   * Called only when somebody opens a picker — never during a run and never on activation. A host
+   * may refuse either of these on permissions alone, and that is a normal answer rather than an
+   * error: the caller falls back to a text field, which on a locked-down self-hosted installation
+   * is the usual path.
+   */
+  listProjects(): Promise<NamedEntry[]>;
+  listRepositories(project: string): Promise<NamedEntry[]>;
 }
 
 interface PullRequestResponse {
@@ -52,7 +70,12 @@ interface PullRequestResponse {
 const DEFAULT_MAX_RESULTS = 25;
 const DEFAULT_DIFF_LIMIT = 60_000;
 
-/** Rejects anything that is not `owner/name`, before it becomes part of a URL. */
+/**
+ * Splits `owner/name`.
+ *
+ * Since schema version 2 an agent stores the halves separately, so this exists for one caller:
+ * reading a value written by version 1. Nothing at run time builds a URL out of a split string.
+ */
 export function parseRepo(repo: string): { owner: string; name: string } {
   const parts = repo.trim().replace(/^\/+|\/+$/g, '').split('/');
   if (parts.length !== 2 || parts.some((part) => part.length === 0)) {
@@ -128,11 +151,10 @@ export class RestGitConnector implements RepositoryHostConnector {
   }
 
   async listPullRequests(request: ListPullRequestsRequest): Promise<FetchResult> {
-    const { owner, name } = parseRepo(request.repo);
     const maxResults = request.maxResults ?? DEFAULT_MAX_RESULTS;
 
     const response = await this.options.http.requestJson<PullRequestResponse[]>({
-      path: `repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pulls`,
+      path: `repos/${encodeURIComponent(request.project)}/${encodeURIComponent(request.repo)}/pulls`,
       query: {
         state: 'all',
         sort: request.mode === 'newPullRequests' ? 'created' : 'updated',
@@ -147,7 +169,12 @@ export class RestGitConnector implements RepositoryHostConnector {
     }
 
     const all = response.map((pullRequest) =>
-      toPullRequestItem(pullRequest, request.repo, this.options.browseBaseUrl, request.mode),
+      toPullRequestItem(
+        pullRequest,
+        `${request.project}/${request.repo}`,
+        this.options.browseBaseUrl,
+        request.mode,
+      ),
     );
     const fresh = itemsAfterCursor(all, request.cursor).sort(byUpdatedAtDescending);
     const items = fresh.slice(0, maxResults);
@@ -161,11 +188,46 @@ export class RestGitConnector implements RepositoryHostConnector {
     };
   }
 
-  async getDiff(repo: string, id: string, maxChars?: number): Promise<DiffResult> {
-    const { owner, name } = parseRepo(repo);
+  /** The viewer's own account and the organizations it belongs to. */
+  async listProjects(): Promise<NamedEntry[]> {
+    const [user, organizations] = await Promise.all([
+      this.options.http.requestJson<{ login?: string }>({ path: 'user' }),
+      this.options.http.requestJson<{ login?: string }[]>({
+        path: 'user/orgs',
+        query: { per_page: 100 },
+      }),
+    ]);
+    const entries: NamedEntry[] = user?.login ? [{ id: user.login, name: 'your account' }] : [];
+    for (const organization of Array.isArray(organizations) ? organizations : []) {
+      if (organization.login) {
+        entries.push({ id: organization.login });
+      }
+    }
+    return entries;
+  }
+
+  async listRepositories(project: string): Promise<NamedEntry[]> {
+    // Repositories of an organization, falling back to the viewer's own list when `project` is
+    // the account itself: `/orgs/<user>/repos` is a 404 for a user, and that is not an error
+    // worth showing anybody.
+    const path = `orgs/${encodeURIComponent(project)}/repos`;
+    const response = await this.options.http
+      .requestJson<{ name?: string }[]>({ path, query: { per_page: 100, sort: 'updated' } })
+      .catch(() =>
+        this.options.http.requestJson<{ name?: string }[]>({
+          path: 'user/repos',
+          query: { per_page: 100, sort: 'updated', affiliation: 'owner,collaborator' },
+        }),
+      );
+    return (Array.isArray(response) ? response : [])
+      .filter((entry) => typeof entry.name === 'string')
+      .map((entry) => ({ id: entry.name as string }));
+  }
+
+  async getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult> {
     const limit = maxChars ?? this.options.diffLimit ?? DEFAULT_DIFF_LIMIT;
     const text = await this.options.http.requestText({
-      path: `repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pulls/${encodeURIComponent(id)}`,
+      path: `repos/${encodeURIComponent(project)}/${encodeURIComponent(repo)}/pulls/${encodeURIComponent(id)}`,
       headers: { Accept: 'application/vnd.github.diff' },
     });
 

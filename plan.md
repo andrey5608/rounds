@@ -41,7 +41,10 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.createAgent`, `rounds.editAgent`, `rounds.duplicateAgent`,
   `rounds.deleteAgent`, `rounds.toggleAgent`, `rounds.runNow`,
   `rounds.openResultFolder`, `rounds.showHistory`, `rounds.checkSetup`,
-  `rounds.refreshView`, `rounds.showOutput`
+  `rounds.refreshView`, `rounds.showOutput`, `rounds.showAgent`,
+  `rounds.addConnection`, `rounds.editConnection`, `rounds.deleteConnection`
+- `rounds.showAgent` opens one agent on a read-only panel beside the editor. It is an inline
+  action on the agent row rather than the row's click, which keeps expanding the runs.
 
 ### Settings
 - Configuration prefix: `rounds.`
@@ -49,7 +52,10 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.maxExecutionsPerDay`, `rounds.minimumIntervalWarning`,
   `rounds.manualRunNextRunPolicy`, `rounds.defaultOutputFolder`,
   `rounds.scriptWhitelist`, `rounds.executionHistoryLimit`,
-  `rounds.promptFileFallback`, `rounds.logLevel`
+  `rounds.promptFileFallback`, `rounds.logLevel`, `rounds.notifications`
+- `rounds.notifications` (`failures` | `all` | `silent`, default `failures`) decides how much
+  the extension may interrupt. `silent` stops the toasts only: the log, the status bar and the
+  run record are unchanged, and a run the user started by hand always reports its outcome.
 - Settings UI title: "Rounds"
 
 ### Views
@@ -57,6 +63,8 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   (amended 2026-08-17: the owner supplied brand assets; this replaces the original codicon
   `$(history)`)
 - TreeView id: `rounds.agentsView`, title "Agents"
+- TreeView id: `rounds.connectionsView`, title "Connections" — the hosts agents read from, listed
+  so a base URL can be corrected rather than recreated. Added in phase 18.
 - Welcome view (no agents yet) points at `rounds.createAgent` and `rounds.checkSetup`
 
 ### Runtime identifiers
@@ -64,7 +72,11 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
 - Status bar item id: `rounds.status`
 - `globalState` keys: `rounds.agents`, `rounds.history`, `rounds.stateRevision`,
   `rounds.dailyCounters`
-- `secrets` keys: `rounds.secret.jiraToken`, `rounds.secret.gitToken`
+- `secrets` keys: `rounds.secret.connection.<secretRef>`, one per configured connection.
+  `rounds.secret.jiraToken` and `rounds.secret.gitToken` are the pre-phase-18 keys: they are
+  migrated from, and stay readable as a fallback, because a token that disappears cannot be
+  recovered. One key per source kind stopped being enough once a second repository host API
+  was supported — two connections would share one token.
 - Leader lock file: `rounds.lock` in the extension's global storage path
 - Result files: `<outputFolder>/<agent-name-slug>-<YYYYMMDD-HHmmss>.md`
 
@@ -203,7 +215,12 @@ Minimal and functional; no custom styling work in v1.
 Each item shows pass/fail with a Fix action opening the relevant input.
 
 ## Out of scope for v1
-- Chat participant integration and Language Model Tools for managing agents from chat
+- Chat participant integration, and Language Model Tools that **manage** agents from chat:
+  creating, editing, deleting or enabling an agent from a conversation stays out of scope. A
+  write tool would have to reimplement every guard the wizard applies — the frequency warning,
+  the daily cap, the allowed window, model validity — or become the way around them.
+- In scope since phase 17: one **read-only** tool, `rounds_query`, which answers questions about
+  agents, runs and schedules. It takes no store and therefore cannot write.
 - Running when VS Code is closed
 - Team sync of agent configs
 - Model parameters beyond what `vscode.lm` accepts

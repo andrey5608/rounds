@@ -104,7 +104,31 @@ describe('setup checks', () => {
     );
     const jira = byId(results, 'jira');
     assert.equal(jira.status, 'fail');
-    assert.match(jira.message, /no token is stored/);
+    assert.match(jira.message, /No token is stored for tracker/);
+  });
+
+  it('names the connection whose token is missing, not the pair', async () => {
+    // Two repository hosts hold two tokens now. Reporting on the kind as a whole would hide
+    // exactly the case where the second one was never entered.
+    const results = await runSetupChecks(
+      context({
+        endpoints: {
+          github: { name: 'github', kind: 'git', baseUrl: 'https://github.com', authScheme: 'bearer' },
+          bitbucket: {
+            name: 'bitbucket',
+            kind: 'git',
+            baseUrl: 'https://bitbucket.org',
+            authScheme: 'bearer',
+          },
+        },
+        hasTokenFor: (endpoint) => Promise.resolve(endpoint.name === 'github'),
+      }),
+    );
+
+    const outcome = byId(results, 'git');
+    assert.equal(outcome.status, 'fail');
+    assert.match(outcome.message, /bitbucket/);
+    assert.ok(!outcome.message.includes('github'));
   });
 
   it('warns when reachability cannot be verified', async () => {
@@ -162,6 +186,22 @@ describe('setup checks', () => {
       }),
     );
     assert.equal(byId(results, 'scriptWhitelist').status, 'pass');
+  });
+
+  it('says a configured whitelist is inert while the workspace is untrusted', async () => {
+    // The list of checks stays at six: the check that owns this subject reports the state,
+    // rather than the specification growing a seventh entry for it.
+    const results = await runSetupChecks(
+      context({
+        settings: { ...SETTING_DEFAULTS, scriptWhitelist: [{ command: 'npm', args: ['test'] }] },
+        workspaceTrusted: false,
+      }),
+    );
+
+    const outcome = byId(results, 'scriptWhitelist');
+    assert.equal(outcome.status, 'warn');
+    assert.match(outcome.message, /not trusted/);
+    assert.equal(results.length, 6);
   });
 
   it('warns when jitter is switched off', async () => {

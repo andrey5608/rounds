@@ -203,3 +203,27 @@ describe('issue tracker connector', () => {
     assert.match(new URL(urls[0] ?? '').searchParams.get('fields') ?? '', /comment/);
   });
 });
+
+describe('offering the projects a tracker has', () => {
+  it('lists them by key, with the name beside it', async () => {
+    const { connector: jira, urls } = connector([
+      json([
+        { key: 'ROUNDS', name: 'Rounds' },
+        { key: 'OPS', name: 'Operations' },
+      ]),
+    ]);
+
+    const projects = await jira.listProjects();
+
+    assert.deepEqual(projects, [
+      { id: 'ROUNDS', name: 'Rounds' },
+      { id: 'OPS', name: 'Operations' },
+    ]);
+    assert.match(urls[0] ?? '', /\/project$/);
+  });
+
+  it('answers with nothing when the tracker returns something else', async () => {
+    const { connector: jira } = connector([json({ errorMessages: ['no permission'] })]);
+    assert.deepEqual(await jira.listProjects(), []);
+  });
+});

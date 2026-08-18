@@ -33,7 +33,7 @@ and report back.
 | --- | --- |
 | agent | a configured recurring task |
 | run | one execution of an agent |
-| source | issue tracker or repository host configuration |
+| source | issue tracker or repository host configuration: a connection, and a project plus a repository — owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket |
 | tool | a function the model may call during a run |
 
 ## Requirements
@@ -54,9 +54,11 @@ and report back.
    - **Language model access** — grant it when the editor asks. This is the only moment a consent
      prompt appears, and it appears because you asked for it.
    - **Issue tracker connection** and **Repository host connection** — enter the base URL, choose how
-     the host authenticates, and enter the token. Tokens go into the editor's secret storage. A
-     repository host is also asked which API it speaks, unless its address already says: github.com
-     and bitbucket.org are recognised, a self-hosted installation cannot be.
+     the host authenticates, and enter the token. Tokens go into the editor's secret storage, one per
+     connection, so two repository hosts never share credentials. A repository host is also asked
+     which API it speaks, unless its address already says: github.com and bitbucket.org are
+     recognised, a self-hosted installation cannot be. Connections are listed in the **Connections**
+     view afterwards, where they can be corrected or removed.
    - **Result folder** — where result files are written; the default is inside the extension's
      storage folder.
    - **Script whitelist** — a warning until you list commands the `runScript` tool may run. An empty
@@ -122,7 +124,8 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 - **A daily limit** — `rounds.maxExecutionsPerDay` runs per local day across all agents, 24 by
   default, plus an optional lower limit per agent. You are told once per day when it stops a run.
 - **A frequency warning** — a schedule that fires more often than `rounds.minimumIntervalWarning`
-  minutes needs an explicit confirmation in the wizard and is flagged in the tree and in Check Setup.
+  minutes needs an explicit confirmation before it is saved, and is flagged in the tree and in
+  Check Setup.
 - **Time windows** — an agent can be restricted to a range of hours, overnight ranges included.
 - **Sequential runs** — due agents run one after another, never several at once.
 
@@ -141,18 +144,23 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | `rounds.executionHistoryLimit` | `50` | Runs kept per agent. Result files are never deleted. |
 | `rounds.promptFileFallback` | `snapshot` | What a run does when its prompt file cannot be read. |
 | `rounds.logLevel` | `info` | Verbosity of the Rounds output channel. |
+| `rounds.notifications` | `failures` | How much Rounds may interrupt you: `failures`, `all` or `silent`. A run you start yourself always reports its outcome, and `silent` leaves the output channel, the status bar and the run history untouched. |
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| Rounds: Create Agent | Walks through every question and stores a new agent |
-| Rounds: Edit Agent | Opens a field list for an existing agent |
+| Rounds: Create Agent | Opens an empty agent form beside the editor |
+| Rounds: Edit Agent | Opens an existing agent in the same form |
 | Rounds: Duplicate Agent | Copies an agent, disabled, with its own identity |
 | Rounds: Delete Agent | Removes an agent and its history; result files are kept |
 | Rounds: Enable or Disable Agent | Switches scheduling for one agent |
 | Rounds: Run Now | Runs an agent immediately, in any window |
 | Rounds: Open Result Folder | Reveals the result folder in the file manager |
+| Rounds: Show Agent | Opens one agent on a read-only panel beside the editor: schedule, source, prompt, model, tools and recent runs |
+| Rounds: Add Connection | Adds a host an agent can read from, with its own token |
+| Rounds: Edit Connection | Corrects a base URL, its authentication or its name, updating the agents that use it |
+| Rounds: Delete Connection | Removes a connection and its token, once nothing references it |
 | Rounds: Show Run History | Lists an agent's runs; select one to open it |
 | Rounds: Check Setup | Runs the six checks and offers to fix what failed |
 | Rounds: Refresh | Re-reads the state and repaints the view |
@@ -211,6 +219,19 @@ Deleting an agent never deletes files it already wrote.
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |
 | `runScript` refuses everything | `rounds.scriptWhitelist` is empty. Add the commands you want to allow, with their arguments. |
 | Something else | Open **Rounds: Show Output**. Every line, including the ones `rounds.logLevel` hides, is also written to `logs/rounds-<date>.log` inside the extension's storage folder — the output channel prints the full path at startup. Attach that file to a report: it is redacted before anything is written. |
+
+## Asking about agents in chat
+
+Rounds contributes one language model tool, `rounds_query`, so a chat conversation can answer
+questions about what is scheduled. Reference it with `#rounds`, or let agent mode pick it up:
+
+- "What does Rounds run tonight?"
+- "Why did the triage agent fail?"
+- "When does `0 9 * * 1-5` fire next in Europe/Berlin?"
+
+It only reads. Creating, editing, deleting or enabling an agent from chat is out of scope, so the
+tool takes no store and has no code path that could write. Tokens never appear in its answers: the
+result passes through the same redaction as the log.
 
 ## Known limitations in v1
 

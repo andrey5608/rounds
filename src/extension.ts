@@ -13,6 +13,7 @@ import { recoverStaleClaims } from './scheduler/recovery.js';
 import { Ticker } from './scheduler/ticker.js';
 import { RunClaims } from './scheduler/runClaims.js';
 import { VscodeLanguageModelGateway } from './model/vscodeGateway.js';
+import { migrateConnectionSecrets } from './setup/connectionSecrets.js';
 import { logEnvironment } from './setup/diagnostics.js';
 import { FileLogSink } from './state/fileSink.js';
 import { showFirstRunNotice } from './setup/firstRunNotice.js';
@@ -30,9 +31,13 @@ import { createToolRegistry } from './tools/index.js';
 import { createVscodeFileFinder } from './tools/vscodeFileFinder.js';
 import { SECRET_NAMES } from './state/secrets.js';
 import { registerAgentsView } from './ui/agentsView.js';
+import { registerConnectionsView } from './ui/connectionsView.js';
 import { registerRunDetails } from './ui/runDetails.js';
 import { refreshView } from './ui/viewState.js';
+import { registerChatTools } from './chat/registerChatTools.js';
 import { registerCommands } from './ui/commands.js';
+import { Notifier } from './ui/notifications.js';
+import { createNotifierCommands, createVscodeMessageHost } from './ui/vscodeMessageHost.js';
 import { RoundsStatusBar } from './ui/statusBar.js';
 
 let container: ServiceContainer | undefined;
@@ -85,6 +90,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   });
 
   const agentsView = registerAgentsView(extensionContext);
+  const connectionsView = registerConnectionsView(extensionContext);
   const statusBar = new RoundsStatusBar();
 
   // Only one window may schedule runs; the others stay responsive but tick-free.
@@ -138,6 +144,8 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     settings: () => settings,
     globalStorage: extensionContext.globalStorageUri.fsPath,
     workspaceFolders: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+    // Read per run rather than captured: trust can be granted while the window is open.
+    workspaceTrusted: () => vscode.workspace.isTrusted,
     workspaceName: vscode.workspace.workspaceFolders?.[0]?.name,
     findFiles: createVscodeFileFinder(),
     logger,
@@ -152,9 +160,16 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     },
   });
 
-  // Failures are reported once per agent per day: an agent that fails every half hour would
-  // otherwise turn the editor into a notification stream nobody reads.
-  const failureNotified = new Map<string, string>();
+  // Every notification the extension raises goes through here. Which ones are worth an
+  // interruption, and how often the same one may repeat, is decided in one place rather than at
+  // each call site.
+  const notifier = new Notifier({
+    host: createVscodeMessageHost(),
+    commands: createNotifierCommands(() => output.show()),
+    logger,
+    mode: () => settings.notifications,
+    timeZone: () => settings.timezone,
+  });
 
   const ticker = new Ticker({
     store,
@@ -166,39 +181,9 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
         void refreshView(container);
       }
     },
-    onRunFailed: (agent, record) => {
-      const today = new Date().toISOString().slice(0, 10);
-      if (failureNotified.get(agent.id) === today) {
-        return;
-      }
-      failureNotified.set(agent.id, today);
-      void vscode.window
-        .showErrorMessage(`${agent.name}: ${record.summary}`, 'Show Output', 'Show Run History')
-        .then((choice) => {
-          if (choice === 'Show Output') {
-            output.show();
-          } else if (choice === 'Show Run History') {
-            void vscode.commands.executeCommand('rounds.showHistory', agent);
-          }
-        });
-    },
-    onCapReached: (message) => {
-      void vscode.window
-        .showWarningMessage(message, 'Open Settings')
-        .then((choice) => {
-          if (choice === 'Open Settings') {
-            void vscode.commands.executeCommand(
-              'workbench.action.openSettings',
-              'rounds.maxExecutionsPerDay',
-            );
-          }
-        });
-    },
-    onFrequencyWarning: (agent, interval) => {
-      void vscode.window.showWarningMessage(
-        `The agent "${agent.name}" runs every ${interval} minute(s). Frequent automated requests can get your model provider account rate limited.`,
-      );
-    },
+    onRunFailed: (agent, record) => notifier.runFailed(agent, record.summary, record.error?.code),
+    onCapReached: (message) => notifier.capReached(message),
+    onFrequencyWarning: (entries) => notifier.frequencyWarning(entries),
   });
 
   container = {
@@ -220,13 +205,19 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     ticker,
     models,
     agentsView,
+    connectionsView,
     statusBar,
+    notifier,
+    workspaceTrusted: () => vscode.workspace.isTrusted,
     runningAgents: new Set<string>(),
     logPath: fileLog.path,
     settings: () => settings,
   };
 
   extensionContext.subscriptions.push(
+    // Read-only, and it never resolves a model: registering a tool is not asking for one, so the
+    // consent gate is untouched.
+    registerChatTools(container),
     output,
     secrets,
     store,
@@ -321,6 +312,8 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
       windowId: services.leadership.windowId,
       logger: services.logger,
     });
+    // Gives connections configured before phase 18 a token of their own. Additive and idempotent.
+    await migrateConnectionSecrets(services.store, services.secrets, services.logger);
     await services.stateWatcher.start();
     services.leadership.start();
     // Prompt files may have changed while this window was closed.

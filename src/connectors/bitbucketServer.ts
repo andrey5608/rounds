@@ -1,6 +1,11 @@
 import { ConfigError } from './errors.js';
-import { parseRepo } from './git.js';
-import type { DiffResult, GitMode, ListPullRequestsRequest, RepositoryHostConnector } from './git.js';
+import type {
+  DiffResult,
+  GitMode,
+  ListPullRequestsRequest,
+  NamedEntry,
+  RepositoryHostConnector,
+} from './git.js';
 import type { HttpClient } from './http.js';
 import { byUpdatedAtDescending, itemsAfterCursor, newestCursor, toIsoTimestamp } from './items.js';
 import type { FetchResult, SourceItem } from './items.js';
@@ -54,7 +59,11 @@ export function toBitbucketServerItem(
       JSON.stringify(pullRequest).slice(0, 300),
     );
   }
-  const { owner, name } = parseRepo(repo);
+  // `repo` arrives as `project/name`, joined by the caller for display; the browse path needs
+  // the halves again. A value without a slash is shown as it is rather than guessed at.
+  const separator = repo.indexOf('/');
+  const owner = separator > 0 ? repo.slice(0, separator) : repo;
+  const name = separator > 0 ? repo.slice(separator + 1) : '';
   const createdAt = toIsoTimestamp(pullRequest.createdDate);
   const updatedAt = toIsoTimestamp(pullRequest.updatedDate) || createdAt;
 
@@ -103,11 +112,10 @@ export class BitbucketServerConnector implements RepositoryHostConnector {
   }
 
   async listPullRequests(request: ListPullRequestsRequest): Promise<FetchResult> {
-    const { owner, name } = parseRepo(request.repo);
     const maxResults = request.maxResults ?? DEFAULT_MAX_RESULTS;
 
     const page = await this.options.http.requestJson<BitbucketServerPage>({
-      path: `${this.repositoryPath(owner, name)}/pull-requests`,
+      path: `${this.repositoryPath(request.project, request.repo)}/pull-requests`,
       query: {
         state: 'ALL',
         // The only orders this API offers are by creation time; ordering by change time is done here,
@@ -123,7 +131,12 @@ export class BitbucketServerConnector implements RepositoryHostConnector {
     }
 
     const all = page.values.map((pullRequest) =>
-      toBitbucketServerItem(pullRequest, request.repo, this.options.browseBaseUrl, request.mode),
+      toBitbucketServerItem(
+        pullRequest,
+        `${request.project}/${request.repo}`,
+        this.options.browseBaseUrl,
+        request.mode,
+      ),
     );
     const fresh = itemsAfterCursor(all, request.cursor).sort(byUpdatedAtDescending);
     const items = fresh.slice(0, maxResults);
@@ -135,8 +148,28 @@ export class BitbucketServerConnector implements RepositoryHostConnector {
     };
   }
 
-  async getDiff(repo: string, id: string, maxChars?: number): Promise<DiffResult> {
-    const { owner, name } = parseRepo(repo);
+  /** Projects this account can see. Personal ones come back with their `~name` key. */
+  async listProjects(): Promise<NamedEntry[]> {
+    const page = await this.options.http.requestJson<{ values?: { key?: string; name?: string }[] }>({
+      path: 'projects',
+      query: { limit: 100 },
+    });
+    return (page?.values ?? [])
+      .filter((entry) => typeof entry.key === 'string')
+      .map((entry) => ({ id: entry.key as string, name: entry.name }));
+  }
+
+  async listRepositories(project: string): Promise<NamedEntry[]> {
+    const page = await this.options.http.requestJson<{ values?: { slug?: string; name?: string }[] }>({
+      path: `${this.repositoryPath(project, '').replace(/\/repos\/$/, '/repos')}`,
+      query: { limit: 100 },
+    });
+    return (page?.values ?? [])
+      .filter((entry) => typeof entry.slug === 'string')
+      .map((entry) => ({ id: entry.slug as string, name: entry.name }));
+  }
+
+  async getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult> {
     const limit = maxChars ?? this.options.diffLimit ?? DEFAULT_DIFF_LIMIT;
 
     let text: string;
@@ -144,7 +177,7 @@ export class BitbucketServerConnector implements RepositoryHostConnector {
       // The `.diff` form answers with a unified diff; the plain `/diff` path answers with the host's
       // own JSON model of it, which is far larger and no more useful to a prompt.
       text = await this.options.http.requestText({
-        path: `${this.repositoryPath(owner, name)}/pull-requests/${encodeURIComponent(id)}.diff`,
+        path: `${this.repositoryPath(project, repo)}/pull-requests/${encodeURIComponent(id)}.diff`,
         headers: { Accept: 'text/plain' },
       });
     } catch (error) {

@@ -59,3 +59,14 @@ what a human is verifying here is that the message reaching the user is the righ
 
 - [ ] Install the built VSIX into a clean profile, then run through: Check Setup, create an agent,
       Run Now, wait for one scheduled run, open the result file, show the history, delete the agent.
+
+## Phase 14 — Agent panel
+
+Every colour in the panel comes from a `var(--vscode-*)` token, so it should follow the active
+theme. What a test cannot judge is whether it is *legible*, which is the point of looking.
+
+1. Open an agent with **Rounds: Show Agent**, or the icon on its row.
+2. Switch between a light theme, a dark theme and a high-contrast theme (`Preferences: Color Theme`).
+3. In each one, check that the headings, the muted text, the prompt block and the warning lines are
+   all readable, and that the buttons look like buttons.
+4. Tab through the panel: the run links and the three buttons must show a visible focus ring.

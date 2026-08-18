@@ -26,11 +26,15 @@ export interface SetupCheckContext {
   hasConsent: boolean;
   models: CachedModel[];
   hasSecret: (name: SecretName) => Promise<boolean>;
+  /** Whether one connection has a token of its own. Per connection since phase 18. */
+  hasTokenFor?: (endpoint: EndpointConfig) => Promise<boolean>;
   /** Live reachability test. Supplied by the connectors; without it the check only warns. */
   pingEndpoint?: (endpoint: EndpointConfig) => Promise<EndpointPing>;
   probeOutputFolder: () => Promise<{ ok: boolean; path: string; message: string }>;
   /** Smallest gap between two runs of a schedule, in minutes. Supplied by the scheduler. */
   minIntervalMinutes?: (expressions: string[]) => number | undefined;
+  /** Whether the user trusts this workspace. Absent means trusted. */
+  workspaceTrusted?: boolean;
 }
 
 export interface SetupCheck {
@@ -85,11 +89,21 @@ function sourceCheck(kind: SourceKind): SetupCheck {
             );
       }
 
-      if (!(await context.hasSecret(SECRET_BY_KIND[kind]))) {
+      // Per connection, not per kind: two repository hosts hold two tokens, and reporting on the
+      // pair as one hides exactly the case where the second was never entered.
+      const hasToken =
+        context.hasTokenFor ?? (() => context.hasSecret(SECRET_BY_KIND[kind]));
+      const withoutToken: string[] = [];
+      for (const endpoint of endpoints) {
+        if (!(await hasToken(endpoint))) {
+          withoutToken.push(endpoint.name);
+        }
+      }
+      if (withoutToken.length > 0) {
         return outcome(
           check,
           'fail',
-          'A base URL is configured but no token is stored. Enter the token so runs can authenticate.',
+          `No token is stored for ${withoutToken.join(', ')}. Enter it from the Connections view so runs can authenticate.`,
         );
       }
 
@@ -164,6 +178,15 @@ const scriptWhitelistCheck: SetupCheck = {
         check,
         'warn',
         'The whitelist is empty, so the runScript tool refuses every command. Add the commands you want agents to be able to run.',
+      );
+    }
+    // A configured whitelist that cannot be used is worth saying out loud. This check owns the
+    // subject, so it reports the state rather than the setup check list growing a seventh entry.
+    if (context.workspaceTrusted === false) {
+      return outcome(
+        check,
+        'warn',
+        `${entries.length} command(s) are allowed, but this workspace is not trusted, so runScript refuses all of them. Trust the workspace to use it.`,
       );
     }
     return outcome(

@@ -235,7 +235,8 @@ describe('connector factory', () => {
     const forGit = await factory.forSource({
       kind: 'git',
       baseUrlRef: 'repos',
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'newPullRequests',
     });
     assert.ok(forGit.repositoryHost);
@@ -300,7 +301,8 @@ describe('pull requests from github.com', () => {
 
     const connector = await factory.createRepositoryHost(github);
     const result = await connector.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       maxResults: 10,
     });
@@ -330,7 +332,8 @@ describe('pull requests from github.com', () => {
 
     const connector = await factory.createRepositoryHost(github);
     const result = await connector.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       cursor: '2026-08-17T08:00:00Z',
     });
@@ -346,7 +349,7 @@ describe('pull requests from github.com', () => {
     );
 
     const connector = await factory.createRepositoryHost(github);
-    const result = await connector.getDiff('octo/rounds', '7');
+    const result = await connector.getDiff('octo', 'rounds', '7');
 
     assert.equal(urls[0], 'https://api.github.com/repos/octo/rounds/pulls/7');
     assert.match(headers[0]?.Accept ?? '', /diff/);
@@ -361,7 +364,7 @@ describe('pull requests from github.com', () => {
 
     const connector = await factory.createRepositoryHost(github);
     await assert.rejects(
-      connector.listPullRequests({ repo: 'octo/rounds', mode: 'newPullRequests' }),
+      connector.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'newPullRequests' }),
       (error: unknown) => {
         assert.ok(error instanceof ConfigError);
         assert.match(error.message, /has nothing at \/repos\/octo\/rounds\/pulls/);

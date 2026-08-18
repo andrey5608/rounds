@@ -113,19 +113,19 @@ describe('repository host connector', () => {
 
   it('sorts by creation time in new pull request mode', async () => {
     const { connector: git, urls } = connector([json(pullRequests)]);
-    await git.listPullRequests({ repo: 'octo/rounds', mode: 'newPullRequests' });
+    await git.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'newPullRequests' });
     assert.equal(new URL(urls[0] ?? '').searchParams.get('sort'), 'created');
   });
 
   it('sorts by change time in updated pull request mode', async () => {
     const { connector: git, urls } = connector([json(pullRequests)]);
-    await git.listPullRequests({ repo: 'octo/rounds', mode: 'updatedPullRequests' });
+    await git.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' });
     assert.equal(new URL(urls[0] ?? '').searchParams.get('sort'), 'updated');
   });
 
   it('returns every pull request when there is no cursor yet', async () => {
     const { connector: git } = connector([json(pullRequests)]);
-    const result = await git.listPullRequests({ repo: 'octo/rounds', mode: 'updatedPullRequests' });
+    const result = await git.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' });
 
     assert.deepEqual(result.items.map((item) => item.id), ['7', '8']);
     assert.equal(result.cursor, '2026-08-17T09:00:00.000Z');
@@ -135,7 +135,8 @@ describe('repository host connector', () => {
   it('skips pull requests that are not newer than the cursor', async () => {
     const { connector: git } = connector([json(pullRequests)]);
     const result = await git.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       cursor: '2026-08-17T08:00:00.000Z',
     });
@@ -146,7 +147,8 @@ describe('repository host connector', () => {
   it('returns the next cursor instead of storing it', async () => {
     const { connector: git } = connector([json(pullRequests)]);
     const result = await git.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'newPullRequests',
       cursor: '2026-08-16T00:00:00.000Z',
     });
@@ -159,7 +161,8 @@ describe('repository host connector', () => {
   it('never moves the cursor backwards when nothing is new', async () => {
     const { connector: git } = connector([json(pullRequests)]);
     const result = await git.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       cursor: '2026-08-18T00:00:00.000Z',
     });
@@ -171,7 +174,8 @@ describe('repository host connector', () => {
   it('reports truncation when more is new than the agent asked for', async () => {
     const { connector: git } = connector([json(pullRequests)]);
     const result = await git.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       maxResults: 1,
     });
@@ -183,15 +187,42 @@ describe('repository host connector', () => {
   it('fails clearly when the host answers with something that is not a list', async () => {
     const { connector: git } = connector([json({ message: 'not a list' })]);
     await assert.rejects(
-      git.listPullRequests({ repo: 'octo/rounds', mode: 'newPullRequests' }),
+      git.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'newPullRequests' }),
       ConfigError,
     );
+  });
+
+  it('lists the account and its organizations as places a repository can live', async () => {
+    const { connector: git, urls } = connector([
+      json({ login: 'alex' }),
+      json([{ login: 'octo' }, { login: 'acme' }]),
+    ]);
+
+    const projects = await git.listProjects();
+
+    assert.deepEqual(projects.map((entry) => entry.id), ['alex', 'octo', 'acme']);
+    assert.equal(projects[0]?.name, 'your account');
+    assert.ok(urls.some((url) => url.includes('/user/orgs')));
+  });
+
+  it('falls back to the viewer own repositories when the project is not an organization', async () => {
+    // `/orgs/<user>/repos` is a 404 for a personal account, and that is not an error worth
+    // showing anybody who is picking from a list.
+    const { connector: git, urls } = connector([
+      json({ message: 'Not Found' }, 404),
+      json([{ name: 'rounds' }, { name: 'notes' }]),
+    ]);
+
+    const repositories = await git.listRepositories('alex');
+
+    assert.deepEqual(repositories.map((entry) => entry.id), ['rounds', 'notes']);
+    assert.match(urls[1] ?? '', /\/user\/repos/);
   });
 
   it('asks for the diff format and returns the diff as it is', async () => {
     const diff = 'diff --git a/file b/file\n+added line\n';
     const { connector: git, urls, headers } = connector([body(diff)]);
-    const result = await git.getDiff('octo/rounds', '7');
+    const result = await git.getDiff('octo', 'rounds', '7');
 
     assert.equal(result.text, diff);
     assert.equal(result.truncated, false);
@@ -202,7 +233,7 @@ describe('repository host connector', () => {
   it('truncates an enormous diff with a visible marker', async () => {
     const diff = 'x'.repeat(500);
     const { connector: git } = connector([body(diff)]);
-    const result = await git.getDiff('octo/rounds', '7', 100);
+    const result = await git.getDiff('octo', 'rounds', '7', 100);
 
     assert.equal(result.truncated, true);
     assert.match(result.text, /\[truncated: 100 of 500 characters shown\]/);

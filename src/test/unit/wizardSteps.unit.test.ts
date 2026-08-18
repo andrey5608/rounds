@@ -13,7 +13,9 @@ import {
   validateJql,
   validateMaxResults,
   validatePromptText,
+  validateProject,
   validateRepo,
+  describeScheduleInput,
   validateScheduleInput,
   validateTimeWindow,
   validateTimeZoneInput,
@@ -62,13 +64,24 @@ describe('wizard validation', () => {
     assert.match(validateMaxResults('500') ?? '', /between 1 and 200/);
   });
 
-  it('validates a repository name', () => {
-    assert.equal(validateRepo('octo/rounds'), undefined);
-    // A project key and a personal project are both two segments, and both are valid there.
-    assert.equal(validateRepo('ROUNDS/rounds'), undefined);
-    assert.equal(validateRepo('~alex/rounds'), undefined);
-    assert.match(validateRepo('rounds') ?? '', /owner and the repository/);
-    assert.match(validateRepo('octo/rounds/extra') ?? '', /owner and the repository/);
+  it('validates the repository on its own', () => {
+    assert.equal(validateRepo('rounds'), undefined);
+    assert.match(validateRepo('') ?? '', /Enter the repository/);
+    // The half in front of it is a separate field since schema version 2, so a slash here is a
+    // sign somebody is still typing the old shape.
+    assert.match(validateRepo('octo/rounds') ?? '', /separate field/);
+  });
+
+  it('names the half in front of the repository the way the host does', () => {
+    assert.equal(validateProject('octo', 'github'), undefined);
+    assert.equal(validateProject('ROUNDS', 'bitbucketServer'), undefined);
+    // A personal Bitbucket project is written ~user, which the API accepts.
+    assert.equal(validateProject('~alex', 'bitbucketServer'), undefined);
+
+    assert.match(validateProject('', 'github') ?? '', /Enter the owner/);
+    assert.match(validateProject('', 'bitbucketCloud') ?? '', /Enter the workspace/);
+    assert.match(validateProject('', 'bitbucketServer') ?? '', /Enter the project key/);
+    assert.match(validateProject('octo/rounds', 'github') ?? '', /without a slash/);
   });
 
   it('requires a search query', () => {
@@ -97,6 +110,25 @@ describe('wizard validation', () => {
     assert.deepEqual(splitSchedule(' 0 9 * * * ; ; 0 18 * * 5 '), ['0 9 * * *', '0 18 * * 5']);
   });
 
+  it('confirms a valid schedule instead of saying nothing', () => {
+    const feedback = describeScheduleInput('0 9 * * *', {
+      timeZone: 'UTC',
+      now: new Date('2026-08-18T08:00:00.000Z'),
+      format: (date) => date.toISOString(),
+    });
+
+    assert.equal(feedback.kind, 'preview');
+    assert.match(feedback.message, /At 09:00/i);
+    assert.match(feedback.message, /\(UTC\)/);
+    assert.equal(feedback.kind === 'preview' ? feedback.runs.length : 0, 3);
+    assert.match(feedback.message, /2026-08-18T09:00:00\.000Z/);
+  });
+
+  it('reports a broken expression as an error, not as a preview', () => {
+    const feedback = describeScheduleInput('every so often', { timeZone: 'UTC' });
+    assert.equal(feedback.kind, 'error');
+  });
+
   it('validates a time window as a pair', () => {
     assert.equal(validateTimeWindow('', ''), undefined);
     assert.equal(validateTimeWindow('09:00', '17:00'), undefined);
@@ -119,7 +151,8 @@ describe('draft conversion', () => {
         executionMode: 'chat',
         sourceKind: 'git',
         endpointName: 'repos',
-        repo: 'octo/rounds',
+        project: 'octo',
+        repo: 'rounds',
         gitMode: 'updatedPullRequests',
         promptSource: 'inline',
         promptText: 'Summarize {{items}}',
@@ -157,7 +190,8 @@ describe('draft conversion', () => {
       source: {
         kind: 'git',
         baseUrlRef: 'repos',
-        repo: 'octo/rounds',
+        project: 'octo',
+        repo: 'rounds',
         mode: 'newPullRequests',
         sinceCursor: '2026-08-16T00:00:00.000Z',
       },
@@ -174,17 +208,33 @@ describe('draft conversion', () => {
       source: {
         kind: 'git',
         baseUrlRef: 'repos',
-        repo: 'octo/rounds',
+        project: 'octo',
+        repo: 'rounds',
         mode: 'newPullRequests',
         sinceCursor: '2026-08-16T00:00:00.000Z',
       },
     });
-    const built = draftToAgent(
-      { ...agentToDraft(existing), repo: 'octo/other' },
-      NOW,
-      existing,
-    );
+
+    const built = draftToAgent({ ...agentToDraft(existing), repo: 'other' }, NOW, existing);
     // Keeping it would skip everything the new repository changed before now.
+    assert.equal(built.source.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
+  });
+
+  it('drops the cursor when only the project changed', () => {
+    // The same repository name under a different owner is a different repository, and a cursor
+    // that covers items the new one never showed would skip exactly what it should fetch first.
+    const existing = agent({
+      source: {
+        kind: 'git',
+        baseUrlRef: 'repos',
+        project: 'octo',
+        repo: 'rounds',
+        mode: 'newPullRequests',
+        sinceCursor: '2026-08-16T00:00:00.000Z',
+      },
+    });
+
+    const built = draftToAgent({ ...agentToDraft(existing), project: 'other' }, NOW, existing);
     assert.equal(built.source.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
   });
 
@@ -246,7 +296,8 @@ describe('duplicating an agent', () => {
       source: {
         kind: 'git',
         baseUrlRef: 'repos',
-        repo: 'octo/rounds',
+        project: 'octo',
+        repo: 'rounds',
         mode: 'newPullRequests',
         sinceCursor: '2026-08-16T00:00:00.000Z',
       },

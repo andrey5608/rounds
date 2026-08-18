@@ -37,6 +37,15 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Agents keep reading their sources and writing results, but the runScript tool refuses to execute anything until the workspace is trusted.",
+      "restrictedConfigurations": [
+        "rounds.scriptWhitelist"
+      ]
+    }
+  },
   "contributes": {
     "commands": [
       {
@@ -82,10 +91,34 @@
         "icon": "$(folder-opened)"
       },
       {
+        "command": "rounds.showAgent",
+        "title": "Show Agent",
+        "category": "Rounds",
+        "icon": "$(open-preview)"
+      },
+      {
         "command": "rounds.showHistory",
         "title": "Show Run History",
         "category": "Rounds",
         "icon": "$(history)"
+      },
+      {
+        "command": "rounds.addConnection",
+        "title": "Add Connection",
+        "category": "Rounds",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rounds.editConnection",
+        "title": "Edit Connection",
+        "category": "Rounds",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "rounds.deleteConnection",
+        "title": "Delete Connection",
+        "category": "Rounds",
+        "icon": "$(trash)"
       },
       {
         "command": "rounds.checkSetup",
@@ -120,6 +153,10 @@
         {
           "id": "rounds.agentsView",
           "name": "Agents"
+        },
+        {
+          "id": "rounds.connectionsView",
+          "name": "Connections"
         }
       ]
     },
@@ -280,9 +317,81 @@
             "Log everything, including tool calls and scheduling decisions."
           ],
           "markdownDescription": "Verbosity of the Rounds output channel."
+        },
+        "rounds.notifications": {
+          "type": "string",
+          "default": "failures",
+          "enum": [
+            "failures",
+            "all",
+            "silent"
+          ],
+          "enumDescriptions": [
+            "Report failures only. Scheduled runs that succeed stay quiet.",
+            "Report every scheduled run, successful ones included.",
+            "Show no notifications. The output channel, the status bar and the run history are unchanged."
+          ],
+          "markdownDescription": "How much Rounds may interrupt you. A run you start yourself always reports its outcome."
         }
       }
     },
+    "languageModelTools": [
+      {
+        "name": "rounds_query",
+        "displayName": "Scheduled agents",
+        "modelDescription": "Read-only access to the scheduled agents Rounds manages: list them, read one, read a run history, preview when a cron expression fires, and list the models and connections that can be used. Never writes.",
+        "toolReferenceName": "rounds",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(history)",
+        "tags": [
+          "rounds"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "list",
+                "get",
+                "history",
+                "preview_cron",
+                "list_models",
+                "list_sources"
+              ],
+              "description": "What to read. list: every agent, prompt bodies omitted. get: one agent including its prompt. history: recent runs of one agent. preview_cron: when an expression fires next. list_models / list_sources: what an agent may be pointed at."
+            },
+            "id": {
+              "type": "string",
+              "description": "Agent id or name. Used by kind=get and kind=history."
+            },
+            "enabledOnly": {
+              "type": "boolean",
+              "description": "kind=list only: skip disabled agents."
+            },
+            "limit": {
+              "type": "number",
+              "description": "kind=history only: how many runs to return, newest first."
+            },
+            "cronExpression": {
+              "type": "string",
+              "description": "kind=preview_cron only: the expression to preview."
+            },
+            "count": {
+              "type": "number",
+              "description": "kind=preview_cron only: how many upcoming times to return."
+            },
+            "timeZone": {
+              "type": "string",
+              "description": "kind=preview_cron only: IANA time zone name."
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      }
+    ],
     "menus": {
       "view/title": [
         {
@@ -304,9 +413,19 @@
           "command": "rounds.showOutput",
           "when": "view == rounds.agentsView",
           "group": "1_setup@2"
+        },
+        {
+          "command": "rounds.addConnection",
+          "when": "view == rounds.connectionsView",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
+        {
+          "command": "rounds.showAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "inline@0"
+        },
         {
           "command": "rounds.runNow",
           "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
@@ -341,6 +460,16 @@
           "command": "rounds.deleteAgent",
           "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
           "group": "3_danger@1"
+        },
+        {
+          "command": "rounds.editConnection",
+          "when": "view == rounds.connectionsView && viewItem =~ /^rounds\\.connection/",
+          "group": "inline@1"
+        },
+        {
+          "command": "rounds.deleteConnection",
+          "when": "view == rounds.connectionsView && viewItem =~ /^rounds\\.connection/",
+          "group": "inline@2"
         }
       ]
     },
@@ -349,6 +478,11 @@
         "view": "rounds.agentsView",
         "when": "!rounds.hasAgents",
         "contents": "No agents yet. An agent visits a source on a schedule, runs your prompt through a language model and stores the result.\nAgents run only while this editor is open.\n[Create Agent](command:rounds.createAgent)\n[Check Setup](command:rounds.checkSetup)"
+      },
+      {
+        "view": "rounds.connectionsView",
+        "when": "!rounds.hasConnections",
+        "contents": "No connections yet. A connection is a host an agent reads from: an issue tracker or a repository host.\nIts token is stored in the editor secret storage, never in settings.\n[Add Connection](command:rounds.addConnection)"
       }
     ]
   },

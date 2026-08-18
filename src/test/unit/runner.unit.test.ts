@@ -82,7 +82,7 @@ interface Harness {
   gateway: FakeGateway;
   sink: MemorySink;
   resultsFolder: string;
-  handedOff: string[];
+  handedOff: { prompt: string; modelId?: string }[];
   history: HistoryService;
 }
 
@@ -117,7 +117,7 @@ async function harness(options: {
   const sink = new MemorySink();
   const logger = new Logger({ sink, getLevel: () => 'debug', clock });
   const gateway = options.gateway ?? new FakeGateway();
-  const handedOff: string[] = [];
+  const handedOff: { prompt: string; modelId?: string }[] = [];
 
   const connectors: ConnectorProvider = {
     forSource: (source) =>
@@ -128,6 +128,7 @@ async function harness(options: {
                 ping: () => Promise.resolve(),
                 search: options.fetch ?? (() => Promise.resolve(jiraItems)),
                 getIssue: () => Promise.reject(new Error('not used')),
+                listProjects: () => Promise.reject(new Error('not used during a run')),
               },
             }
           : {
@@ -135,6 +136,9 @@ async function harness(options: {
                 ping: () => Promise.resolve(),
                 listPullRequests: options.fetch ?? (() => Promise.resolve(jiraItems)),
                 getDiff: options.diff ?? (() => Promise.resolve({ text: 'diff --git a/f b/f', truncated: false })),
+                // The pickers only; a run never lists projects or repositories.
+                listProjects: () => Promise.reject(new Error('not used during a run')),
+                listRepositories: () => Promise.reject(new Error('not used during a run')),
               },
             },
       ),
@@ -161,8 +165,8 @@ async function harness(options: {
     workspaceName: 'rounds',
     logger,
     clock,
-    handOffToChat: (prompt) => {
-      handedOff.push(prompt);
+    handOffToChat: (prompt, options) => {
+      handedOff.push({ prompt, modelId: options.modelId });
       return Promise.resolve();
     },
     secretNames: () => Promise.resolve(options.secrets ?? ['jiraToken', 'gitToken']),
@@ -340,14 +344,17 @@ describe('agent runner', () => {
     assert.equal(record.resultFilePath, undefined);
     assert.match(record.summary, /does not see the answer/);
     assert.equal(handedOff.length, 1);
-    assert.match(handedOff[0] ?? '', /ROUNDS-1/);
+    assert.match(handedOff[0]?.prompt ?? '', /ROUNDS-1/);
+    // The agent is pinned to a model; the chat should not open with whatever was used last.
+    assert.equal(handedOff[0]?.modelId, chatAgent.modelId);
+    assert.match(record.summary, /requested/);
     assert.equal(gateway.requests.length, 0, 'chat mode never calls the model directly');
     assert.equal((await store.reload()).counters.global, 1, 'a handoff still counts');
   });
 
   it('advances a repository cursor only after a success', async () => {
     const gitAgent = agent({
-      source: { kind: 'git', baseUrlRef: 'repos', repo: 'octo/rounds', mode: 'updatedPullRequests' },
+      source: { kind: 'git', baseUrlRef: 'repos', project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' },
     });
     const { runner, store } = await harness({
       agent: gitAgent,
@@ -364,7 +371,7 @@ describe('agent runner', () => {
 
   it('leaves the cursor alone when the run failed', async () => {
     const gitAgent = agent({
-      source: { kind: 'git', baseUrlRef: 'repos', repo: 'octo/rounds', mode: 'updatedPullRequests' },
+      source: { kind: 'git', baseUrlRef: 'repos', project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' },
     });
     const gateway = new FakeGateway();
     gateway.turns = [new Error('quota exceeded')];

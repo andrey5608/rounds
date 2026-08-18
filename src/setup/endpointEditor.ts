@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import * as vscode from 'vscode';
 
 import { providerFromHost } from '../connectors/factory.js';
@@ -36,14 +38,29 @@ export function validateBaseUrl(value: string): string | undefined {
   return undefined;
 }
 
-/** Asks for a base URL and stores it as a named endpoint. */
-export async function addOrUpdateEndpoint(
-  store: RoundsStore,
+export interface ConnectionDetailsOptions {
+  /** Every configured connection, so a name cannot collide with one that exists. */
+  existing?: readonly EndpointConfig[];
+  /** The connection being edited. Its values seed the questions, so unchanged means unchanged. */
+  current?: EndpointConfig;
+}
+
+/**
+ * Asks what a connection is: base URL, which API it speaks, how it authenticates, what to call it.
+ *
+ * Returns the answers instead of storing them. Adding and editing differ in what happens to the
+ * result — a new secret reference, or the existing one and the agents that point at the old name —
+ * and that decision belongs to the command, not to the questions.
+ */
+export async function askConnectionDetails(
   kind: SourceKind,
-): Promise<EndpointConfig | undefined> {
+  options: ConnectionDetailsOptions = {},
+): Promise<Omit<EndpointConfig, 'secretRef' | 'lastCheck'> | undefined> {
+  const { current } = options;
   const baseUrl = await vscode.window.showInputBox({
     title: `Base URL of the ${KIND_LABEL[kind]}`,
     prompt: 'For example https://example.atlassian.net or https://git.example.com',
+    value: current?.baseUrl,
     ignoreFocusOut: true,
     validateInput: validateBaseUrl,
   });
@@ -55,7 +72,7 @@ export async function addOrUpdateEndpoint(
   // guessing sends every request to paths that host has never heard of.
   let provider: GitProvider | undefined;
   if (kind === 'git') {
-    provider = providerFromHost(baseUrl);
+    provider = providerFromHost(baseUrl) ?? current?.provider;
     if (!provider) {
       const providers: { label: string; description: string; value: GitProvider }[] = [
         {
@@ -97,10 +114,15 @@ export async function addOrUpdateEndpoint(
       value: 'basic',
     },
   ];
-  const scheme = await vscode.window.showQuickPick(schemes, {
-    title: 'How does this host authenticate?',
-    ignoreFocusOut: true,
-  });
+  const scheme = await vscode.window.showQuickPick(
+    schemes.map((entry) =>
+      entry.value === current?.authScheme ? { ...entry, description: `${entry.description} (current)` } : entry,
+    ),
+    {
+      title: 'How does this host authenticate?',
+      ignoreFocusOut: true,
+    },
+  );
   if (!scheme) {
     return undefined;
   }
@@ -109,6 +131,7 @@ export async function addOrUpdateEndpoint(
   if (scheme.value === 'basic') {
     username = await vscode.window.showInputBox({
       title: 'User name or email address for this host',
+      value: current?.username,
       ignoreFocusOut: true,
       validateInput: (value) => (value.trim().length === 0 ? 'Enter a user name.' : undefined),
     });
@@ -117,19 +140,18 @@ export async function addOrUpdateEndpoint(
     }
   }
 
-  const suggestedName = new URL(baseUrl.trim()).hostname;
   const name = await vscode.window.showInputBox({
     title: 'Name for this connection',
     prompt: 'Agents reference the connection by this name.',
-    value: suggestedName,
+    value: current?.name ?? new URL(baseUrl.trim()).hostname,
     ignoreFocusOut: true,
-    validateInput: (value) => (value.trim().length === 0 ? 'Enter a name.' : undefined),
+    validateInput: (value) => validateConnectionName(value, options),
   });
   if (!name) {
     return undefined;
   }
 
-  const endpoint: EndpointConfig = {
+  return {
     name: name.trim(),
     kind,
     baseUrl: baseUrl.trim().replace(/\/+$/, ''),
@@ -137,6 +159,33 @@ export async function addOrUpdateEndpoint(
     username: username?.trim(),
     provider,
   };
+}
+
+/** A name has to be unique, because agents reference a connection by it. */
+export function validateConnectionName(
+  value: string,
+  options: ConnectionDetailsOptions = {},
+): string | undefined {
+  const name = value.trim();
+  if (name.length === 0) {
+    return 'Enter a name.';
+  }
+  const taken = (options.existing ?? []).some(
+    (endpoint) => endpoint.name === name && endpoint.name !== options.current?.name,
+  );
+  return taken ? `A connection called "${name}" already exists.` : undefined;
+}
+
+/** Asks for a base URL and stores it as a named endpoint. */
+export async function addOrUpdateEndpoint(
+  store: RoundsStore,
+  kind: SourceKind,
+): Promise<EndpointConfig | undefined> {
+  const details = await askConnectionDetails(kind);
+  if (!details) {
+    return undefined;
+  }
+  const endpoint: EndpointConfig = { ...details, secretRef: randomUUID() };
   await store.update((draft) => {
     draft.endpoints[endpoint.name] = endpoint;
   });
@@ -159,10 +208,20 @@ export async function addConnection(
   if (!endpoint) {
     return undefined;
   }
-  if (await secrets.has(SECRET_BY_KIND[kind])) {
-    return endpoint;
+  // Its own token, not the one another connection of the same kind happens to have: two
+  // repository hosts with one shared token was the defect phase 18 exists for.
+  const token = await vscode.window.showInputBox({
+    title: `Token for "${endpoint.name}"`,
+    prompt: 'Stored in the editor secret storage, never in settings or in a result file.',
+    password: true,
+    ignoreFocusOut: true,
+    validateInput: (value) => (value.trim().length === 0 ? 'Enter a token.' : undefined),
+  });
+  if (!token || !endpoint.secretRef) {
+    return undefined;
   }
-  return (await enterToken(secrets, kind)) ? endpoint : undefined;
+  await secrets.setForConnection(endpoint.secretRef, token.trim());
+  return endpoint;
 }
 
 /** Asks for a token and puts it in secret storage. Nothing else ever sees it. */

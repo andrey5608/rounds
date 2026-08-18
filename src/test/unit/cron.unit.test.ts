@@ -5,6 +5,7 @@ import {
   hasOverlap,
   minIntervalMinutes,
   nextRunAt,
+  nextRuns,
   validateCron,
 } from '../../scheduler/cron.js';
 import {
@@ -309,5 +310,48 @@ describe('jitter', () => {
 
   it('is off when the setting is zero', () => {
     assert.equal(pickJitterSeconds('schedule', 0, () => 0.9), 0);
+  });
+});
+
+describe('previewing a schedule', () => {
+  const from = new Date('2026-08-18T08:00:00.000Z');
+
+  it('lists the next occurrences in order', () => {
+    const runs = nextRuns(['0 9 * * *'], 3, from, 'UTC');
+    assert.deepEqual(
+      runs.map((run) => run.toISOString()),
+      ['2026-08-18T09:00:00.000Z', '2026-08-19T09:00:00.000Z', '2026-08-20T09:00:00.000Z'],
+    );
+  });
+
+  it('merges several expressions and counts a shared time once', () => {
+    // Both expressions fire at 09:00 on the 18th. That is one run, and showing it twice would
+    // say something untrue about how often the agent runs.
+    const runs = nextRuns(['0 9 * * *', '0 9,17 * * *'], 3, from, 'UTC');
+    assert.deepEqual(
+      runs.map((run) => run.toISOString()),
+      ['2026-08-18T09:00:00.000Z', '2026-08-18T17:00:00.000Z', '2026-08-19T09:00:00.000Z'],
+    );
+  });
+
+  it('previews the expressions that parse and ignores the one that does not', () => {
+    const runs = nextRuns(['nonsense', '0 9 * * *'], 2, from, 'UTC');
+    assert.equal(runs.length, 2);
+  });
+
+  it('returns nothing when no expression is usable, instead of throwing', () => {
+    assert.deepEqual(nextRuns(['nonsense'], 3, from, 'UTC'), []);
+    assert.deepEqual(nextRuns(['0 9 * * *'], 0, from, 'UTC'), []);
+  });
+
+  it('reads the schedule in the zone it was given, across a daylight-saving change', () => {
+    // Berlin leaves summer time in the early hours of 25 October 2026. A 09:00 local schedule
+    // stays 09:00 local on both sides of that, which is exactly what a preview has to show — the
+    // instant behind it moves by an hour and the wall clock does not.
+    const runs = nextRuns(['0 9 * * *'], 3, new Date('2026-10-23T12:00:00.000Z'), 'Europe/Berlin');
+    assert.deepEqual(
+      runs.map((run) => run.toISOString()),
+      ['2026-10-24T07:00:00.000Z', '2026-10-25T08:00:00.000Z', '2026-10-26T08:00:00.000Z'],
+    );
   });
 });

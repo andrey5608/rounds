@@ -140,6 +140,55 @@ describe('state validation', () => {
     );
   });
 
+  it('splits a version 1 repository string into a project and a repository', () => {
+    const migrated = migrate({
+      schemaVersion: 1,
+      revision: 3,
+      agents: [
+        {
+          ...(validAgent() as Record<string, unknown>),
+          source: { kind: 'git', baseUrlRef: 'repos', repo: 'octo/rounds', mode: 'newPullRequests' },
+        },
+      ],
+    }) as { schemaVersion: number; agents: { source: Record<string, unknown> }[] };
+
+    assert.equal(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
+    assert.equal(migrated.agents[0]?.source.project, 'octo');
+    assert.equal(migrated.agents[0]?.source.repo, 'rounds');
+  });
+
+  it('leaves a value it cannot split alone, so the agent is quarantined with a reason', () => {
+    // That value was never usable — the connectors rejected it at run time — and guessing at it
+    // here would turn a visible problem into a silent one.
+    const migrated = migrate({
+      schemaVersion: 1,
+      revision: 1,
+      agents: [
+        {
+          ...(validAgent() as Record<string, unknown>),
+          source: { kind: 'git', baseUrlRef: 'repos', repo: 'rounds', mode: 'newPullRequests' },
+        },
+      ],
+    }) as { agents: { source: Record<string, unknown> }[] };
+
+    assert.equal(migrated.agents[0]?.source.project, undefined);
+
+    const outcome = normalizeState({ ...migrated, schemaVersion: CURRENT_SCHEMA_VERSION }, LOCAL_DATE);
+    assert.equal(outcome.state.agents.length, 0);
+    assert.match(outcome.quarantine[0]?.reason ?? '', /source\.project/);
+  });
+
+  it('leaves an agent that already has the pair untouched', () => {
+    const source = { kind: 'git', baseUrlRef: 'repos', project: 'octo', repo: 'rounds', mode: 'newPullRequests' };
+    const migrated = migrate({
+      schemaVersion: 1,
+      revision: 1,
+      agents: [{ ...(validAgent() as Record<string, unknown>), source }],
+    }) as { agents: { source: Record<string, unknown> }[] };
+
+    assert.deepEqual(migrated.agents[0]?.source, source);
+  });
+
   it('stamps the current schema version on migrated envelopes', () => {
     const migrated = migrate({ schemaVersion: 1, revision: 0 }) as { schemaVersion: number };
     assert.equal(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);

@@ -55,6 +55,14 @@ export interface JiraSource {
   kind: 'jira';
   /** Name of the configured endpoint that carries the base URL and auth scheme. */
   baseUrlRef: string;
+  /**
+   * Project key the agent reads, when it names one.
+   *
+   * Optional and never authoritative: `jql` decides what is fetched. This is here so the UI can
+   * offer a project picker and say which project an agent watches, not so a dropdown can rewrite
+   * a query somebody wrote.
+   */
+  project?: string;
   jql: string;
   maxResults: number;
 }
@@ -62,6 +70,12 @@ export interface JiraSource {
 export interface GitSource {
   kind: 'git';
   baseUrlRef: string;
+  /**
+   * The half of the address before the repository: an owner on GitHub, a workspace on Bitbucket
+   * Cloud, a project key on a self-hosted Bitbucket. One string held two of these until schema
+   * version 2, and the word "owner" was right for one host out of three.
+   */
+  project: string;
   repo: string;
   mode: GitSourceMode;
   /** ISO timestamp of the newest item already processed. Advances only after success. */
@@ -208,6 +222,17 @@ export interface EndpointConfig {
   username?: string;
   /** Repository hosts only. Absent means it is inferred from the base URL. */
   provider?: GitProvider;
+  /**
+   * Which secret this connection authenticates with. The key itself is built in `state/secrets.ts`,
+   * which is the only module that knows what storage keys look like.
+   *
+   * An opaque id generated once, not the name: names are user-facing and change, and a rename
+   * that has to move a secret is a rename that can half-fail. Absent means the connection
+   * predates per-connection tokens and still reads the shared one for its kind.
+   */
+  secretRef?: string;
+  /** Result of the last reachability check, so a row can say whether the host answered. */
+  lastCheck?: { ok: boolean; message: string; at: string };
 }
 
 /** A model as the editor reported it. Ids and labels only; no credentials involved. */

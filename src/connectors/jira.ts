@@ -1,6 +1,7 @@
 import { ConfigError } from './errors.js';
 import type { HttpClient } from './http.js';
 import { byUpdatedAtDescending } from './items.js';
+import type { NamedEntry } from './git.js';
 import type { FetchResult, SourceItem } from './items.js';
 
 /** What an agent asks the issue tracker for. */
@@ -18,6 +19,13 @@ export interface IssueTrackerConnector {
   ping(): Promise<void>;
   search(request: JiraSearchRequest): Promise<FetchResult>;
   getIssue(key: string, options?: { includeComments?: boolean }): Promise<SourceItem>;
+  /**
+   * Projects this account can see, for the picker in the agent wizard.
+   *
+   * Only ever called when somebody opens that picker. A tracker may refuse it on permissions, and
+   * the caller treats that as "type the key yourself" rather than as a failure.
+   */
+  listProjects(): Promise<NamedEntry[]>;
 }
 
 interface JiraIssueResponse {
@@ -206,6 +214,15 @@ export class JiraConnector implements IssueTrackerConnector {
 
     items.sort(byUpdatedAtDescending);
     return { items, truncated: total > items.length };
+  }
+
+  async listProjects(): Promise<NamedEntry[]> {
+    const response = await this.options.http.requestJson<{ key?: string; name?: string }[]>({
+      path: 'project',
+    });
+    return (Array.isArray(response) ? response : [])
+      .filter((project) => typeof project.key === 'string')
+      .map((project) => ({ id: project.key as string, name: project.name }));
   }
 
   async getIssue(key: string, options?: { includeComments?: boolean }): Promise<SourceItem> {

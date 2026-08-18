@@ -160,21 +160,18 @@ export class VscodeLanguageModelGateway implements LanguageModelGateway {
     for await (const part of response.stream) {
       const shape = readPart(part);
       kinds.push(shape.kind);
-      this.debug?.(`Response part (${shape.kind}):\n${dump(part)}`);
 
       if (shape.text !== undefined) {
         text += shape.text;
       } else if (shape.toolCall) {
         toolCalls.push(shape.toolCall);
-      } else {
-        this.log?.(`A response part was not understood and was ignored: ${shape.kind}.`);
       }
     }
 
     this.log?.(
       `The model streamed ${kinds.length} part(s) [${kinds.join(', ') || 'none'}]: ${text.length} character(s) of text, ${toolCalls.length} tool call(s).`,
     );
-    this.debug?.(`Collected turn:\n${dump({ text, toolCalls })}`);
+    this.debug?.(`Collected response:\n${dump({ text, toolCalls })}`);
     return { text, toolCalls };
   }
 

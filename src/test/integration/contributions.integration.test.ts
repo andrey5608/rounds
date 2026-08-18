@@ -71,16 +71,28 @@ describe('contribution guards', () => {
     assert.deepEqual([...COMMAND_IDS].sort(), declared);
   });
 
-  it('contributes the agents view', () => {
+  it('contributes the agents view and the connections view', () => {
     const views = (extension.packageJSON as ManifestShape).contributes.views;
     const ids = Object.values(views).flat().map((view) => view.id);
-    assert.deepEqual(ids, ['rounds.agentsView']);
+    assert.deepEqual(ids, ['rounds.agentsView', 'rounds.connectionsView']);
   });
 
   it('executes every command without throwing', async () => {
     for (const commandId of COMMAND_IDS) {
       await vscode.commands.executeCommand(commandId);
     }
+  });
+
+  it('declares limited support for an untrusted workspace', () => {
+    // Without this the editor assumes the extension is safe everywhere and activates it in full,
+    // while runScript stands ready to execute commands from whatever was cloned.
+    const manifest = vscode.extensions.getExtension('rounds.rounds')?.packageJSON as
+      | { capabilities?: { untrustedWorkspaces?: { supported?: string; restrictedConfigurations?: string[] } } }
+      | undefined;
+    const capabilities = manifest?.capabilities?.untrustedWorkspaces;
+
+    assert.equal(capabilities?.supported, 'limited');
+    assert.deepEqual(capabilities?.restrictedConfigurations, ['rounds.scriptWhitelist']);
   });
 
   it('reads every contributed setting with a default value', () => {

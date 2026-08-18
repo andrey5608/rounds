@@ -97,17 +97,29 @@ Kept here because the next person deserves to know it was wrong once:
   work. GitLab, Azure DevOps and Gitea have different API shapes and are refused by name rather than
   failing later with a 404. Adding one means adding a connector next to the three that exist; the
   recipe is in [CONTRIBUTING.md](../CONTRIBUTING.md).
-- **A dedicated daylight-saving transition test.** Time zone handling is proven across zones on the
-  same instant, and every next run is recomputed when the zone setting changes, but no test pins a
-  real DST date. Noted in [phase 9](./phases/phase-09-scheduler.md). Pick a transition date in a zone
-  that observes it, and assert the next run neither doubles nor disappears.
+- ~~A dedicated daylight-saving transition test.~~ Closed in phase 13: `nextRuns` needed one, so a
+  09:00 Berlin schedule is pinned across the October 2026 transition — the wall clock stays at
+  09:00 and the instant behind it moves by an hour.
+
+Some of what used to sit here has since been planned instead of merely noted:
+[phases 13–20](./README.md#phase-index) cover the notification policy, the schedule preview, the
+agent panel, workspace trust, prompt discovery, connection management and structured sources.
+
+Two gaps were found while planning those phases and are worth naming here until they are closed:
+`removeEndpoint` in `src/setup/endpointEditor.ts` is called from nowhere, so a connection cannot be
+deleted or corrected from the UI at all; and `SECRET_KEYS` holds one token per source kind, so a
+GitHub connection and a Bitbucket connection share the same repository-host token. Both are
+[phase 18](./phases/phase-18-connections.md).
 
 ## 6. Not leftovers: out of scope for v1
 
 Listed so nobody files them as gaps. These are decisions from [`plan.md`](../plan.md), and a test
 asserts the first two are absent from the manifest rather than merely unmentioned:
 
-- No chat participant integration and no Language Model Tools contribution.
+- No chat participant integration, and no writing to agents from chat. The read-only side was
+  reopened deliberately and shipped in [phase 17](./phases/phase-17-chat-tools.md): one tool,
+  `rounds_query`, answers questions about agents, runs and schedules. A test asserts the manifest
+  contributes exactly that one and no chat participant.
 - No execution while the editor is closed — the scheduler lives in the editor process.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.

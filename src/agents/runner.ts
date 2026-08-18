@@ -89,10 +89,12 @@ export interface RunnerDependencies {
   connectors: ConnectorProvider;
   resultWriter?: ResultWriter;
   /** Chat mode handoff. Absent means chat mode cannot run in this window. */
-  handOffToChat?: (prompt: string) => Promise<void>;
+  handOffToChat?: (prompt: string, options: { modelId?: string }) => Promise<void>;
   settings: () => RoundsSettings;
   globalStorage: string;
   workspaceFolders: string[];
+  /** Whether the user trusts this workspace. Injected so the runner stays free of `vscode`. */
+  workspaceTrusted?: () => boolean;
   workspaceName?: string;
   findFiles?: FileFinder;
   runProcess?: ProcessRunner;
@@ -193,6 +195,7 @@ export class AgentRunner {
       models: state.setup.models ?? [],
       endpoints: state.endpoints,
       storedSecrets: await this.dependencies.secretNames(),
+      workspaceTrusted: this.dependencies.workspaceTrusted?.() ?? true,
     });
     if (!readiness.ready) {
       return readiness.reason;
@@ -301,7 +304,10 @@ export class AgentRunner {
       });
     }
     const first = prompts[0];
-    await this.dependencies.handOffToChat(first?.text ?? '');
+    // The agent's model is passed along so the chat does not open with whatever was used last.
+    // Whether the editor honours it is out of our hands, which is why the summary below says the
+    // model was requested rather than used.
+    await this.dependencies.handOffToChat(first?.text ?? '', { modelId: record.modelId });
     const note =
       prompts.length > 1
         ? ` Only the first of ${prompts.length} rendered prompts was opened.`
@@ -309,7 +315,7 @@ export class AgentRunner {
     logger.info('Opened the prompt in the chat view for review.');
     return this.finish(record, {
       status: 'handedOff',
-      summary: `The prompt was opened in the chat view for review; Rounds does not see the answer.${note}`,
+      summary: `The prompt was opened in the chat view with ${record.modelId} requested; Rounds does not see the answer.${note}`,
       logger,
       resolution,
     });
@@ -361,13 +367,14 @@ export class AgentRunner {
       throw new Error('The repository host connection could not be created.');
     }
     const result = await host.listPullRequests({
+      project: agent.source.project,
       repo: agent.source.repo,
       mode: agent.source.mode,
       cursor: agent.source.sinceCursor,
     });
     if (needs.needsDiff) {
       for (const item of result.items.slice(0, MAX_ITEM_PROMPTS)) {
-        const diff = await host.getDiff(agent.source.repo, item.id);
+        const diff = await host.getDiff(agent.source.project, agent.source.repo, item.id);
         diffs.set(item.id, diff.text);
       }
     }
@@ -407,6 +414,7 @@ export class AgentRunner {
     return {
       workspaceFolders: this.dependencies.workspaceFolders,
       scriptWhitelist: settings.scriptWhitelist,
+      workspaceTrusted: this.dependencies.workspaceTrusted?.() ?? true,
       logger: this.dependencies.logger,
       runId,
       findFiles: this.dependencies.findFiles,

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
-import { describeCron, minIntervalMinutes } from '../scheduler/cron.js';
+import { formatRepository } from '../agents/sourceLabels.js';
+import { describeCron, minIntervalMinutes, nextRuns } from '../scheduler/cron.js';
 import { effectiveTimeZone } from '../scheduler/schedule.js';
 import { evaluateReadiness } from '../setup/needsSetup.js';
 import type { SecretName } from '../state/secrets.js';
@@ -27,6 +28,8 @@ export interface AgentsViewData {
   storedSecrets: SecretName[];
   settingsTimeZone?: string;
   minimumIntervalWarning: number;
+  /** Whether the user trusts this workspace. Only a definite `false` blocks anything. */
+  workspaceTrusted?: boolean;
   /** Agents currently running in this window, so the tree can show it. */
   running: Set<string>;
 }
@@ -57,6 +60,51 @@ export function describeRelative(target: Date, now: Date): string {
     return `in ${hours} h`;
   }
   return `in ${Math.round(hours / 24)} d`;
+}
+
+/**
+ * How long a run took, in the units somebody reads at a glance.
+ *
+ * A run without a finish time is one that never reported back — the window went away mid-run —
+ * and saying "0 s" about it would be a lie the tree tells every time it repaints.
+ */
+export function describeDuration(run: RunRecord): string | undefined {
+  if (!run.finishedAt) {
+    return undefined;
+  }
+  const milliseconds = new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime();
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    return undefined;
+  }
+  if (milliseconds < 1000) {
+    return `${milliseconds} ms`;
+  }
+  if (milliseconds < 60_000) {
+    return `${(milliseconds / 1000).toFixed(1)} s`;
+  }
+  const minutes = Math.floor(milliseconds / 60_000);
+  const seconds = Math.round((milliseconds % 60_000) / 1000);
+  return `${minutes} min ${seconds} s`;
+}
+
+/**
+ * The description line of a run: what it cost, then what came of it.
+ *
+ * The summary alone answered "what happened" and not "what did it do", which is the question a
+ * row of identical-looking runs actually raises. A failed run leads with its code, because that
+ * is the part somebody searches the log for.
+ */
+export function describeRun(run: RunRecord): string {
+  const facts: string[] = [];
+  if (run.sourceItemCount > 0) {
+    facts.push(`${run.sourceItemCount} item${run.sourceItemCount === 1 ? '' : 's'}`);
+  }
+  const duration = describeDuration(run);
+  if (duration) {
+    facts.push(duration);
+  }
+  const prefix = facts.length > 0 ? `${facts.join(' · ')} — ` : '';
+  return run.error ? `${prefix}${run.error.code}: ${run.summary}` : `${prefix}${run.summary}`;
 }
 
 /**
@@ -102,6 +150,7 @@ export function presentAgent(
     models: data.state.setup.models ?? [],
     endpoints: data.state.endpoints,
     storedSecrets: data.storedSecrets,
+    workspaceTrusted: data.workspaceTrusted,
   });
   const lastRun = data.state.history[agent.id]?.[0];
   const interval = minIntervalMinutes(
@@ -115,7 +164,7 @@ export function presentAgent(
   tooltip.appendMarkdown(`**${agent.name}**\n\n`);
   tooltip.appendMarkdown(`- Schedule: ${describeCron(agent.schedule.cronExpressions)}\n`);
   tooltip.appendMarkdown(
-    `- Source: ${agent.source.kind === 'jira' ? `query \`${agent.source.jql}\`` : `${agent.source.repo} (${agent.source.mode === 'newPullRequests' ? 'new' : 'updated'} pull requests)`}\n`,
+    `- Source: ${agent.source.kind === 'jira' ? `query \`${agent.source.jql}\`` : `${formatRepository(agent.source.project, agent.source.repo)} (${agent.source.mode === 'newPullRequests' ? 'new' : 'updated'} pull requests)`}\n`,
   );
   tooltip.appendMarkdown(`- Mode: ${agent.executionMode === 'api' ? 'result captured' : 'handed to chat'}\n`);
   tooltip.appendMarkdown(`- Model: ${agent.modelId}\n`);
@@ -126,8 +175,20 @@ export function presentAgent(
     tooltip.appendMarkdown(`- At most ${agent.maxExecutionsPerDay} run(s) per day\n`);
   }
   tooltip.appendMarkdown(`- Last run: ${lastRun ? `${lastRun.status} — ${lastRun.summary}` : 'never'}\n`);
-  if (agent.nextRunAt && agent.enabled) {
-    tooltip.appendMarkdown(`- Next run: ${new Date(agent.nextRunAt).toLocaleString()}\n`);
+  if (agent.enabled) {
+    // Three, not one: the rate is already in the schedule sentence above, and what a person
+    // cannot check from that sentence is whether the time zone is the one they had in mind.
+    const upcoming = nextRuns(
+      agent.schedule.cronExpressions,
+      3,
+      now,
+      effectiveTimeZone(agent, data.settingsTimeZone),
+    );
+    if (upcoming.length > 0) {
+      tooltip.appendMarkdown(
+        `- Next runs: ${upcoming.map((run) => run.toLocaleString()).join(', ')}\n`,
+      );
+    }
   }
   if (!readiness.ready) {
     tooltip.appendMarkdown(`\n$(warning) ${readiness.reason ?? ''}\n`);
@@ -206,7 +267,7 @@ export class AgentsTreeDataProvider implements vscode.TreeDataProvider<TreeNode>
       vscode.TreeItemCollapsibleState.None,
     );
     item.id = `run:${run.id}`;
-    item.description = run.summary;
+    item.description = describeRun(run);
     item.iconPath = new vscode.ThemeIcon(STATUS_ICON[run.status]);
     item.contextValue = 'rounds.run';
     item.tooltip = runTooltip(run);

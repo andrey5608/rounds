@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { formatRepository } from '../agents/sourceLabels.js';
 import type { ServiceContainer } from '../container.js';
 import type { Agent, RunRecord } from '../state/types.js';
 
@@ -29,7 +30,10 @@ export async function pickAgent(
     state.agents.map((agent) => ({
       label: agent.name,
       description: agent.enabled ? undefined : 'disabled',
-      detail: agent.source.kind === 'jira' ? agent.source.jql : agent.source.repo,
+      detail:
+        agent.source.kind === 'jira'
+          ? agent.source.jql
+          : formatRepository(agent.source.project, agent.source.repo),
       agent,
     })),
     { title, ignoreFocusOut: true },
@@ -73,34 +77,33 @@ export async function runNowCommand(
   await report(container, agent, record);
 }
 
-/** Tells the user what happened, quietly for a success and actionably for a failure. */
+/**
+ * Tells the user what happened, quietly for a success and actionably for a failure.
+ *
+ * Through `notifier.requested`, which is the one path the notification mode never silences:
+ * somebody who pressed Run Now is waiting for this answer, and swallowing it because
+ * notifications are turned down would be a bug rather than a preference.
+ */
 async function report(
   container: ServiceContainer,
   agent: Agent,
   record: RunRecord,
 ): Promise<void> {
-  if (record.status === 'succeeded' && record.resultFilePath) {
-    const choice = await vscode.window.showInformationMessage(
-      `${agent.name}: ${record.summary}`,
-      'Open Result',
-    );
-    if (choice === 'Open Result') {
-      await openResult(record.resultFilePath);
-    }
+  const resultPath = record.resultFilePath;
+  if (record.status === 'succeeded' && resultPath) {
+    await container.notifier.requested('info', `${agent.name}: ${record.summary}`, [
+      { title: 'Open Result', run: () => openResult(resultPath) },
+    ]);
     return;
   }
   if (record.status === 'handedOff' || record.status === 'skipped') {
-    await vscode.window.showInformationMessage(`${agent.name}: ${record.summary}`);
+    await container.notifier.requested('info', `${agent.name}: ${record.summary}`);
     return;
   }
 
-  const choice = await vscode.window.showErrorMessage(
-    `${agent.name}: ${record.summary}`,
-    'Show Output',
-  );
-  if (choice === 'Show Output') {
-    container.output.show();
-  }
+  await container.notifier.requested('error', `${agent.name}: ${record.summary}`, [
+    { title: 'Show Output', run: () => container.output.show() },
+  ]);
 }
 
 /** Opens a result file in the editor. */

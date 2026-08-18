@@ -14,7 +14,7 @@ import type {
 } from './types.js';
 
 /** Bumped whenever the persisted shape changes in a way that needs a migration. */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /** An entry that could not be understood, kept aside instead of being dropped silently. */
 export interface QuarantineEntry {
@@ -88,6 +88,21 @@ function validateEndpoint(value: unknown): EndpointConfig | string {
   }
   if (isOneOf(value.provider, ['github', 'bitbucketCloud', 'bitbucketServer'] as const)) {
     endpoint.provider = value.provider;
+  }
+  if (isNonEmptyString(value.secretRef)) {
+    endpoint.secretRef = value.secretRef;
+  }
+  if (
+    isRecord(value.lastCheck) &&
+    typeof value.lastCheck.ok === 'boolean' &&
+    isString(value.lastCheck.message) &&
+    isString(value.lastCheck.at)
+  ) {
+    endpoint.lastCheck = {
+      ok: value.lastCheck.ok,
+      message: value.lastCheck.message,
+      at: value.lastCheck.at,
+    };
   }
   return endpoint;
 }
@@ -217,14 +232,21 @@ function validateSource(value: unknown): AgentSource | string {
     if (typeof value.maxResults !== 'number' || value.maxResults <= 0) {
       return 'source.maxResults must be a positive number';
     }
-    return {
+    const jira: AgentSource = {
       kind: 'jira',
       baseUrlRef: value.baseUrlRef,
       jql: value.jql,
       maxResults: value.maxResults,
     };
+    if (isNonEmptyString(value.project)) {
+      jira.project = value.project;
+    }
+    return jira;
   }
   if (value.kind === 'git') {
+    if (!isNonEmptyString(value.project)) {
+      return 'source.project must be a non-empty string';
+    }
     if (!isNonEmptyString(value.repo)) {
       return 'source.repo must be a non-empty string';
     }
@@ -237,6 +259,7 @@ function validateSource(value: unknown): AgentSource | string {
     return {
       kind: 'git',
       baseUrlRef: value.baseUrlRef,
+      project: value.project,
       repo: value.repo,
       mode: value.mode,
       sinceCursor: value.sinceCursor,
@@ -453,10 +476,41 @@ export function migrate(raw: unknown): unknown {
   let version = typeof current.schemaVersion === 'number' ? current.schemaVersion : 1;
   while (version < CURRENT_SCHEMA_VERSION) {
     // Add one `if (version === n) { ... }` block per schema change.
+    if (version === 1) {
+      current = splitRepositoryStrings(current);
+    }
     version += 1;
     current = { ...current, schemaVersion: version };
   }
   return current;
+}
+
+/**
+ * Version 1 held `owner/name` in one string. Version 2 keeps the halves apart.
+ *
+ * A value that does not split into exactly two parts was never valid — the connectors rejected it
+ * at run time — so it is left as it is and the agent lands in quarantine with a reason, rather
+ * than being guessed at here.
+ */
+function splitRepositoryStrings(state: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(state.agents)) {
+    return state;
+  }
+  const agents = (state.agents as unknown[]).map((agent): unknown => {
+    if (!isRecord(agent) || !isRecord(agent.source)) {
+      return agent;
+    }
+    const source = agent.source;
+    if (source.kind !== 'git' || !isString(source.repo) || isString(source.project)) {
+      return agent;
+    }
+    const parts = source.repo.trim().replace(/^\/+|\/+$/g, '').split('/');
+    if (parts.length !== 2 || parts.some((part) => part.length === 0)) {
+      return agent;
+    }
+    return { ...agent, source: { ...source, project: parts[0], repo: parts[1] } };
+  });
+  return { ...state, agents };
 }
 
 /**

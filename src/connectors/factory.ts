@@ -12,10 +12,31 @@ import type { FetchLike } from './http.js';
 import { JiraConnector } from './jira.js';
 import type { IssueTrackerConnector } from './jira.js';
 
-const SECRET_BY_KIND: Record<SourceKind, SecretName> = {
+/** The shared key a connection falls back to while it has no `secretRef` of its own. */
+export const SECRET_BY_KIND: Record<SourceKind, SecretName> = {
   jira: 'jiraToken',
   git: 'gitToken',
 };
+
+/**
+ * The token a connection authenticates with.
+ *
+ * Its own key when it has one, and the shared per-kind key otherwise: an installation that has
+ * not been migrated yet keeps working, which matters more than tidiness because nobody keeps a
+ * copy of a token that disappears.
+ */
+export async function tokenFor(
+  secrets: RoundsSecrets,
+  endpoint: EndpointConfig,
+): Promise<string | undefined> {
+  if (endpoint.secretRef) {
+    const own = await secrets.getForConnection(endpoint.secretRef);
+    if (own !== undefined) {
+      return own;
+    }
+  }
+  return secrets.get(SECRET_BY_KIND[endpoint.kind]);
+}
 
 /**
  * Where the API lives, given what the user typed as the base URL.
@@ -174,11 +195,10 @@ export class ConnectorFactory {
   constructor(private readonly options: ConnectorFactoryOptions) {}
 
   private async httpFor(endpoint: EndpointConfig): Promise<HttpClient> {
-    const secretName = SECRET_BY_KIND[endpoint.kind];
-    const token = await this.options.secrets.get(secretName);
+    const token = await tokenFor(this.options.secrets, endpoint);
     if (!token) {
       throw new ConfigError(
-        `No token is stored for the ${endpoint.kind === 'jira' ? 'issue tracker' : 'repository host'}. Run Check Setup to enter one.`,
+        `No token is stored for the connection "${endpoint.name}". Open the Connections view to enter one.`,
       );
     }
     return new HttpClient({

@@ -19,6 +19,7 @@ export const SETTING_KEYS = [
   'rounds.executionHistoryLimit',
   'rounds.promptFileFallback',
   'rounds.logLevel',
+  'rounds.notifications',
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -29,6 +30,18 @@ export interface ConfigurationLike {
 }
 
 export type ManualRunNextRunPolicy = 'advance' | 'fromNow';
+
+/**
+ * How much the extension is allowed to interrupt.
+ *
+ * `failures` is the default and matches what an unattended tool should do: say nothing while
+ * things work. `all` exists for the first week after an agent is set up, when the question is
+ * whether it ran at all. `silent` stops the toasts and nothing else — the log, the status bar
+ * and the run record are unchanged, because turning notifications down must not turn
+ * information off. It lives here rather than next to the policy because `state` is the layer
+ * `ui` reads, never the other way round.
+ */
+export type NotificationMode = 'failures' | 'all' | 'silent';
 
 export interface ScriptWhitelistEntry {
   command: string;
@@ -48,6 +61,8 @@ export interface RoundsSettings {
   executionHistoryLimit: number;
   promptFileFallback: 'snapshot' | 'blockWhenResolvable' | 'blockAlways';
   logLevel: 'none' | 'error' | 'info' | 'debug';
+  /** How much the extension may interrupt. See `src/ui/notifications.ts` for what each value means. */
+  notifications: NotificationMode;
 }
 
 export const SETTING_DEFAULTS: RoundsSettings = {
@@ -62,6 +77,7 @@ export const SETTING_DEFAULTS: RoundsSettings = {
   executionHistoryLimit: 50,
   promptFileFallback: 'snapshot',
   logLevel: 'info',
+  notifications: 'failures',
 };
 
 function clampNumber(value: unknown, fallback: number, minimum: number, maximum: number): number {
@@ -140,6 +156,11 @@ export function readSettings(configuration: ConfigurationLike): RoundsSettings {
       configuration.get('rounds.logLevel'),
       ['none', 'error', 'info', 'debug'] as const,
       SETTING_DEFAULTS.logLevel,
+    ),
+    notifications: readEnum(
+      configuration.get('rounds.notifications'),
+      ['failures', 'all', 'silent'] as const,
+      SETTING_DEFAULTS.notifications,
     ),
   };
 }
