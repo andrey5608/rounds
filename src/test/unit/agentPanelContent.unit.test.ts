@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 
 import type { Agent } from '../../state/types.js';
-import { renderAgentForm } from '../../ui/panel/agentFormContent.js';
+import { renderAgentForm, shorten } from '../../ui/panel/agentFormContent.js';
 import type { AgentFormViewModel } from '../../ui/panel/agentFormContent.js';
 import {
   draftFromMessage,
@@ -240,6 +240,48 @@ describe('the agent form', () => {
     assert.match(html, /\{\{issueKey\}\}[^<]*are not available/);
   });
 
+  it('offers to tick a whole group at once', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /id="select-all-built-in"/);
+    assert.match(html, /Select all/);
+  });
+
+  it('shows the group as ticked only when every tool in it is', () => {
+    const all = renderAgentForm(
+      model({ draft: { ...agentToDraft(agent()), tools: ['readFile', 'runScript'] } }),
+    );
+    assert.match(all, /id="select-all-built-in" data-group="built-in" checked/);
+
+    const some = renderAgentForm(
+      model({ draft: { ...agentToDraft(agent()), tools: ['readFile'] } }),
+    );
+    assert.ok(!/id="select-all-built-in"[^>]*checked/.test(some));
+  });
+
+  it('does not offer to select all of a single tool', () => {
+    const html = renderAgentForm(
+      model({ context: context({ tools: [{ name: 'readFile', description: 'reads a file' }] }) }),
+    );
+    assert.ok(!html.includes('id="select-all-built-in"'));
+  });
+
+  it('shortens a long description and keeps the whole of it one hover away', () => {
+    // A tool from another extension may describe itself in a paragraph, and a column of
+    // paragraphs stops being a list of tools.
+    const long = 'Looks something up in the workspace index and returns the passages that match, ranked by how well they match the query.';
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [{ name: 'research', description: long, external: true }],
+        }),
+      }),
+    );
+
+    assert.match(html, /title="Looks something up in the workspace index and returns the passages that match, ranked/);
+    assert.match(html, /…<\/p>/);
+  });
+
   it('says what to do when there is no model to choose', () => {
     const html = renderAgentForm(model({ context: context({ models: [] }) }));
     assert.match(html, /Run Check Setup/);
@@ -276,6 +318,29 @@ describe('the agent form', () => {
     assert.match(html, /data-error-key="name"/);
     assert.match(html, /data-error-key="schedule"/);
     assert.match(html, /<p class="preview" id="schedule-preview">/);
+  });
+});
+
+describe('shortening a description', () => {
+  it('leaves a short one alone', () => {
+    assert.equal(shorten('reads a file'), 'reads a file');
+  });
+
+  it('collapses the whitespace a paragraph brings with it', () => {
+    assert.equal(shorten('reads   a\n  file'), 'reads a file');
+  });
+
+  it('cuts at a word rather than mid-word', () => {
+    const text = 'alpha beta gamma delta epsilon zeta eta theta';
+    const cut = shorten(text, 20);
+
+    assert.ok(cut.endsWith('…'));
+    assert.ok(cut.length <= 21, cut);
+    assert.ok(!cut.includes('epsi…'), cut);
+  });
+
+  it('still cuts when there is no word boundary to cut at', () => {
+    assert.equal(shorten('x'.repeat(40), 10), `${'x'.repeat(10)}…`);
   });
 });
 

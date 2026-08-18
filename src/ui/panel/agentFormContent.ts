@@ -358,17 +358,50 @@ function toolGroup(
     .map((tool) => {
       const label = tool.missing ? `${tool.name} — missing` : tool.name;
       const tags = tool.tags && tool.tags.length > 0 ? ` · ${tool.tags.join(', ')}` : '';
+      const full = `${tool.description}${tags}`;
       return `<div class="tool${tool.missing ? ' missing' : ''}">
         ${checkbox(`tool:${tool.name}`, label, enabled.includes(tool.name))}
-        <p class="hint">${escapeHtml(tool.description)}${escapeHtml(tags)}</p>
+        <p class="hint" title="${escapeHtml(full)}">${escapeHtml(shorten(full))}</p>
       </div>`;
     })
     .join('');
 
+  const ticked = tools.filter((tool) => enabled.includes(tool.name)).length;
+  const selectAll = `<label class="check select-all">
+    <input type="checkbox" id="select-all-${id}" data-group="${id}"${ticked === tools.length ? ' checked' : ''} />
+    Select all
+  </label>`;
+
   return `<div class="field">
-    <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
-    <div class="tools" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+    <div class="group-head">
+      <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
+      ${tools.length > 1 ? selectAll : ''}
+    </div>
+    <div class="tools" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
   </div>`;
+}
+
+/** How much of a tool's description a list row shows before it stops being a list. */
+export const TOOL_DESCRIPTION_LIMIT = 110;
+
+/**
+ * Shortens a description to one readable line.
+ *
+ * A tool from another extension may describe itself in a paragraph, and a column of paragraphs is
+ * no longer a list of tools. The full text stays in the `title`, so nothing is lost — it is one
+ * hover away rather than in the way.
+ */
+export function shorten(text: string, limit = TOOL_DESCRIPTION_LIMIT): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim();
+  if (collapsed.length <= limit) {
+    return collapsed;
+  }
+  // Cut at a word boundary when there is one nearby, so the tail is not half a word. `-1` means
+  // there is no boundary at all — one long token — and then the cut is where the limit says.
+  const cut = collapsed.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(' ');
+  const atWord = lastSpace > 0 && lastSpace > limit - 20;
+  return `${(atWord ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
 function scheduleSection(model: AgentFormViewModel): string {

@@ -128,6 +128,10 @@
     }
   }
 
+  for (const group of document.querySelectorAll('.tools[data-group]')) {
+    syncSelectAll(group.getAttribute('data-group'));
+  }
+
   window.addEventListener('message', (event) => {
     const message = event.data;
     if (message && message.type === 'state') {
@@ -135,10 +139,49 @@
     }
   });
 
+  /** Keeps a group's "Select all" honest: ticked, empty, or somewhere in between. */
+  function syncSelectAll(group) {
+    const box = document.getElementById('select-all-' + group);
+    const tools = document.querySelectorAll(
+      '.tools[data-group="' + group + '"] input[type="checkbox"][id^="tool:"]',
+    );
+    if (!box || tools.length === 0) {
+      return;
+    }
+    let ticked = 0;
+    for (const tool of tools) {
+      if (tool.checked) {
+        ticked += 1;
+      }
+    }
+    box.checked = ticked === tools.length;
+    box.indeterminate = ticked > 0 && ticked < tools.length;
+  }
+
   document.addEventListener('change', (event) => {
     const target = event.target;
     if (!target || !target.closest('#agent-form')) {
       return;
+    }
+
+    // "Select all" is not a tool, so it never reaches the draft; it ticks the ones that are.
+    const group = target.getAttribute('data-group');
+    if (group) {
+      for (const tool of document.querySelectorAll(
+        '.tools[data-group="' + group + '"] input[type="checkbox"][id^="tool:"]',
+      )) {
+        tool.checked = target.checked;
+      }
+      target.indeterminate = false;
+      vscode.postMessage({ type: 'change', draft: readDraft() });
+      return;
+    }
+
+    if (target.id && target.id.indexOf('tool:') === 0) {
+      const owner = target.closest('.tools');
+      if (owner) {
+        syncSelectAll(owner.getAttribute('data-group'));
+      }
     }
     // A select changes which fields exist, so it is worth a repaint rather than a validation.
     if (target.id === 'sourceKind' || target.id === 'promptSource' || target.id === 'executionMode') {

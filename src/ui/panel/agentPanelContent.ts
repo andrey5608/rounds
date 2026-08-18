@@ -129,7 +129,10 @@ function styles(): string {
     }
     .row-inline { display: flex; gap: 0.5rem; align-items: center; }
     .checks { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+    .group-head .select-all { font-size: 0.9em; color: var(--vscode-descriptionForeground); }
     .tools { display: flex; flex-direction: column; gap: 0.5rem; }
+    .tools .tool .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tools .tool .hint { margin-left: 1.4rem; }
     .tools .tool.missing { color: var(--vscode-editorWarning-foreground); }
     ul.allowed { list-style: none; margin: 0.25rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
