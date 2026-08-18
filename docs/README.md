@@ -28,3 +28,18 @@ source of truth for names, identifiers and constraints. Whenever this documentat
 | 10 | User interface | [phase-10-ui.md](./phases/phase-10-ui.md) |
 | 11 | Documentation and compliance | [phase-11-docs.md](./phases/phase-11-docs.md) |
 | 12 | Hardening, testing and release | [phase-12-release.md](./phases/phase-12-release.md) |
+
+Phases 0–12 are complete and describe the extension as it is. The phases below are planned
+work, written after comparing Rounds against a published scheduling extension; each one
+states what it does not do as clearly as what it does.
+
+| Phase | Title | File |
+| --- | --- | --- |
+| 13 | Interface refinements and notification policy | [phase-13-interface-notifications.md](./phases/phase-13-interface-notifications.md) |
+| 14 | Agent panel | [phase-14-agent-panel.md](./phases/phase-14-agent-panel.md) |
+| 15 | Workspace trust | [phase-15-workspace-trust.md](./phases/phase-15-workspace-trust.md) |
+| 16 | Prompt authoring and chat-mode parity | [phase-16-prompts-chat-mode.md](./phases/phase-16-prompts-chat-mode.md) |
+| 17 | Asking about agents from chat | [phase-17-chat-tools.md](./phases/phase-17-chat-tools.md) |
+| 18 | Connections managed from the view | [phase-18-connections.md](./phases/phase-18-connections.md) |
+| 19 | Sources as project and repository | [phase-19-structured-sources.md](./phases/phase-19-structured-sources.md) |
+| 20 | Agents created and edited in the panel | [phase-20-agent-editor.md](./phases/phase-20-agent-editor.md) |

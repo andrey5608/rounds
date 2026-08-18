@@ -102,12 +102,26 @@ Kept here because the next person deserves to know it was wrong once:
   real DST date. Noted in [phase 9](./phases/phase-09-scheduler.md). Pick a transition date in a zone
   that observes it, and assert the next run neither doubles nor disappears.
 
+Some of what used to sit here has since been planned instead of merely noted:
+[phases 13–20](./README.md#phase-index) cover the notification policy, the schedule preview, the
+agent panel, workspace trust, prompt discovery, connection management and structured sources. The
+DST test above belongs to phase 13, where `nextRuns` needs it anyway.
+
+Two gaps were found while planning those phases and are worth naming here until they are closed:
+`removeEndpoint` in `src/setup/endpointEditor.ts` is called from nowhere, so a connection cannot be
+deleted or corrected from the UI at all; and `SECRET_KEYS` holds one token per source kind, so a
+GitHub connection and a Bitbucket connection share the same repository-host token. Both are
+[phase 18](./phases/phase-18-connections.md).
+
 ## 6. Not leftovers: out of scope for v1
 
 Listed so nobody files them as gaps. These are decisions from [`plan.md`](../plan.md), and a test
 asserts the first two are absent from the manifest rather than merely unmentioned:
 
-- No chat participant integration and no Language Model Tools contribution.
+- No chat participant integration, and no writing to agents from chat. The read-only side of this
+  was reopened deliberately: [phase 17](./phases/phase-17-chat-tools.md) adds one tool that answers
+  questions about agents, runs and schedules. Until that phase lands, the test asserting the
+  manifest declares no `languageModelTools` stands.
 - No execution while the editor is closed — the scheduler lives in the editor process.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.
