@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { formatRepository } from '../agents/sourceLabels.js';
 import type { ServiceContainer } from '../container.js';
 import type { Agent, RunRecord } from '../state/types.js';
 
@@ -29,7 +30,10 @@ export async function pickAgent(
     state.agents.map((agent) => ({
       label: agent.name,
       description: agent.enabled ? undefined : 'disabled',
-      detail: agent.source.kind === 'jira' ? agent.source.jql : agent.source.repo,
+      detail:
+        agent.source.kind === 'jira'
+          ? agent.source.jql
+          : formatRepository(agent.source.project, agent.source.repo),
       agent,
     })),
     { title, ignoreFocusOut: true },

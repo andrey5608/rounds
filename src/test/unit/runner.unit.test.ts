@@ -350,7 +350,7 @@ describe('agent runner', () => {
 
   it('advances a repository cursor only after a success', async () => {
     const gitAgent = agent({
-      source: { kind: 'git', baseUrlRef: 'repos', repo: 'octo/rounds', mode: 'updatedPullRequests' },
+      source: { kind: 'git', baseUrlRef: 'repos', project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' },
     });
     const { runner, store } = await harness({
       agent: gitAgent,
@@ -367,7 +367,7 @@ describe('agent runner', () => {
 
   it('leaves the cursor alone when the run failed', async () => {
     const gitAgent = agent({
-      source: { kind: 'git', baseUrlRef: 'repos', repo: 'octo/rounds', mode: 'updatedPullRequests' },
+      source: { kind: 'git', baseUrlRef: 'repos', project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' },
     });
     const gateway = new FakeGateway();
     gateway.turns = [new Error('quota exceeded')];

@@ -84,7 +84,7 @@ describe('agent readiness', () => {
     const readiness = evaluateReadiness(
       input({
         agent: agent({
-          source: { kind: 'git', baseUrlRef: 'repos', repo: 'owner/repo', mode: 'newPullRequests' },
+          source: { kind: 'git', baseUrlRef: 'repos', project: 'owner', repo: 'repo', mode: 'newPullRequests' },
         }),
         endpoints: {
           repos: { name: 'repos', kind: 'git', baseUrl: 'https://git.invalid', authScheme: 'bearer' },

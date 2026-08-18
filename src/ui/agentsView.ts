@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { formatRepository } from '../agents/sourceLabels.js';
 import { describeCron, minIntervalMinutes, nextRuns } from '../scheduler/cron.js';
 import { effectiveTimeZone } from '../scheduler/schedule.js';
 import { evaluateReadiness } from '../setup/needsSetup.js';
@@ -163,7 +164,7 @@ export function presentAgent(
   tooltip.appendMarkdown(`**${agent.name}**\n\n`);
   tooltip.appendMarkdown(`- Schedule: ${describeCron(agent.schedule.cronExpressions)}\n`);
   tooltip.appendMarkdown(
-    `- Source: ${agent.source.kind === 'jira' ? `query \`${agent.source.jql}\`` : `${agent.source.repo} (${agent.source.mode === 'newPullRequests' ? 'new' : 'updated'} pull requests)`}\n`,
+    `- Source: ${agent.source.kind === 'jira' ? `query \`${agent.source.jql}\`` : `${formatRepository(agent.source.project, agent.source.repo)} (${agent.source.mode === 'newPullRequests' ? 'new' : 'updated'} pull requests)`}\n`,
   );
   tooltip.appendMarkdown(`- Mode: ${agent.executionMode === 'api' ? 'result captured' : 'handed to chat'}\n`);
   tooltip.appendMarkdown(`- Model: ${agent.modelId}\n`);

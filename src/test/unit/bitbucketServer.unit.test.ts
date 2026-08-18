@@ -129,7 +129,7 @@ describe('self-hosted bitbucket connector', () => {
 
   it('asks the project and repository path for every state', async () => {
     const { connector: bitbucket, urls } = connector([json(page)]);
-    await bitbucket.listPullRequests({ repo: 'ROUNDS/rounds', mode: 'updatedPullRequests' });
+    await bitbucket.listPullRequests({ project: 'ROUNDS', repo: 'rounds', mode: 'updatedPullRequests' });
 
     const url = new URL(urls[0] ?? '');
     assert.equal(url.pathname, '/rest/api/1.0/projects/ROUNDS/repos/rounds/pull-requests');
@@ -139,7 +139,7 @@ describe('self-hosted bitbucket connector', () => {
 
   it('addresses a personal project with the tilde the API expects', async () => {
     const { connector: bitbucket, urls } = connector([json(page)]);
-    await bitbucket.listPullRequests({ repo: '~alex/rounds', mode: 'updatedPullRequests' });
+    await bitbucket.listPullRequests({ project: '~alex', repo: 'rounds', mode: 'updatedPullRequests' });
     assert.match(urls[0] ?? '', /\/projects\/~alex\/repos\/rounds\/pull-requests/);
   });
 
@@ -148,7 +148,8 @@ describe('self-hosted bitbucket connector', () => {
     // put it in front of one that changed later.
     const { connector: bitbucket } = connector([json(page)]);
     const result = await bitbucket.listPullRequests({
-      repo: 'ROUNDS/rounds',
+      project: 'ROUNDS',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
     });
 
@@ -160,7 +161,8 @@ describe('self-hosted bitbucket connector', () => {
   it('skips what is not newer than the cursor', async () => {
     const { connector: bitbucket } = connector([json(page)]);
     const result = await bitbucket.listPullRequests({
-      repo: 'ROUNDS/rounds',
+      project: 'ROUNDS',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       cursor: '2026-08-17T08:00:00.000Z',
     });
@@ -170,7 +172,8 @@ describe('self-hosted bitbucket connector', () => {
   it('reports truncation when the host says this was not the last page', async () => {
     const { connector: bitbucket } = connector([json({ ...page, isLastPage: false })]);
     const result = await bitbucket.listPullRequests({
-      repo: 'ROUNDS/rounds',
+      project: 'ROUNDS',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
     });
     assert.equal(result.truncated, true);
@@ -181,7 +184,7 @@ describe('self-hosted bitbucket connector', () => {
     // page, and "did not return a list" has to say what to change.
     const { connector: bitbucket } = connector([json({ errors: [{ message: 'nope' }] })]);
     await assert.rejects(
-      bitbucket.listPullRequests({ repo: 'ROUNDS/rounds', mode: 'newPullRequests' }),
+      bitbucket.listPullRequests({ project: 'ROUNDS', repo: 'rounds', mode: 'newPullRequests' }),
       (error: unknown) => {
         assert.ok(error instanceof ConfigError);
         assert.match(error.message, /without the REST path/);
@@ -193,7 +196,7 @@ describe('self-hosted bitbucket connector', () => {
   it('returns the raw diff', async () => {
     const diff = 'diff --git a/file b/file\n+added line\n';
     const { connector: bitbucket, urls } = connector([body(diff)]);
-    const result = await bitbucket.getDiff('ROUNDS/rounds', '7');
+    const result = await bitbucket.getDiff('ROUNDS', 'rounds', '7');
 
     assert.equal(result.text, diff);
     assert.match(urls[0] ?? '', /pull-requests\/7\.diff$/);
@@ -201,7 +204,7 @@ describe('self-hosted bitbucket connector', () => {
 
   it('notes a diff it could not fetch instead of failing the whole run', async () => {
     const { connector: bitbucket } = connector([json({ errors: [] }, 404)]);
-    const result = await bitbucket.getDiff('ROUNDS/rounds', '7');
+    const result = await bitbucket.getDiff('ROUNDS', 'rounds', '7');
 
     assert.match(result.text, /the diff could not be fetched/);
     assert.equal(result.truncated, false);
@@ -209,7 +212,7 @@ describe('self-hosted bitbucket connector', () => {
 
   it('truncates an enormous diff with a visible marker', async () => {
     const { connector: bitbucket } = connector([body('x'.repeat(500))]);
-    const result = await bitbucket.getDiff('ROUNDS/rounds', '7', 100);
+    const result = await bitbucket.getDiff('ROUNDS', 'rounds', '7', 100);
 
     assert.equal(result.truncated, true);
     assert.match(result.text, /\[truncated: 100 of 500 characters shown\]/);

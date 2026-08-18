@@ -232,10 +232,17 @@ function summarize(agent: Agent, context: QueryContext): Record<string, unknown>
     },
     source:
       agent.source.kind === 'jira'
-        ? { kind: 'jira', connection: agent.source.baseUrlRef, jql: agent.source.jql, maxResults: agent.source.maxResults }
+        ? {
+            kind: 'jira',
+            connection: agent.source.baseUrlRef,
+            project: agent.source.project,
+            jql: agent.source.jql,
+            maxResults: agent.source.maxResults,
+          }
         : {
             kind: 'git',
             connection: agent.source.baseUrlRef,
+            project: agent.source.project,
             repo: agent.source.repo,
             mode: agent.source.mode,
           },

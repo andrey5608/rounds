@@ -152,6 +152,8 @@ export interface AgentDraft {
   endpointName: string;
   jql?: string;
   maxResults?: number;
+  /** Owner, workspace or project key, depending on the provider the connection speaks. */
+  project?: string;
   repo?: string;
   gitMode?: 'newPullRequests' | 'updatedPullRequests';
   promptSource: 'inline' | 'file';
@@ -187,17 +189,22 @@ export function draftToAgent(draft: AgentDraft, now: Date, existing?: Agent): Ag
         ? {
             kind: 'jira',
             baseUrlRef: draft.endpointName,
+            project: draft.project?.trim() || undefined,
             jql: draft.jql ?? '',
             maxResults: draft.maxResults ?? 20,
           }
         : {
             kind: 'git',
             baseUrlRef: draft.endpointName,
-            repo: draft.repo ?? '',
+            project: draft.project?.trim() ?? '',
+            repo: draft.repo?.trim() ?? '',
             mode: draft.gitMode ?? 'newPullRequests',
-            // A source that changed kind starts over rather than inheriting a foreign cursor.
+            // A source that changed kind, project or repository starts over rather than
+            // inheriting a cursor that covers items the new source never showed.
             sinceCursor:
-              existing?.source.kind === 'git' && existing.source.repo === draft.repo
+              existing?.source.kind === 'git' &&
+              existing.source.project === draft.project?.trim() &&
+              existing.source.repo === draft.repo?.trim()
                 ? existing.source.sinceCursor
                 : undefined,
           },
@@ -236,6 +243,7 @@ export function agentToDraft(agent: Agent): AgentDraft {
     endpointName: agent.source.baseUrlRef,
     jql: agent.source.kind === 'jira' ? agent.source.jql : undefined,
     maxResults: agent.source.kind === 'jira' ? agent.source.maxResults : undefined,
+    project: agent.source.kind === 'git' ? agent.source.project : agent.source.project,
     repo: agent.source.kind === 'git' ? agent.source.repo : undefined,
     gitMode: agent.source.kind === 'git' ? agent.source.mode : undefined,
     promptSource: agent.prompt.source,

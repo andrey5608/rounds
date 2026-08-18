@@ -1,3 +1,4 @@
+import { formatRepository } from '../../agents/sourceLabels.js';
 import type { Agent, RunRecord } from '../../state/types.js';
 
 /**
@@ -71,7 +72,7 @@ function describeSource(agent: Agent): string {
     return `<code>${escapeHtml(agent.source.jql)}</code> · at most ${agent.source.maxResults} item(s)`;
   }
   const mode = agent.source.mode === 'newPullRequests' ? 'new' : 'updated';
-  return `${escapeHtml(agent.source.repo)} · ${mode} pull requests`;
+  return `${escapeHtml(formatRepository(agent.source.project, agent.source.repo))} · ${mode} pull requests`;
 }
 
 function promptSection(model: AgentPanelViewModel): string {

@@ -1,5 +1,4 @@
 import { ConfigError } from './errors.js';
-import { parseRepo } from './git.js';
 import type { DiffResult, GitMode, ListPullRequestsRequest, RepositoryHostConnector } from './git.js';
 import type { HttpClient } from './http.js';
 import { byUpdatedAtDescending, itemsAfterCursor, newestCursor, toIsoTimestamp } from './items.js';
@@ -94,11 +93,10 @@ export class BitbucketCloudConnector implements RepositoryHostConnector {
   }
 
   async listPullRequests(request: ListPullRequestsRequest): Promise<FetchResult> {
-    const { owner, name } = parseRepo(request.repo);
     const maxResults = request.maxResults ?? DEFAULT_MAX_RESULTS;
 
     const page = await this.options.http.requestJson<BitbucketPage>({
-      path: `repositories/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pullrequests`,
+      path: `repositories/${encodeURIComponent(request.project)}/${encodeURIComponent(request.repo)}/pullrequests`,
       query: {
         state: ALL_STATES,
         sort: request.mode === 'newPullRequests' ? '-created_on' : '-updated_on',
@@ -112,7 +110,12 @@ export class BitbucketCloudConnector implements RepositoryHostConnector {
     }
 
     const all = page.values.map((pullRequest) =>
-      toBitbucketCloudItem(pullRequest, request.repo, this.options.browseBaseUrl, request.mode),
+      toBitbucketCloudItem(
+        pullRequest,
+        `${request.project}/${request.repo}`,
+        this.options.browseBaseUrl,
+        request.mode,
+      ),
     );
     const fresh = itemsAfterCursor(all, request.cursor).sort(byUpdatedAtDescending);
     const items = fresh.slice(0, maxResults);
@@ -124,14 +127,13 @@ export class BitbucketCloudConnector implements RepositoryHostConnector {
     };
   }
 
-  async getDiff(repo: string, id: string, maxChars?: number): Promise<DiffResult> {
-    const { owner, name } = parseRepo(repo);
+  async getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult> {
     const limit = maxChars ?? this.options.diffLimit ?? DEFAULT_DIFF_LIMIT;
 
     let text: string;
     try {
       text = await this.options.http.requestText({
-        path: `repositories/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/pullrequests/${encodeURIComponent(id)}/diff`,
+        path: `repositories/${encodeURIComponent(project)}/${encodeURIComponent(repo)}/pullrequests/${encodeURIComponent(id)}/diff`,
         headers: { Accept: 'text/plain' },
       });
     } catch (error) {

@@ -116,7 +116,7 @@ describe('bitbucket connector', () => {
 
   it('asks for every state, because merged work matters too', async () => {
     const { connector: bitbucket, urls } = connector([json(page)]);
-    await bitbucket.listPullRequests({ repo: 'octo/rounds', mode: 'updatedPullRequests' });
+    await bitbucket.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' });
 
     const parameters = new URL(urls[0] ?? '').searchParams;
     assert.deepEqual(parameters.getAll('state'), ['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED']);
@@ -125,13 +125,13 @@ describe('bitbucket connector', () => {
 
   it('sorts by creation time in new pull request mode', async () => {
     const { connector: bitbucket, urls } = connector([json(page)]);
-    await bitbucket.listPullRequests({ repo: 'octo/rounds', mode: 'newPullRequests' });
+    await bitbucket.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'newPullRequests' });
     assert.equal(new URL(urls[0] ?? '').searchParams.get('sort'), '-created_on');
   });
 
   it('returns items newest first with a cursor to continue from', async () => {
     const { connector: bitbucket } = connector([json(page)]);
-    const result = await bitbucket.listPullRequests({ repo: 'octo/rounds', mode: 'updatedPullRequests' });
+    const result = await bitbucket.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' });
 
     assert.deepEqual(result.items.map((item) => item.id), ['7', '8']);
     assert.equal(result.cursor, '2026-08-17T09:00:00.000Z');
@@ -140,7 +140,8 @@ describe('bitbucket connector', () => {
   it('skips what is not newer than the cursor', async () => {
     const { connector: bitbucket } = connector([json(page)]);
     const result = await bitbucket.listPullRequests({
-      repo: 'octo/rounds',
+      project: 'octo',
+      repo: 'rounds',
       mode: 'updatedPullRequests',
       cursor: '2026-08-17T08:00:00.000Z',
     });
@@ -149,30 +150,32 @@ describe('bitbucket connector', () => {
 
   it('reports truncation when the host says there is another page', async () => {
     const { connector: bitbucket } = connector([json({ ...page, next: 'https://api.bitbucket.org/next' })]);
-    const result = await bitbucket.listPullRequests({ repo: 'octo/rounds', mode: 'updatedPullRequests' });
+    const result = await bitbucket.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'updatedPullRequests' });
     assert.equal(result.truncated, true);
   });
 
   it('fails clearly when the payload is not a page of pull requests', async () => {
     const { connector: bitbucket } = connector([json({ type: 'error', error: { message: 'nope' } })]);
     await assert.rejects(
-      bitbucket.listPullRequests({ repo: 'octo/rounds', mode: 'newPullRequests' }),
+      bitbucket.listPullRequests({ project: 'octo', repo: 'rounds', mode: 'newPullRequests' }),
       ConfigError,
     );
   });
 
-  it('rejects a repository that is not workspace/name', async () => {
-    const { connector: bitbucket } = connector([json(page)]);
-    await assert.rejects(
-      bitbucket.listPullRequests({ repo: 'rounds', mode: 'newPullRequests' }),
-      ConfigError,
-    );
+  it('encodes both halves of the address, so neither can break out of the path', async () => {
+    // The connector takes the workspace and the repository as given: rejecting a malformed pair
+    // is the state validator's job since schema version 2, and encoding is what keeps a value
+    // with a slash in it from becoming two path segments.
+    const { connector: bitbucket, urls } = connector([json(page)]);
+    await bitbucket.listPullRequests({ project: 'my space', repo: 'a/b', mode: 'newPullRequests' });
+
+    assert.match(urls[0] ?? '', /repositories\/my%20space\/a%2Fb\/pullrequests/);
   });
 
   it('returns the diff when the host serves it directly', async () => {
     const diff = 'diff --git a/file b/file\n+added line\n';
     const { connector: bitbucket, urls } = connector([body(diff)]);
-    const result = await bitbucket.getDiff('octo/rounds', '7');
+    const result = await bitbucket.getDiff('octo', 'rounds', '7');
 
     assert.equal(result.text, diff);
     assert.match(urls[0] ?? '', /pullrequests\/7\/diff$/);
@@ -182,7 +185,7 @@ describe('bitbucket connector', () => {
     // Bitbucket redirects this endpoint, and the client refuses redirects on purpose. A missing diff
     // is worth a note; it is not worth losing the pull requests that were fetched successfully.
     const { connector: bitbucket } = connector([json({ type: 'error' }, 302)]);
-    const result = await bitbucket.getDiff('octo/rounds', '7');
+    const result = await bitbucket.getDiff('octo', 'rounds', '7');
 
     assert.match(result.text, /the diff could not be fetched/);
     assert.equal(result.truncated, false);
@@ -190,7 +193,7 @@ describe('bitbucket connector', () => {
 
   it('truncates an enormous diff with a visible marker', async () => {
     const { connector: bitbucket } = connector([body('x'.repeat(500))]);
-    const result = await bitbucket.getDiff('octo/rounds', '7', 100);
+    const result = await bitbucket.getDiff('octo', 'rounds', '7', 100);
 
     assert.equal(result.truncated, true);
     assert.match(result.text, /\[truncated: 100 of 500 characters shown\]/);

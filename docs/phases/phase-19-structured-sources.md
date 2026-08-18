@@ -14,7 +14,7 @@ and nothing knows which project it reads.
 
 ## Steps
 
-### 19.1 Schema version 2
+### 19.1 Schema version 2 ✅
 - `GitSource` becomes `{ project, repo, mode, sinceCursor? }`; `JiraSource` gains an
   optional `project`.
 - `migrate()` in `src/state/validate.ts` already has the hook and the comment saying to add
@@ -35,12 +35,15 @@ and nothing knows which project it reads.
 - `~user` stays valid for self-hosted Bitbucket, and the validator says so in its message
   instead of rejecting a form the API accepts.
 
-### 19.3 Connectors take the pair
+### 19.3 Connectors take the pair ✅
 - `ListPullRequestsRequest` carries `project` and `repo` separately. Every connector already
   splits the string as its first act, so this removes code rather than adding it.
 - `parseRepo` survives for exactly one caller: the migration in 19.1.
 - The item shape does not change. `extra.repo` keeps carrying `project/repo` joined, so no
   prompt that already works starts producing something different.
+- Done. `getDiff` takes the pair too, and each connector encodes both halves into its path, so a
+  value containing a slash cannot become two path segments — a test pins that, replacing the
+  three that used to assert `parseRepo` rejected a one-part string.
 
 ### 19.4 Choosing from a list
 - New port methods: `listProjects()` and `listRepositories(project)` on the repository host

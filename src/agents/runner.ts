@@ -367,13 +367,14 @@ export class AgentRunner {
       throw new Error('The repository host connection could not be created.');
     }
     const result = await host.listPullRequests({
+      project: agent.source.project,
       repo: agent.source.repo,
       mode: agent.source.mode,
       cursor: agent.source.sinceCursor,
     });
     if (needs.needsDiff) {
       for (const item of result.items.slice(0, MAX_ITEM_PROMPTS)) {
-        const diff = await host.getDiff(agent.source.repo, item.id);
+        const diff = await host.getDiff(agent.source.project, agent.source.repo, item.id);
         diffs.set(item.id, diff.text);
       }
     }
