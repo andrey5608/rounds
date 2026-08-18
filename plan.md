@@ -41,7 +41,8 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.createAgent`, `rounds.editAgent`, `rounds.duplicateAgent`,
   `rounds.deleteAgent`, `rounds.toggleAgent`, `rounds.runNow`,
   `rounds.openResultFolder`, `rounds.showHistory`, `rounds.checkSetup`,
-  `rounds.refreshView`, `rounds.showOutput`, `rounds.showAgent`
+  `rounds.refreshView`, `rounds.showOutput`, `rounds.showAgent`,
+  `rounds.addConnection`, `rounds.editConnection`, `rounds.deleteConnection`
 - `rounds.showAgent` opens one agent on a read-only panel beside the editor. It is an inline
   action on the agent row rather than the row's click, which keeps expanding the runs.
 
@@ -62,6 +63,8 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   (amended 2026-08-17: the owner supplied brand assets; this replaces the original codicon
   `$(history)`)
 - TreeView id: `rounds.agentsView`, title "Agents"
+- TreeView id: `rounds.connectionsView`, title "Connections" — the hosts agents read from, listed
+  so a base URL can be corrected rather than recreated. Added in phase 18.
 - Welcome view (no agents yet) points at `rounds.createAgent` and `rounds.checkSetup`
 
 ### Runtime identifiers

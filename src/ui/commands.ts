@@ -4,6 +4,11 @@ import type { ServiceContainer } from '../container.js';
 import { checkSetupCommand } from '../setup/checkSetupCommand.js';
 
 import {
+  addConnectionCommand,
+  deleteConnectionCommand,
+  editConnectionCommand,
+} from './connectionCommands.js';
+import {
   createAgentCommand,
   deleteAgentCommand,
   duplicateAgentCommand,
@@ -32,6 +37,9 @@ export const COMMAND_IDS = [
   'rounds.openResultFolder',
   'rounds.showHistory',
   'rounds.showAgent',
+  'rounds.addConnection',
+  'rounds.editConnection',
+  'rounds.deleteConnection',
   'rounds.checkSetup',
   'rounds.refreshView',
   'rounds.showOutput',
@@ -86,6 +94,19 @@ function implemented(
     },
     'rounds.showAgent': (argument) => {
       void runAndReport(container, 'rounds.showAgent', () => showAgentCommand(container, argument));
+    },
+    'rounds.addConnection': () => {
+      void runAndReport(container, 'rounds.addConnection', () => addConnectionCommand(container));
+    },
+    'rounds.editConnection': (argument) => {
+      void runAndReport(container, 'rounds.editConnection', () =>
+        editConnectionCommand(container, argument),
+      );
+    },
+    'rounds.deleteConnection': (argument) => {
+      void runAndReport(container, 'rounds.deleteConnection', () =>
+        deleteConnectionCommand(container, argument),
+      );
     },
     'rounds.showHistory': (argument) => {
       void runAndReport(container, 'rounds.showHistory', () =>

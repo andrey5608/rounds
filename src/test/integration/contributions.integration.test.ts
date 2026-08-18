@@ -71,10 +71,10 @@ describe('contribution guards', () => {
     assert.deepEqual([...COMMAND_IDS].sort(), declared);
   });
 
-  it('contributes the agents view', () => {
+  it('contributes the agents view and the connections view', () => {
     const views = (extension.packageJSON as ManifestShape).contributes.views;
     const ids = Object.values(views).flat().map((view) => view.id);
-    assert.deepEqual(ids, ['rounds.agentsView']);
+    assert.deepEqual(ids, ['rounds.agentsView', 'rounds.connectionsView']);
   });
 
   it('executes every command without throwing', async () => {

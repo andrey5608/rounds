@@ -1,4 +1,6 @@
+import { tokenFor } from '../connectors/factory.js';
 import type { ServiceContainer } from '../container.js';
+import type { EndpointConfig } from '../state/types.js';
 import { SECRET_NAMES } from '../state/secrets.js';
 import type { SecretName } from '../state/secrets.js';
 
@@ -80,9 +82,23 @@ export function statusFor(data: AgentsViewData, settingsEnabled: boolean): Statu
   };
 }
 
-/** Refreshes the tree and the status bar from the current state. */
+/** Refreshes both trees and the status bar from the current state. */
 export async function refreshView(container: ServiceContainer): Promise<void> {
   const data = await buildViewData(container);
   container.agentsView.setData(data);
   container.statusBar.update(statusFor(data, container.settings().enabled));
+
+  // Which connections can authenticate is a per-connection question now, so it is asked per
+  // connection rather than derived from the two shared keys.
+  const withToken: string[] = [];
+  for (const endpoint of Object.values(data.state.endpoints)) {
+    if (await hasToken(container, endpoint)) {
+      withToken.push(endpoint.name);
+    }
+  }
+  container.connectionsView.setData({ state: data.state, withToken });
+}
+
+async function hasToken(container: ServiceContainer, endpoint: EndpointConfig): Promise<boolean> {
+  return (await tokenFor(container.secrets, endpoint)) !== undefined;
 }

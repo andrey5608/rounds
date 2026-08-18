@@ -92,6 +92,18 @@ function validateEndpoint(value: unknown): EndpointConfig | string {
   if (isNonEmptyString(value.secretRef)) {
     endpoint.secretRef = value.secretRef;
   }
+  if (
+    isRecord(value.lastCheck) &&
+    typeof value.lastCheck.ok === 'boolean' &&
+    isString(value.lastCheck.message) &&
+    isString(value.lastCheck.at)
+  ) {
+    endpoint.lastCheck = {
+      ok: value.lastCheck.ok,
+      message: value.lastCheck.message,
+      at: value.lastCheck.at,
+    };
+  }
   return endpoint;
 }
 

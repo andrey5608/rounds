@@ -31,6 +31,7 @@ import { createToolRegistry } from './tools/index.js';
 import { createVscodeFileFinder } from './tools/vscodeFileFinder.js';
 import { SECRET_NAMES } from './state/secrets.js';
 import { registerAgentsView } from './ui/agentsView.js';
+import { registerConnectionsView } from './ui/connectionsView.js';
 import { registerRunDetails } from './ui/runDetails.js';
 import { refreshView } from './ui/viewState.js';
 import { registerChatTools } from './chat/registerChatTools.js';
@@ -89,6 +90,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   });
 
   const agentsView = registerAgentsView(extensionContext);
+  const connectionsView = registerConnectionsView(extensionContext);
   const statusBar = new RoundsStatusBar();
 
   // Only one window may schedule runs; the others stay responsive but tick-free.
@@ -203,6 +205,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     ticker,
     models,
     agentsView,
+    connectionsView,
     statusBar,
     notifier,
     workspaceTrusted: () => vscode.workspace.isTrusted,

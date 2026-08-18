@@ -103,6 +103,24 @@
         "icon": "$(history)"
       },
       {
+        "command": "rounds.addConnection",
+        "title": "Add Connection",
+        "category": "Rounds",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rounds.editConnection",
+        "title": "Edit Connection",
+        "category": "Rounds",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "rounds.deleteConnection",
+        "title": "Delete Connection",
+        "category": "Rounds",
+        "icon": "$(trash)"
+      },
+      {
         "command": "rounds.checkSetup",
         "title": "Check Setup",
         "category": "Rounds",
@@ -135,6 +153,10 @@
         {
           "id": "rounds.agentsView",
           "name": "Agents"
+        },
+        {
+          "id": "rounds.connectionsView",
+          "name": "Connections"
         }
       ]
     },
@@ -391,6 +413,11 @@
           "command": "rounds.showOutput",
           "when": "view == rounds.agentsView",
           "group": "1_setup@2"
+        },
+        {
+          "command": "rounds.addConnection",
+          "when": "view == rounds.connectionsView",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -433,6 +460,16 @@
           "command": "rounds.deleteAgent",
           "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
           "group": "3_danger@1"
+        },
+        {
+          "command": "rounds.editConnection",
+          "when": "view == rounds.connectionsView && viewItem =~ /^rounds\\.connection/",
+          "group": "inline@1"
+        },
+        {
+          "command": "rounds.deleteConnection",
+          "when": "view == rounds.connectionsView && viewItem =~ /^rounds\\.connection/",
+          "group": "inline@2"
         }
       ]
     },
@@ -441,6 +478,11 @@
         "view": "rounds.agentsView",
         "when": "!rounds.hasAgents",
         "contents": "No agents yet. An agent visits a source on a schedule, runs your prompt through a language model and stores the result.\nAgents run only while this editor is open.\n[Create Agent](command:rounds.createAgent)\n[Check Setup](command:rounds.checkSetup)"
+      },
+      {
+        "view": "rounds.connectionsView",
+        "when": "!rounds.hasConnections",
+        "contents": "No connections yet. A connection is a host an agent reads from: an issue tracker or a repository host.\nIts token is stored in the editor secret storage, never in settings.\n[Add Connection](command:rounds.addConnection)"
       }
     ]
   },

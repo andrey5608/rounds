@@ -217,6 +217,8 @@ export interface EndpointConfig {
    * predates per-connection tokens and still reads the shared one for its kind.
    */
   secretRef?: string;
+  /** Result of the last reachability check, so a row can say whether the host answered. */
+  lastCheck?: { ok: boolean; message: string; at: string };
 }
 
 /** A model as the editor reported it. Ids and labels only; no credentials involved. */

@@ -202,8 +202,15 @@ describe('agents view', () => {
       }
     ).contributes.menus['view/item/context'];
 
-    // Every agent-scoped menu entry keys on a value the tree actually produces.
-    const produced = ['rounds.agent.enabled', 'rounds.agent.disabled', 'rounds.agent.needsSetup'];
+    // Every item-scoped menu entry keys on a value one of the trees actually produces. Both views
+    // are checked here so a menu cannot key on a context value nothing sets.
+    const produced = [
+      'rounds.agent.enabled',
+      'rounds.agent.disabled',
+      'rounds.agent.needsSetup',
+      'rounds.connection.jira',
+      'rounds.connection.git',
+    ];
     for (const entry of menus) {
       const pattern = /viewItem =~ \/\^(?<prefix>[^/]+)\//.exec(entry.when);
       assert.ok(pattern, `menu entry has no viewItem test: ${entry.when}`);

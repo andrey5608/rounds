@@ -54,9 +54,11 @@ and report back.
    - **Language model access** — grant it when the editor asks. This is the only moment a consent
      prompt appears, and it appears because you asked for it.
    - **Issue tracker connection** and **Repository host connection** — enter the base URL, choose how
-     the host authenticates, and enter the token. Tokens go into the editor's secret storage. A
-     repository host is also asked which API it speaks, unless its address already says: github.com
-     and bitbucket.org are recognised, a self-hosted installation cannot be.
+     the host authenticates, and enter the token. Tokens go into the editor's secret storage, one per
+     connection, so two repository hosts never share credentials. A repository host is also asked
+     which API it speaks, unless its address already says: github.com and bitbucket.org are
+     recognised, a self-hosted installation cannot be. Connections are listed in the **Connections**
+     view afterwards, where they can be corrected or removed.
    - **Result folder** — where result files are written; the default is inside the extension's
      storage folder.
    - **Script whitelist** — a warning until you list commands the `runScript` tool may run. An empty
@@ -155,6 +157,9 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | Rounds: Run Now | Runs an agent immediately, in any window |
 | Rounds: Open Result Folder | Reveals the result folder in the file manager |
 | Rounds: Show Agent | Opens one agent on a read-only panel beside the editor: schedule, source, prompt, model, tools and recent runs |
+| Rounds: Add Connection | Adds a host an agent can read from, with its own token |
+| Rounds: Edit Connection | Corrects a base URL, its authentication or its name, updating the agents that use it |
+| Rounds: Delete Connection | Removes a connection and its token, once nothing references it |
 | Rounds: Show Run History | Lists an agent's runs; select one to open it |
 | Rounds: Check Setup | Runs the six checks and offers to fix what failed |
 | Rounds: Refresh | Re-reads the state and repaints the view |

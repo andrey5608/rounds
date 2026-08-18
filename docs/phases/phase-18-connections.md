@@ -14,7 +14,7 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
 
 ## Steps
 
-### 18.1 A second view, not a second kind of row in the first
+### 18.1 A second view, not a second kind of row in the first ✅
 - `rounds.connectionsView`, titled `Connections`, in the existing activity bar container,
   under the agents view.
 - The alternative — group nodes inside the agents tree — keeps the manifest smaller and
@@ -24,7 +24,7 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
   (`contributes.views`, plus a `viewsWelcome` entry for the empty case that points at
   `rounds.addConnection`), and the README.
 
-### 18.2 What a row says
+### 18.2 What a row says ✅
 - Label: the connection name. Description: host and provider — `github.com · GitHub`,
   `bitbucket.example.com · Bitbucket, self-hosted`.
 - Icon by kind: issue tracker and repository host are different things and should not need
@@ -34,8 +34,10 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
   stored, and the result of the last reachability check.
 - **Never the token, not even masked.** A masked token still leaks its length, and there is
   no question a person can answer by looking at one.
+- The tooltip names the **resolved API root** rather than only the base URL: that is the value a
+  request actually uses, and a base URL pointing at the wrong place shows up there first.
 
-### 18.3 Three commands
+### 18.3 Three commands ✅
 - `rounds.addConnection` in the view title, `rounds.editConnection` and
   `rounds.deleteConnection` inline on the row.
 - **Specification change.** The command list in `plan.md` grows by these three ids; they go
@@ -64,14 +66,14 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
   already has one. A test holds the defect this exists for — two repository connections holding
   different tokens.
 
-### 18.5 Renaming, when agents point at the name
+### 18.5 Renaming, when agents point at the name ✅
 - Agents reference a connection through `source.baseUrlRef`, which is its name. A rename
   therefore rewrites every referencing agent in the same store update — one revisioned
   write, so the two can never disagree.
 - Refuse a name that another connection already has, with the same validator the wizard
   uses for agent names.
 
-### 18.6 Deleting
+### 18.6 Deleting ✅
 - Name the agents that use the connection and refuse while any of them does. Silently
   breaking three agents to satisfy one delete is not a trade a person asked for.
 - When nothing references it: delete the connection and its token together. This is the
@@ -79,9 +81,9 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
   shared, here it belongs to exactly this connection.
 - Modal confirmation naming the connection and stating that the token is removed with it.
 
-### 18.7 Checking a connection from its row
+### 18.7 Checking a connection from its row ✅
 - The edit flow ends with a reachability check through `ConnectorFactory.ping`, whose
-  result is stored on the connection and shown in the row until the next check.
+  result is stored on the connection (`lastCheck`) and shown in the tooltip until the next one.
 - `ping` already reports instead of throwing, and the message already avoids the token —
   both were built in phase 5 for Check Setup and neither needs changing here.
 
