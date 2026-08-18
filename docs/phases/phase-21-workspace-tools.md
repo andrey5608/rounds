@@ -55,7 +55,7 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
   execution path. The result reader has the same structural fallback as the model gateway: a text
   part from another copy of the API types is text in every way that matters.
 
-### 21.3 Only what the agent enabled, and only what a run can answer for
+### 21.3 Only what the agent enabled, and only what a run can answer for ✅
 - The model sees exactly the tools the request declares, and the agent's stored `tools` list
   already decides that. An external tool is stored the same way, by name.
 - A name that is no longer registered **fails the run** with a typed code naming the tool. This
@@ -70,15 +70,21 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
 - A tool that needs the chat context rejects the call, because the token is `undefined` outside
   chat. That is caught and fed back as a denial too. The loop already knows how to carry on from
   one; that is what denials were built for in phase 7.
+- Done. `createRunRegistry` builds the run's registry from the built-ins plus what the editor
+  reports at that moment, and the runner checks the agent's tool names against it before the first
+  request rather than discovering a gap halfway through a conversation.
 
-### 21.4 The gates
+### 21.4 The gates ✅
 - **Workspace trust** (phase 15): an untrusted workspace refuses every external tool, in the same
   shape and with the same wording as `runScript`'s denial. Third-party code with unknown reach is
   exactly what trust exists for.
 - Every invocation is logged like `runScript` is — the tool name and the size of the input, never
   the input itself, which may carry issue text.
 - The result is truncated by the same rule as our own tool results, and only its text parts are
-  read: a `prompt-tsx` part is a shape this extension does not render.
+  read: a `prompt-tsx` part is a shape this extension does not render, and the model is told
+  something was left out rather than quietly receiving less than the tool sent.
+- Done in the adapter, so the trust gate reads as a permission check like `runScript`'s and lands
+  in the audit trail the same way.
 
 ### 21.5 Prompt files stop leaking their front matter
 - A `.prompt.md` file carries YAML: `description`, `mode`, `model`, `tools`. Today the whole

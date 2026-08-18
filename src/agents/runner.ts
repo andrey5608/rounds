@@ -26,7 +26,14 @@ import type { RoundsStore } from '../state/store.js';
 import { systemClock } from '../state/time.js';
 import type { Clock } from '../state/time.js';
 import type { Agent, RunRecord, RunTrigger } from '../state/types.js';
-import type { FileFinder, ProcessRunner, ToolContext, ToolRegistry } from '../tools/registry.js';
+import { createRunRegistry } from '../tools/index.js';
+import type {
+  FileFinder,
+  ProcessRunner,
+  RoundsTool,
+  ToolContext,
+  ToolRegistry,
+} from '../tools/registry.js';
 
 import { PromptValidationError, renderPrompt, validatePrompt } from './placeholders.js';
 import { PromptUnavailableError, PromptResolver } from './promptResolver.js';
@@ -86,6 +93,12 @@ export interface RunnerDependencies {
   models: ModelCatalog;
   gateway: LanguageModelGateway;
   registry: ToolRegistry;
+  /**
+   * Tools other extensions registered, read at the start of each run.
+   *
+   * A function rather than a list: what the editor reports changes while a window is open.
+   */
+  externalTools?: () => readonly RoundsTool<unknown>[];
   connectors: ConnectorProvider;
   resultWriter?: ResultWriter;
   /** Chat mode handoff. Absent means chat mode cannot run in this window. */
@@ -245,6 +258,26 @@ export class AgentRunner {
     }
 
     const model = await this.dependencies.models.resolveForRun(agent.modelId);
+
+    // The tools this run may use: ours, plus whatever other extensions report right now.
+    const external = this.dependencies.externalTools?.() ?? [];
+    const registry = external.length > 0 ? createRunRegistry(external) : this.dependencies.registry;
+    const missing = agent.tools.filter((name) => !registry.get(name));
+    if (missing.length > 0) {
+      // The same rule the specification applies to a model that is gone: fail and name it. A tool
+      // quietly dropped from the request changes what the agent does without saying so.
+      return this.finish(record, {
+        status: 'failed',
+        summary: `This agent uses ${missing.length === 1 ? 'a tool' : 'tools'} no extension provides right now: ${missing.join(', ')}.`,
+        error: {
+          code: 'tool.missing',
+          message: `No extension currently registers: ${missing.join(', ')}. Available: ${registry.names().join(', ')}.`,
+        },
+        logger,
+        resolution,
+      });
+    }
+
     const sections: string[] = [];
     let truncated = prompts.some((prompt) => prompt.truncated);
 
@@ -254,7 +287,7 @@ export class AgentRunner {
       }
       const outcome = await runAgenticLoop({
         gateway: this.dependencies.gateway,
-        registry: this.dependencies.registry,
+        registry,
         modelId: model.id,
         prompt: prompt.text,
         enabledTools: agent.tools,

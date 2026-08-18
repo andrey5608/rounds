@@ -20,6 +20,7 @@ import { RoundsStore } from '../../state/store.js';
 import { FixedClock } from '../../state/time.js';
 import type { Agent, RunRecord } from '../../state/types.js';
 import { createToolRegistry } from '../../tools/index.js';
+import type { RoundsTool } from '../../tools/registry.js';
 
 const NOW = new Date('2026-08-17T09:00:00.000Z');
 
@@ -95,6 +96,8 @@ async function harness(options: {
   secrets?: ('jiraToken' | 'gitToken')[];
   gateway?: FakeGateway;
   resultWriter?: ResultWriter;
+  /** Tools another extension would report. */
+  externalTools?: RoundsTool<unknown>[];
 }): Promise<Harness> {
   const directory = await mkdtemp(join(tmpdir(), 'rounds-runner-'));
   const resultsFolder = join(directory, 'results');
@@ -157,6 +160,7 @@ async function harness(options: {
     models: new ModelCatalog({ gateway, store, clock }),
     gateway,
     registry: createToolRegistry(),
+    externalTools: () => options.externalTools ?? [],
     connectors,
     resultWriter: options.resultWriter,
     settings: () => settings,
@@ -332,6 +336,40 @@ describe('agent runner', () => {
     const content = await readFile(record.resultFilePath ?? '', 'utf8');
     assert.match(content, /## ROUNDS-1 Scheduler skips a run/);
     assert.match(content, /## ROUNDS-2 Leader lock heartbeat/);
+  });
+
+  it('fails a run whose tool no extension provides any more', async () => {
+    // The rule the specification already applies to a model that is gone: fail and name it. A
+    // tool quietly dropped from the request changes what the agent does without saying so.
+    const withTool = agent({ tools: ['research'] });
+    const { runner } = await harness({ agent: withTool });
+
+    const record = await runner.run({ agent: withTool, trigger: 'manual' });
+
+    assert.equal(record.status, 'failed');
+    assert.equal(record.error?.code, 'tool.missing');
+    assert.match(record.summary, /research/);
+  });
+
+  it('offers a tool another extension registered to the model', async () => {
+    const withTool = agent({ tools: ['research'] });
+    const { runner, gateway } = await harness({
+      agent: withTool,
+      externalTools: [
+        {
+          name: 'research',
+          description: 'Looks something up',
+          inputSchema: { type: 'object' },
+          parseInput: (raw: unknown) => raw,
+          checkPermission: () => ({ allowed: true }) as const,
+          execute: () => Promise.resolve({ content: 'found it', truncated: false }),
+        },
+      ],
+    });
+
+    await runner.run({ agent: withTool, trigger: 'manual' });
+
+    assert.deepEqual(gateway.requests[0]?.tools.map((tool) => tool.name), ['research']);
   });
 
   it('hands a chat-mode agent to the chat view and records the limitation', async () => {

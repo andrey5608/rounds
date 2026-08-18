@@ -29,6 +29,7 @@ import type { RoundsSettings } from './state/settings.js';
 import { RoundsStore } from './state/store.js';
 import { createToolRegistry } from './tools/index.js';
 import { createVscodeFileFinder } from './tools/vscodeFileFinder.js';
+import { createExternalTools } from './tools/vscodeLmTools.js';
 import { SECRET_NAMES } from './state/secrets.js';
 import { registerAgentsView } from './ui/agentsView.js';
 import { registerConnectionsView } from './ui/connectionsView.js';
@@ -127,6 +128,8 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     models,
     gateway,
     registry: tools,
+    // Read per run: what the editor reports changes while a window is open.
+    externalTools: () => createExternalTools(),
     // The endpoints live in the state and can change between runs, so the factory is built per
     // run rather than captured once.
     connectors: {
