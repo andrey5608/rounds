@@ -14,6 +14,7 @@ import {
   validateMaxResults,
   validatePromptText,
   validateRepo,
+  describeScheduleInput,
   validateScheduleInput,
   validateTimeWindow,
   validateTimeZoneInput,
@@ -95,6 +96,25 @@ describe('wizard validation', () => {
 
   it('splits several schedules and ignores empty parts', () => {
     assert.deepEqual(splitSchedule(' 0 9 * * * ; ; 0 18 * * 5 '), ['0 9 * * *', '0 18 * * 5']);
+  });
+
+  it('confirms a valid schedule instead of saying nothing', () => {
+    const feedback = describeScheduleInput('0 9 * * *', {
+      timeZone: 'UTC',
+      now: new Date('2026-08-18T08:00:00.000Z'),
+      format: (date) => date.toISOString(),
+    });
+
+    assert.equal(feedback.kind, 'preview');
+    assert.match(feedback.message, /At 09:00/i);
+    assert.match(feedback.message, /\(UTC\)/);
+    assert.equal(feedback.kind === 'preview' ? feedback.runs.length : 0, 3);
+    assert.match(feedback.message, /2026-08-18T09:00:00\.000Z/);
+  });
+
+  it('reports a broken expression as an error, not as a preview', () => {
+    const feedback = describeScheduleInput('every so often', { timeZone: 'UTC' });
+    assert.equal(feedback.kind, 'error');
   });
 
   it('validates a time window as a pair', () => {

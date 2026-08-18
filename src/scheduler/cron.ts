@@ -58,6 +58,44 @@ export function nextRunAt(
   return new Date(Math.min(...candidates));
 }
 
+/**
+ * The next `count` times any of the expressions fires, in order.
+ *
+ * "Every 30 minutes" tells somebody the rate; three timestamps tell them whether the time zone is
+ * the one they had in mind, which is the mistake a schedule preview is there to catch. Several
+ * expressions are merged and duplicates dropped — two expressions that both fire at nine on Monday
+ * are one run, and showing it twice would suggest otherwise.
+ */
+export function nextRuns(
+  expressions: readonly string[],
+  count: number,
+  from: Date,
+  timeZone?: string,
+): Date[] {
+  if (count <= 0) {
+    return [];
+  }
+  const times = new Set<number>();
+  for (const expression of expressions) {
+    try {
+      const interval = CronExpressionParser.parse(expression.trim(), {
+        tz: timeZone,
+        currentDate: from,
+      });
+      for (let taken = 0; taken < count; taken += 1) {
+        times.add(interval.next().toDate().getTime());
+      }
+    } catch {
+      // A single unparseable expression must not hide the preview of the ones that do parse.
+      continue;
+    }
+  }
+  return [...times]
+    .sort((left, right) => left - right)
+    .slice(0, count)
+    .map((time) => new Date(time));
+}
+
 /** Human-readable description of a schedule, for the tree and the wizard. */
 export function describeCron(expressions: readonly string[]): string {
   const described = expressions.map((expression) => {

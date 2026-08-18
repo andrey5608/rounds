@@ -18,7 +18,7 @@ import {
   validateMaxResults,
   validatePromptText,
   validateRepo,
-  validateScheduleInput,
+  describeScheduleInput,
   validateTimeWindow,
   validateTimeZoneInput,
 } from './steps.js';
@@ -527,7 +527,15 @@ async function askSchedule(container: ServiceContainer, draft: AgentDraft): Prom
       value: draft.schedule.join('; '),
       prompt: 'A cron expression, or several separated by a semicolon. For example: 0 9 * * *',
       ignoreFocusOut: true,
-      validateInput: (input) => validateScheduleInput(input, draft.timezone),
+      // The box carries both halves: the error while the expression is wrong, and once it is
+      // right, what it means and when it fires next. A schedule confirmed only by firing hours
+      // later is a schedule nobody can check.
+      validateInput: (input) => {
+        const feedback = describeScheduleInput(input, { timeZone: draft.timezone });
+        return feedback.kind === 'error'
+          ? { message: feedback.message, severity: vscode.InputBoxValidationSeverity.Error }
+          : { message: feedback.message, severity: vscode.InputBoxValidationSeverity.Info };
+      },
     }),
   );
   if (cancelled(schedule)) {

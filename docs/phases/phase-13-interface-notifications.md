@@ -72,7 +72,7 @@ turning them up are both real requests and a boolean answers only one of them.
   itself lives in `src/state/settings.ts` rather than next to the policy: it is configuration,
   and `state` is the layer `ui` reads from, never the other way round.
 
-### 13.4 Live schedule preview in the wizard
+### 13.4 Live schedule preview in the wizard ✅
 - `validateScheduleInput` only reports errors, so a valid cron expression produces no
   feedback at all until the agent runs.
 - Return `vscode.InputBoxValidationMessage` with `severity: Information` for a valid
@@ -82,6 +82,12 @@ turning them up are both real requests and a boolean answers only one of them.
 - Add `nextRuns(expressions, count, from, timeZone)` to `src/scheduler/cron.ts`, next to
   `nextRunAt`. Pure, so it is a unit test; it also has to merge several expressions and
   drop duplicates, which is exactly the part worth pinning.
+- Done. The decision is `describeScheduleInput` in `steps.ts`, which returns either an error or
+  a preview; the wizard maps that onto `InputBoxValidationSeverity`, so the rule stays testable
+  without the extension host. The enum member is `Info`, not `Information`.
+- This also closed the daylight-saving test that [../leftovers.md](../leftovers.md) had been
+  carrying: `nextRuns` needs it, so a 09:00 Berlin schedule is now pinned across the October
+  transition — the wall clock holds at 09:00 and the instant behind it moves by an hour.
 
 ### 13.5 The tooltip stops hiding the schedule
 - Replace the single `- Next run:` line in `src/ui/agentsView.ts` with the next three,

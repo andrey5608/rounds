@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { validatePrompt } from '../../agents/placeholders.js';
-import { validateCron } from '../../scheduler/cron.js';
+import { describeCron, nextRuns, validateCron } from '../../scheduler/cron.js';
 import { parseTimeOfDay } from '../../scheduler/schedule.js';
 import type { Agent, PersistedState } from '../../state/types.js';
 
@@ -65,17 +65,53 @@ export function validatePromptText(value: string): string | undefined {
 }
 
 export function validateScheduleInput(value: string, timeZone?: string): string | undefined {
+  const outcome = describeScheduleInput(value, { timeZone });
+  return outcome.kind === 'error' ? outcome.message : undefined;
+}
+
+/** How many upcoming runs a schedule preview shows. Three is enough to see a pattern. */
+export const SCHEDULE_PREVIEW_COUNT = 3;
+
+export type ScheduleFeedback =
+  | { kind: 'error'; message: string }
+  | { kind: 'preview'; message: string; runs: Date[] };
+
+export interface ScheduleFeedbackOptions {
+  timeZone?: string;
+  now?: Date;
+  /** Injected so the preview reads the way the user's editor formats dates, and so tests can pin it. */
+  format?: (date: Date) => string;
+}
+
+/**
+ * What to tell somebody about the schedule they are typing.
+ *
+ * An invalid expression already produced a message; a valid one produced nothing at all, so the
+ * only confirmation that a schedule meant what it looked like came hours later when it fired. The
+ * preview says it in words and then in three timestamps, which is what catches a time zone
+ * somebody did not expect.
+ */
+export function describeScheduleInput(
+  value: string,
+  options: ScheduleFeedbackOptions = {},
+): ScheduleFeedback {
   const expressions = splitSchedule(value);
   if (expressions.length === 0) {
-    return 'Enter a schedule, for example 0 9 * * * for every day at 09:00.';
+    return { kind: 'error', message: 'Enter a schedule, for example 0 9 * * * for every day at 09:00.' };
   }
   for (const expression of expressions) {
-    const result = validateCron(expression, timeZone);
+    const result = validateCron(expression, options.timeZone);
     if (!result.valid) {
-      return result.error;
+      return { kind: 'error', message: result.error ?? `"${expression}" is not a cron expression.` };
     }
   }
-  return undefined;
+
+  const from = options.now ?? new Date();
+  const runs = nextRuns(expressions, SCHEDULE_PREVIEW_COUNT, from, options.timeZone);
+  const format = options.format ?? ((date: Date) => date.toLocaleString());
+  const zone = options.timeZone ? ` (${options.timeZone})` : '';
+  const upcoming = runs.length > 0 ? ` Next${zone}: ${runs.map(format).join(', ')}.` : '';
+  return { kind: 'preview', message: `${describeCron(expressions)}.${upcoming}`, runs };
 }
 
 /** Several expressions may be entered at once, separated by a semicolon. */
