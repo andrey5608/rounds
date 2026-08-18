@@ -39,7 +39,7 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
 - Done. The README also says what is *not* reachable — chat modes, slash commands, participants —
   next to what is, because that is the sentence somebody needs before they go looking for it.
 
-### 21.2 A second source for the registry
+### 21.2 A second source for the registry ✅
 - `src/tools/externalTools.ts`, free of `vscode`: turns a tool's reported information into the
   same `ToolDefinition` shape the registry already holds, given an `invoke` port. Pure, so the
   mapping, the truncation and the denials are unit tests.
@@ -50,6 +50,10 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
 - A reported tool whose name collides with `readFile`, `listFiles` or `runScript` does not
   replace ours. Ours are the ones with a permission check written against this extension's
   promises, and silently swapping them is how a whitelist stops meaning anything.
+- Done. The adapter produces an ordinary `RoundsTool`, so the registry's denials, audit record and
+  result handling apply unchanged — which is the reason this is an adapter and not a second
+  execution path. The result reader has the same structural fallback as the model gateway: a text
+  part from another copy of the API types is text in every way that matters.
 
 ### 21.3 Only what the agent enabled, and only what a run can answer for
 - The model sees exactly the tools the request declares, and the agent's stored `tools` list
