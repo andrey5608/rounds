@@ -89,17 +89,25 @@ turning them up are both real requests and a boolean answers only one of them.
   carrying: `nextRuns` needs it, so a 09:00 Berlin schedule is now pinned across the October
   transition — the wall clock holds at 09:00 and the instant behind it moves by an hour.
 
-### 13.5 The tooltip stops hiding the schedule
+### 13.5 The tooltip stops hiding the schedule ✅
 - Replace the single `- Next run:` line in `src/ui/agentsView.ts` with the next three,
   reusing `nextRuns` from 13.4. "Every 30 minutes" tells you the rate; three timestamps
   tell you whether the timezone is what you thought it was.
+- Done, through `effectiveTimeZone` so the preview uses the same zone the scheduler will.
 
-### 13.6 Run rows say what the run cost
+### 13.6 Run rows say what the run cost ✅
 - `RunRecord` already carries `startedAt`, `finishedAt` and `sourceItemCount`, so nothing
   is added to the state: the row description becomes `12 items · 8.4 s — <summary>`, and
   a failed row leads with its error code.
-- Duration formatting is a pure helper next to `describeRelative`, unit-tested with the
-  boundaries that matter (sub-second, minutes, a run that never finished).
+- Duration formatting is a pure helper next to `describeRelative`, tested at the boundaries
+  that matter (sub-second, minutes, a run that never finished).
+- Done as `describeDuration` and `describeRun`. Both are pure but live in `agentsView.ts`,
+  which imports `vscode`, so their tests are integration tests next to `describeAgent` —
+  the unit-test guard would otherwise refuse the file, and moving two formatters into their
+  own module to dodge that is a worse trade than the test living one directory over.
+- A run with no `finishedAt` reports no duration at all rather than `0 s`: that record belongs
+  to a window that went away mid-run, and inventing a number for it would be a lie repeated on
+  every repaint.
 
 ### 13.7 The status bar leads somewhere useful
 - The item currently runs `rounds.showOutput`. The output channel is the right target

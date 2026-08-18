@@ -4,7 +4,9 @@ import * as vscode from 'vscode';
 import {
   AgentsTreeDataProvider,
   describeAgent,
+  describeDuration,
   describeRelative,
+  describeRun,
   presentAgent,
 } from '../../ui/agentsView.js';
 import type { AgentsViewData } from '../../ui/agentsView.js';
@@ -125,6 +127,50 @@ describe('agents view', () => {
     assert.equal(describeRelative(new Date('2026-08-17T09:00:00.000Z'), NOW), 'in 3 h');
     assert.equal(describeRelative(new Date('2026-08-19T06:00:00.000Z'), NOW), 'in 2 d');
     assert.equal(describeRelative(new Date('2026-08-17T05:00:00.000Z'), NOW), 'overdue');
+  });
+
+  it('shows three upcoming runs in the tooltip, not one', () => {
+    // One timestamp tells you when. Three tell you whether the time zone is the one you meant,
+    // which is the mistake that otherwise surfaces a day later.
+    const scheduled = agent({
+      schedule: {
+        cronExpressions: ['0 9 * * *'],
+        runOnStartup: false,
+        missedRunPolicy: 'skip',
+        timezone: 'UTC',
+      },
+    });
+    const presentation = presentAgent(scheduled, data({ agents: [scheduled] }), NOW);
+
+    assert.match(presentation.tooltip.value, /Next runs:/);
+    assert.equal(presentation.tooltip.value.match(/2026/g)?.length, 3);
+  });
+
+  it('says what a run cost, not only how it ended', () => {
+    assert.equal(
+      describeRun(run({ sourceItemCount: 12, finishedAt: '2026-08-17T05:00:08.400Z' })),
+      '12 items · 8.4 s — Two issues need attention.',
+    );
+    assert.equal(
+      describeRun(run({ sourceItemCount: 1, finishedAt: '2026-08-17T05:00:00.250Z' })),
+      '1 item · 250 ms — Two issues need attention.',
+    );
+  });
+
+  it('leads a failed run with the code somebody searches the log for', () => {
+    const failed = run({
+      status: 'failed',
+      sourceItemCount: 0,
+      finishedAt: '2026-08-17T05:01:30.000Z',
+      summary: 'the host refused the token',
+      error: { code: 'connector.auth', message: 'the host refused the token' },
+    });
+    assert.equal(describeRun(failed), '1 min 30 s — connector.auth: the host refused the token');
+  });
+
+  it('says nothing about the duration of a run that never reported back', () => {
+    assert.equal(describeDuration(run({ finishedAt: undefined })), undefined);
+    assert.match(describeRun(run({ finishedAt: undefined, sourceItemCount: 3 })), /^3 items — /);
   });
 
   it('uses context values the menus can key on', () => {
