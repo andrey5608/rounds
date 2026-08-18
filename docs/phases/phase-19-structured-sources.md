@@ -92,10 +92,10 @@ and nothing knows which project it reads.
 
 ## Exit criteria
 
-- [ ] An agent stores its project and its repository separately, and an installation written by
+- [x] An agent stores its project and its repository separately, and an installation written by
       schema version 1 migrates without losing an agent.
-- [ ] The fields are labelled with the provider's own word, decided by the connection.
-- [ ] Projects and repositories can be picked from the host, and a host that refuses to list them
+- [x] The fields are labelled with the provider's own word, decided by the connection.
+- [x] Projects and repositories can be picked from the host, and a host that refuses to list them
       leaves typing available with the reason shown.
-- [ ] Nothing calls a listing endpoint during a scheduled run.
-- [ ] Changing either half of the source clears the cursor.
+- [x] Nothing calls a listing endpoint during a scheduled run.
+- [x] Changing either half of the source clears the cursor.

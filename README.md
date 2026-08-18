@@ -33,7 +33,7 @@ and report back.
 | --- | --- |
 | agent | a configured recurring task |
 | run | one execution of an agent |
-| source | issue tracker or repository host configuration |
+| source | issue tracker or repository host configuration: a connection, and a project plus a repository — owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket |
 | tool | a function the model may call during a run |
 
 ## Requirements
