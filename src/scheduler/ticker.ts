@@ -33,8 +33,13 @@ export interface TickerDependencies {
   sleep?: (ms: number, isCancelled: () => boolean) => Promise<void>;
   /** Called when a run was blocked by the daily limit and the user has not been told today. */
   onCapReached?: (message: string) => void;
-  /** Called when an agent's schedule fires more often than the warning threshold. */
-  onFrequencyWarning?: (agent: Agent, intervalMinutes: number) => void;
+  /**
+   * Called with every agent whose schedule fires more often than the warning threshold.
+   *
+   * All of them at once, not one call each: this is evaluated for every agent when a window
+   * takes over, and four fast agents used to mean four separate warnings saying the same thing.
+   */
+  onFrequencyWarning?: (entries: { agent: Agent; intervalMinutes: number }[]) => void;
   /** Called when a scheduled run failed. Deduplicated by the caller. */
   onRunFailed?: (agent: Agent, record: RunRecord) => void;
   /** Called after every run so the view can refresh. */
@@ -179,13 +184,17 @@ export class Ticker {
     const state = await this.dependencies.store.read();
     const now = this.clock.now();
     const records: RunRecord[] = [];
+    const tooFrequent: { agent: Agent; intervalMinutes: number }[] = [];
 
     for (const agent of state.agents) {
       if (!agent.enabled || !settings.enabled) {
         continue;
       }
 
-      this.warnAboutFrequency(agent, now, settings);
+      const interval = this.frequencyWarningFor(agent, now, settings);
+      if (interval !== undefined) {
+        tooFrequent.push({ agent, intervalMinutes: interval });
+      }
 
       const missed = decideMissedRun(agent, now, settings.timezone);
       if (missed.nextRunAt) {
@@ -205,6 +214,10 @@ export class Ticker {
       if (record) {
         records.push(record);
       }
+    }
+
+    if (tooFrequent.length > 0) {
+      this.dependencies.onFrequencyWarning?.(tooFrequent);
     }
     return records;
   }
@@ -301,18 +314,29 @@ export class Ticker {
     });
   }
 
-  private warnAboutFrequency(agent: Agent, now: Date, settings: RoundsSettings): void {
+  /**
+   * The interval to warn about, or `undefined` when this schedule is not frequent enough to.
+   *
+   * Reporting is the caller's job: every agent is checked in one pass, and the whole set is
+   * handed over at once so it can become one message instead of one per agent.
+   */
+  private frequencyWarningFor(
+    agent: Agent,
+    now: Date,
+    settings: RoundsSettings,
+  ): number | undefined {
     const interval = minIntervalMinutes(
       agent.schedule.cronExpressions,
       now,
       effectiveTimeZone(agent, settings.timezone),
     );
-    if (interval !== undefined && interval < settings.minimumIntervalWarning) {
-      this.dependencies.logger.warn(
-        `Agent "${agent.name}" runs every ${interval} minute(s), more often than the ${settings.minimumIntervalWarning} minute warning threshold.`,
-      );
-      this.dependencies.onFrequencyWarning?.(agent, interval);
+    if (interval === undefined || interval >= settings.minimumIntervalWarning) {
+      return undefined;
     }
+    this.dependencies.logger.warn(
+      `Agent "${agent.name}" runs every ${interval} minute(s), more often than the ${settings.minimumIntervalWarning} minute warning threshold.`,
+    );
+    return interval;
   }
 
   /** Moves an agent's schedule on without running it. */

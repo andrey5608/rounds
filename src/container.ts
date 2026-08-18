@@ -17,6 +17,7 @@ import type { RoundsSettings } from './state/settings.js';
 import type { RoundsStore } from './state/store.js';
 import type { ToolRegistry } from './tools/index.js';
 import type { AgentsTreeDataProvider } from './ui/agentsView.js';
+import type { Notifier } from './ui/notifications.js';
 import type { RoundsStatusBar } from './ui/statusBar.js';
 
 /**
@@ -49,6 +50,8 @@ export interface ServiceContainer {
   readonly ticker: Ticker;
   readonly agentsView: AgentsTreeDataProvider;
   readonly statusBar: RoundsStatusBar;
+  /** The one place that decides whether something is worth interrupting the user for. */
+  readonly notifier: Notifier;
   /** Where the always-on extended log is written. Shown to the user when something goes wrong. */
   readonly logPath: string;
   /** Agents this window is currently running, so the tree can show it. */

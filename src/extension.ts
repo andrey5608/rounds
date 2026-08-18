@@ -33,6 +33,8 @@ import { registerAgentsView } from './ui/agentsView.js';
 import { registerRunDetails } from './ui/runDetails.js';
 import { refreshView } from './ui/viewState.js';
 import { registerCommands } from './ui/commands.js';
+import { Notifier } from './ui/notifications.js';
+import { createNotifierCommands, createVscodeMessageHost } from './ui/vscodeMessageHost.js';
 import { RoundsStatusBar } from './ui/statusBar.js';
 
 let container: ServiceContainer | undefined;
@@ -152,9 +154,18 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     },
   });
 
-  // Failures are reported once per agent per day: an agent that fails every half hour would
-  // otherwise turn the editor into a notification stream nobody reads.
-  const failureNotified = new Map<string, string>();
+  // Every notification the extension raises goes through here. Which ones are worth an
+  // interruption, and how often the same one may repeat, is decided in one place rather than at
+  // each call site.
+  const notifier = new Notifier({
+    host: createVscodeMessageHost(),
+    commands: createNotifierCommands(() => output.show()),
+    logger,
+    // Phase 13.3 replaces this with the `rounds.notifications` setting; until then the policy is
+    // exactly what it was before: quiet on success, one message per failing agent per day.
+    mode: () => 'failures',
+    timeZone: () => settings.timezone,
+  });
 
   const ticker = new Ticker({
     store,
@@ -166,39 +177,9 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
         void refreshView(container);
       }
     },
-    onRunFailed: (agent, record) => {
-      const today = new Date().toISOString().slice(0, 10);
-      if (failureNotified.get(agent.id) === today) {
-        return;
-      }
-      failureNotified.set(agent.id, today);
-      void vscode.window
-        .showErrorMessage(`${agent.name}: ${record.summary}`, 'Show Output', 'Show Run History')
-        .then((choice) => {
-          if (choice === 'Show Output') {
-            output.show();
-          } else if (choice === 'Show Run History') {
-            void vscode.commands.executeCommand('rounds.showHistory', agent);
-          }
-        });
-    },
-    onCapReached: (message) => {
-      void vscode.window
-        .showWarningMessage(message, 'Open Settings')
-        .then((choice) => {
-          if (choice === 'Open Settings') {
-            void vscode.commands.executeCommand(
-              'workbench.action.openSettings',
-              'rounds.maxExecutionsPerDay',
-            );
-          }
-        });
-    },
-    onFrequencyWarning: (agent, interval) => {
-      void vscode.window.showWarningMessage(
-        `The agent "${agent.name}" runs every ${interval} minute(s). Frequent automated requests can get your model provider account rate limited.`,
-      );
-    },
+    onRunFailed: (agent, record) => notifier.runFailed(agent, record.summary),
+    onCapReached: (message) => notifier.capReached(message),
+    onFrequencyWarning: (entries) => notifier.frequencyWarning(entries),
   });
 
   container = {
@@ -221,6 +202,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     models,
     agentsView,
     statusBar,
+    notifier,
     runningAgents: new Set<string>(),
     logPath: fileLog.path,
     settings: () => settings,

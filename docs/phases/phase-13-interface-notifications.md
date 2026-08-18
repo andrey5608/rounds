@@ -13,7 +13,7 @@ inline in `src/extension.ts`.
 
 ## Steps
 
-### 13.1 One owner for notifications (`src/ui/notifications.ts`)
+### 13.1 One owner for notifications (`src/ui/notifications.ts`) ✅
 - Today the policy lives in three lambdas passed to the `Ticker` in `src/extension.ts`:
   failures dedupe through a `Map` held in that closure, the cap warning dedupes through
   `counters.capNotifiedAt`, and the frequency warning does not dedupe at all.
@@ -25,6 +25,12 @@ inline in `src/extension.ts`.
   The `vscode` implementation is a five-line adapter, like `vscodeFileFinder` in phase 7.
 - Dedup state stays in memory except where it already lives in the state file: the daily
   cap keeps `counters.capNotifiedAt`, because "once per day" has to survive a reload.
+- Done: `Notifier` owns the rules, `src/ui/vscodeMessageHost.ts` is the adapter, and the
+  container carries the notifier so later steps route through it. Coalescing changed the
+  `Ticker` callback shape — `onFrequencyWarning` now receives the whole set at the end of
+  `catchUp()` rather than one call per agent, which is what made one message possible.
+  The mode is fixed at `failures` until step 13.3 introduces the setting, so this step
+  changes behaviour in exactly one way: repeated warnings stop repeating.
 
 ### 13.2 The policy itself, written down
 | Event | Notified | Dedup key | Actions |

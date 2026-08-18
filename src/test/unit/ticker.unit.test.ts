@@ -97,8 +97,11 @@ async function harness(options: {
     // Jitter is measured, not waited out.
     sleep: () => Promise.resolve(),
     onCapReached: (message) => capMessages.push(message),
-    onFrequencyWarning: (candidate, interval) =>
-      frequencyWarnings.push({ agent: candidate.name, interval }),
+    onFrequencyWarning: (entries) => {
+      for (const entry of entries) {
+        frequencyWarnings.push({ agent: entry.agent.name, interval: entry.intervalMinutes });
+      }
+    },
   });
 
   return {
