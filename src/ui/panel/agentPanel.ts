@@ -16,8 +16,8 @@ import type { AgentDraft } from '../wizard/steps.js';
 
 import { renderAgentForm } from './agentFormContent.js';
 import type { AgentFormViewModel } from './agentFormContent.js';
-import { draftFromMessage, emptyDraft, validateDraft } from './agentFormModel.js';
-import type { FieldErrors, FormContext } from './agentFormModel.js';
+import { draftFromMessage, emptyDraft, panelUpdateKind, validateDraft } from './agentFormModel.js';
+import type { FieldErrors, FormContext, FormState } from './agentFormModel.js';
 import { renderDocument } from './agentPanelContent.js';
 import { pickPromptFile } from './promptFilePicker.js';
 
@@ -120,17 +120,22 @@ export class AgentPanel {
 
   private async handle(message: PanelMessage): Promise<void> {
     switch (message.type) {
+      case 'touched':
+        // Sent on the first keystroke, before the debounced draft arrives, so a store change from
+        // another window cannot repaint over what is being typed in that window.
+        this.dirty = true;
+        return;
       case 'change':
+      case 'reshape': {
         this.draft = draftFromMessage(message.draft);
         this.dirty = true;
-        await this.render();
+        // `change` deliberately does not repaint: rebuilding the document replaces the element
+        // being typed into, and the field then loses focus after one character. `reshape` does,
+        // because a select changed which fields exist. `panelUpdateKind` owns that distinction so
+        // a test can hold it.
+        await (panelUpdateKind(message.type) === 'repaint' ? this.render() : this.postState());
         return;
-      case 'reshape':
-        // A select changed which fields exist, so the form is redrawn from the draft it sent.
-        this.draft = draftFromMessage(message.draft);
-        this.dirty = true;
-        await this.render();
-        return;
+      }
       case 'save':
         this.draft = draftFromMessage(message.draft);
         await this.save();
@@ -164,6 +169,26 @@ export class AgentPanel {
           `The agent panel sent an unknown message: ${String(message.type)}`,
         );
     }
+  }
+
+  /** Sends the rules' verdict on the current draft, for the form to draw where it stands. */
+  private async postState(): Promise<void> {
+    const draft = this.draft;
+    if (!draft) {
+      return;
+    }
+    const context = await this.buildContext();
+    this.errors = validateDraft(draft, context);
+    const feedback = describeScheduleInput((draft.schedule ?? []).join('; '), {
+      timeZone: draft.timezone,
+    });
+
+    const state: FormState = {
+      errors: this.errors,
+      schedulePreview: feedback.kind === 'preview' ? feedback.message : undefined,
+      canSave: this.dirty,
+    };
+    await this.panel.webview.postMessage({ type: 'state', state });
   }
 
   /** Runs an action that needs a saved agent, and says so when there is not one yet. */

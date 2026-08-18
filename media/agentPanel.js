@@ -56,6 +56,7 @@
   }
 
   let timer;
+  let announced = false;
   function scheduleValidation() {
     // The extension holds the rules, so this waits for a pause in typing rather than sending a
     // message per keystroke.
@@ -67,7 +68,70 @@
 
   document.addEventListener('input', (event) => {
     if (event.target && event.target.closest('#agent-form')) {
+      if (!announced) {
+        // Says "somebody is typing" straight away, so a repaint from elsewhere cannot land in the
+        // gap before the debounced draft arrives.
+        announced = true;
+        vscode.postMessage({ type: 'touched' });
+      }
       scheduleValidation();
+    }
+  });
+
+  /**
+   * Draws where the form stands, without rebuilding it.
+   *
+   * Rebuilding is what replaces the element being typed into, and a field that loses focus after
+   * one character is worse than no validation at all. So the errors are applied in place.
+   */
+  function applyState(state) {
+    const errors = (state && state.errors) || {};
+
+    for (const wrapper of document.querySelectorAll('.field[data-error-key]')) {
+      const key = wrapper.getAttribute('data-error-key');
+      const message = errors[key];
+      const control = wrapper.querySelector('input, select, textarea');
+      let paragraph = wrapper.querySelector('p.error');
+
+      wrapper.classList.toggle('invalid', Boolean(message));
+      if (message) {
+        if (!paragraph) {
+          paragraph = document.createElement('p');
+          paragraph.className = 'error';
+          paragraph.id = key + '-error';
+          paragraph.setAttribute('role', 'alert');
+          wrapper.appendChild(paragraph);
+        }
+        paragraph.textContent = message;
+        if (control) {
+          control.setAttribute('aria-invalid', 'true');
+          control.setAttribute('aria-describedby', key + '-error');
+        }
+      } else {
+        if (paragraph) {
+          paragraph.remove();
+        }
+        if (control) {
+          control.removeAttribute('aria-invalid');
+          control.removeAttribute('aria-describedby');
+        }
+      }
+    }
+
+    const preview = document.getElementById('schedule-preview');
+    if (preview) {
+      preview.textContent = state && state.schedulePreview ? state.schedulePreview : '';
+    }
+    const save = document.getElementById('save');
+    if (save) {
+      save.disabled = !(state && state.canSave);
+    }
+  }
+
+  window.addEventListener('message', (event) => {
+    const message = event.data;
+    if (message && message.type === 'state') {
+      applyState(message.state);
     }
   });
 

@@ -3,7 +3,12 @@ import * as assert from 'node:assert/strict';
 import type { Agent } from '../../state/types.js';
 import { renderAgentForm } from '../../ui/panel/agentFormContent.js';
 import type { AgentFormViewModel } from '../../ui/panel/agentFormContent.js';
-import { draftFromMessage, emptyDraft, validateDraft } from '../../ui/panel/agentFormModel.js';
+import {
+  draftFromMessage,
+  emptyDraft,
+  panelUpdateKind,
+  validateDraft,
+} from '../../ui/panel/agentFormModel.js';
 import type { FormContext } from '../../ui/panel/agentFormModel.js';
 import { escapeHtml, renderDocument } from '../../ui/panel/agentPanelContent.js';
 import { agentToDraft } from '../../ui/wizard/steps.js';
@@ -156,6 +161,38 @@ describe('the agent form', () => {
   it('shows the schedule preview beside the expression', () => {
     const html = renderAgentForm(model({ schedulePreview: 'At 09:00. Next: tomorrow.' }));
     assert.match(html, /At 09:00\. Next: tomorrow\./);
+  });
+
+  it('gives every field and the preview a fixed place, so an update needs no repaint', () => {
+    const html = renderAgentForm(model({ errors: { name: 'A name is required.' } }));
+
+    // The script finds a field by the error it carries; without this it would have to rebuild
+    // the form to show one, which is what cost the focus.
+    assert.match(html, /data-error-key="name"/);
+    assert.match(html, /data-error-key="schedule"/);
+    assert.match(html, /<p class="preview" id="schedule-preview">/);
+  });
+});
+
+describe('what a message from the form does to the document', () => {
+  it('never repaints on a keystroke', () => {
+    // The bug this pins: every keystroke rebuilt the whole document, which replaces the element
+    // being typed into, so the field lost focus after one character and the rest went nowhere.
+    assert.equal(panelUpdateKind('change'), 'patch');
+    assert.equal(panelUpdateKind('touched'), 'patch');
+  });
+
+  it('repaints only when which fields exist has changed', () => {
+    assert.equal(panelUpdateKind('reshape'), 'repaint');
+    assert.equal(panelUpdateKind('pickPromptFile'), 'repaint');
+  });
+
+  it('treats the buttons as actions and anything else as unknown', () => {
+    for (const type of ['save', 'run', 'openFolder', 'delete', 'open']) {
+      assert.equal(panelUpdateKind(type), 'action', type);
+    }
+    assert.equal(panelUpdateKind('nonsense'), 'unknown');
+    assert.equal(panelUpdateKind(undefined), 'unknown');
   });
 });
 

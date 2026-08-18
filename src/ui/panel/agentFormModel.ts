@@ -190,6 +190,40 @@ function splitSchedule(value: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+/**
+ * What a message from the form does to the document.
+ *
+ * `patch` exists because of a bug worth remembering: every keystroke used to rebuild the whole
+ * document, which replaces the element being typed into, so the field lost focus after one
+ * character. Only a change that alters *which fields exist* may repaint; everything else sends
+ * the errors back to be applied in place.
+ */
+export function panelUpdateKind(type: string | undefined): 'patch' | 'repaint' | 'action' | 'unknown' {
+  switch (type) {
+    case 'change':
+    case 'touched':
+      return 'patch';
+    case 'reshape':
+    case 'pickPromptFile':
+      return 'repaint';
+    case 'save':
+    case 'run':
+    case 'openFolder':
+    case 'delete':
+    case 'open':
+      return 'action';
+    default:
+      return 'unknown';
+  }
+}
+
+/** What the form needs back after a keystroke: the errors, the preview, and whether Save may fire. */
+export interface FormState {
+  errors: FieldErrors;
+  schedulePreview?: string;
+  canSave: boolean;
+}
+
 /** The label the project field carries, which is the host's own word for it. */
 export function projectLabel(provider: GitProvider): string {
   return sourceVocabulary(provider).project;

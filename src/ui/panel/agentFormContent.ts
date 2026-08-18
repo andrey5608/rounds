@@ -37,7 +37,7 @@ function field(options: {
   errorKey?: keyof FieldErrors;
 }): string {
   const key = options.errorKey ?? (options.id as keyof FieldErrors);
-  return `<div class="field${options.errors[key] ? ' invalid' : ''}">
+  return `<div class="field${options.errors[key] ? ' invalid' : ''}" data-error-key="${key}">
     <label for="${options.id}">${escapeHtml(options.label)}</label>
     ${options.control}
     ${options.hint ? `<p class="hint">${escapeHtml(options.hint)}</p>` : ''}
@@ -318,7 +318,7 @@ function scheduleSection(model: AgentFormViewModel): string {
         errors,
       }),
     })}
-    ${model.schedulePreview ? `<p class="preview">${escapeHtml(model.schedulePreview)}</p>` : ''}
+    <p class="preview" id="schedule-preview">${escapeHtml(model.schedulePreview ?? '')}</p>
   </section>`;
 }
 
