@@ -171,6 +171,16 @@ export function createRunScriptTool(): RoundsTool<RunScriptInput> {
       if (context.workspaceFolders.length === 0) {
         return { allowed: false, reason: 'no workspace is open, so there is nowhere to run a command' };
       }
+      // Opening a repository must not be enough to make it run commands. Workspace trust is the
+      // editor's mechanism for exactly this, and the denial names both ways out because
+      // "not permitted" without a next step is where support requests come from.
+      if (context.workspaceTrusted === false) {
+        return {
+          allowed: false,
+          reason:
+            'this workspace is not trusted, so no command may run. Trust it (Workspaces: Manage Workspace Trust) or take runScript off this agent',
+        };
+      }
       if (context.scriptWhitelist.length === 0) {
         return {
           allowed: false,

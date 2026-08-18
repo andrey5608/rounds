@@ -156,6 +156,7 @@ export class AgentPanel {
       models: data.state.setup.models ?? [],
       endpoints: data.state.endpoints,
       storedSecrets: data.storedSecrets,
+      workspaceTrusted: data.workspaceTrusted,
     });
     const endpoint = data.state.endpoints[agent.source.baseUrlRef];
     const promptText =

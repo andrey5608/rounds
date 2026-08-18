@@ -19,6 +19,7 @@ from Jira or a Git host, run a prompt through a language model, and store the re
 - **DO** reply to the user in his prompt language in chat — that is conversation, not repository
   content.
 - **DON'T** leave any non-English text in tracked files.
+- **DON'T** use em dashes, en dashes, or smart quotes.
 
 ## Naming and identifiers
 

@@ -83,6 +83,7 @@ async function harness(): Promise<{ container: ServiceContainer; cleanup: () => 
     store,
     secrets,
     settings: () => SETTING_DEFAULTS,
+    workspaceTrusted: () => true,
     runningAgents: new Set<string>(),
   } as unknown as ServiceContainer;
 

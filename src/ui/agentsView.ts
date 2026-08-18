@@ -27,6 +27,8 @@ export interface AgentsViewData {
   storedSecrets: SecretName[];
   settingsTimeZone?: string;
   minimumIntervalWarning: number;
+  /** Whether the user trusts this workspace. Only a definite `false` blocks anything. */
+  workspaceTrusted?: boolean;
   /** Agents currently running in this window, so the tree can show it. */
   running: Set<string>;
 }
@@ -147,6 +149,7 @@ export function presentAgent(
     models: data.state.setup.models ?? [],
     endpoints: data.state.endpoints,
     storedSecrets: data.storedSecrets,
+    workspaceTrusted: data.workspaceTrusted,
   });
   const lastRun = data.state.history[agent.id]?.[0];
   const interval = minIntervalMinutes(

@@ -83,6 +83,16 @@ describe('contribution guards', () => {
     }
   });
 
+  it('declares limited support for an untrusted workspace', () => {
+    // Without this the editor assumes the extension is safe everywhere and activates it in full,
+    // while runScript stands ready to execute commands from whatever was cloned.
+    const extension = vscode.extensions.getExtension('rounds.rounds');
+    const capabilities = extension?.packageJSON?.capabilities?.untrustedWorkspaces;
+
+    assert.equal(capabilities?.supported, 'limited');
+    assert.deepEqual(capabilities?.restrictedConfigurations, ['rounds.scriptWhitelist']);
+  });
+
   it('reads every contributed setting with a default value', () => {
     const configuration = vscode.workspace.getConfiguration();
     assert.equal(configuration.get('rounds.enabled'), true);

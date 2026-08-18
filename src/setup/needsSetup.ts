@@ -11,7 +11,8 @@ export type SetupProblem =
   | 'unknownModel'
   | 'missingEndpoint'
   | 'missingToken'
-  | 'outputFolderUnwritable';
+  | 'outputFolderUnwritable'
+  | 'untrustedWorkspace';
 
 export interface AgentReadiness {
   ready: boolean;
@@ -26,6 +27,8 @@ const PROBLEM_TEXT: Record<SetupProblem, string> = {
   missingEndpoint: 'the source connection it references is not configured',
   missingToken: 'no token is stored for its source',
   outputFolderUnwritable: 'its result folder cannot be written to',
+  untrustedWorkspace:
+    'it may run commands and this workspace is not trusted, so runScript would refuse every one',
 };
 
 export interface ReadinessInput {
@@ -35,6 +38,8 @@ export interface ReadinessInput {
   endpoints: Record<string, EndpointConfig>;
   storedSecrets: SecretName[];
   outputFolderWritable?: boolean;
+  /** Absent means trusted; only a definite `false` is a problem. */
+  workspaceTrusted?: boolean;
 }
 
 /**
@@ -65,6 +70,10 @@ export function evaluateReadiness(input: ReadinessInput): AgentReadiness {
   }
   if (input.outputFolderWritable === false) {
     problems.push('outputFolderUnwritable');
+  }
+  // Better said now, while somebody is looking at the view, than at 09:00 in a log nobody reads.
+  if (input.workspaceTrusted === false && input.agent.tools.includes('runScript')) {
+    problems.push('untrustedWorkspace');
   }
 
   if (problems.length === 0) {

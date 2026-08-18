@@ -164,6 +164,22 @@ describe('setup checks', () => {
     assert.equal(byId(results, 'scriptWhitelist').status, 'pass');
   });
 
+  it('says a configured whitelist is inert while the workspace is untrusted', async () => {
+    // The list of checks stays at six: the check that owns this subject reports the state,
+    // rather than the specification growing a seventh entry for it.
+    const results = await runSetupChecks(
+      context({
+        settings: { ...SETTING_DEFAULTS, scriptWhitelist: [{ command: 'npm', args: ['test'] }] },
+        workspaceTrusted: false,
+      }),
+    );
+
+    const outcome = byId(results, 'scriptWhitelist');
+    assert.equal(outcome.status, 'warn');
+    assert.match(outcome.message, /not trusted/);
+    assert.equal(results.length, 6);
+  });
+
   it('warns when jitter is switched off', async () => {
     const results = await runSetupChecks(
       context({ settings: { ...SETTING_DEFAULTS, jitterSeconds: 0 } }),

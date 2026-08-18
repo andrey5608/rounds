@@ -37,6 +37,15 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Agents keep reading their sources and writing results, but the runScript tool refuses to execute anything until the workspace is trusted.",
+      "restrictedConfigurations": [
+        "rounds.scriptWhitelist"
+      ]
+    }
+  },
   "contributes": {
     "commands": [
       {

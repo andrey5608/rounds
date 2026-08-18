@@ -52,6 +52,8 @@ export interface ServiceContainer {
   readonly statusBar: RoundsStatusBar;
   /** The one place that decides whether something is worth interrupting the user for. */
   readonly notifier: Notifier;
+  /** Whether the user trusts this workspace. Read on demand: trust can be granted while it is open. */
+  readonly workspaceTrusted: () => boolean;
   /** Where the always-on extended log is written. Shown to the user when something goes wrong. */
   readonly logPath: string;
   /** Agents this window is currently running, so the tree can show it. */

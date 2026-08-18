@@ -34,6 +34,7 @@ export async function buildCheckContext(container: ServiceContainer): Promise<Se
     hasConsent: state.setup.consentGrantedAt !== undefined,
     models: state.setup.models ?? [],
     hasSecret: (name) => container.secrets.has(name),
+    workspaceTrusted: container.workspaceTrusted(),
     // Live reachability, so the check reports what a run would actually hit.
     pingEndpoint: (endpoint) => factory.ping(endpoint),
     probeOutputFolder: () =>

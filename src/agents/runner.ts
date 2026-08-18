@@ -93,6 +93,8 @@ export interface RunnerDependencies {
   settings: () => RoundsSettings;
   globalStorage: string;
   workspaceFolders: string[];
+  /** Whether the user trusts this workspace. Injected so the runner stays free of `vscode`. */
+  workspaceTrusted?: () => boolean;
   workspaceName?: string;
   findFiles?: FileFinder;
   runProcess?: ProcessRunner;
@@ -193,6 +195,7 @@ export class AgentRunner {
       models: state.setup.models ?? [],
       endpoints: state.endpoints,
       storedSecrets: await this.dependencies.secretNames(),
+      workspaceTrusted: this.dependencies.workspaceTrusted?.() ?? true,
     });
     if (!readiness.ready) {
       return readiness.reason;
@@ -407,6 +410,7 @@ export class AgentRunner {
     return {
       workspaceFolders: this.dependencies.workspaceFolders,
       scriptWhitelist: settings.scriptWhitelist,
+      workspaceTrusted: this.dependencies.workspaceTrusted?.() ?? true,
       logger: this.dependencies.logger,
       runId,
       findFiles: this.dependencies.findFiles,

@@ -27,6 +27,7 @@ export async function buildViewData(container: ServiceContainer): Promise<Agents
     storedSecrets,
     settingsTimeZone: settings.timezone,
     minimumIntervalWarning: settings.minimumIntervalWarning,
+    workspaceTrusted: container.workspaceTrusted(),
     running: container.runningAgents,
   };
 }
@@ -54,6 +55,7 @@ export function statusFor(data: AgentsViewData, settingsEnabled: boolean): Statu
         models: data.state.setup.models ?? [],
         endpoints: data.state.endpoints,
         storedSecrets: data.storedSecrets,
+        workspaceTrusted: data.workspaceTrusted,
       }).ready,
   );
   if (needsSetup) {

@@ -151,3 +151,22 @@ describe('readFile tool', () => {
     assert.equal(outcome.record.name, 'readFile');
   });
 });
+
+describe('reading in an untrusted workspace', () => {
+  it('is still allowed: the editor itself shows these files', () => {
+    // The line phase 15 draws is between reading and executing. Refusing to read would stop an
+    // agent doing the job it was asked for without stopping anything dangerous.
+    const tool = createReadFileTool();
+    const result = tool.checkPermission(
+      { path: 'notes.md' },
+      {
+        workspaceFolders: ['/workspace'],
+        scriptWhitelist: [],
+        logger: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
+        runId: 'run-1',
+        workspaceTrusted: false,
+      },
+    );
+    assert.equal(result.allowed, true);
+  });
+});

@@ -140,6 +140,8 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     settings: () => settings,
     globalStorage: extensionContext.globalStorageUri.fsPath,
     workspaceFolders: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+    // Read per run rather than captured: trust can be granted while the window is open.
+    workspaceTrusted: () => vscode.workspace.isTrusted,
     workspaceName: vscode.workspace.workspaceFolders?.[0]?.name,
     findFiles: createVscodeFileFinder(),
     logger,
@@ -201,6 +203,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     agentsView,
     statusBar,
     notifier,
+    workspaceTrusted: () => vscode.workspace.isTrusted,
     runningAgents: new Set<string>(),
     logPath: fileLog.path,
     settings: () => settings,

@@ -100,6 +100,23 @@ describe('agent readiness', () => {
     assert.deepEqual(readiness.problems, ['outputFolderUnwritable']);
   });
 
+  it('marks an agent that would run commands in an untrusted workspace', () => {
+    // Said now, while somebody is looking at the view, rather than at 09:00 in a log nobody reads.
+    const readiness = evaluateReadiness(
+      input({ agent: agent({ tools: ['runScript'] }), workspaceTrusted: false }),
+    );
+
+    assert.deepEqual(readiness.problems, ['untrustedWorkspace']);
+    assert.match(readiness.reason ?? '', /not trusted/);
+  });
+
+  it('leaves an agent without runScript alone in an untrusted workspace', () => {
+    const readiness = evaluateReadiness(
+      input({ agent: agent({ tools: ['readFile'] }), workspaceTrusted: false }),
+    );
+    assert.equal(readiness.ready, true);
+  });
+
   it('lists several problems in one readable sentence', () => {
     const readiness = evaluateReadiness(
       input({ hasConsent: false, endpoints: {}, storedSecrets: [] }),

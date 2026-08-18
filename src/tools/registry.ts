@@ -27,6 +27,14 @@ export interface ToolContext {
   /** Absolute paths of the workspace folders. Nothing outside them may be touched. */
   workspaceFolders: string[];
   scriptWhitelist: ScriptWhitelistEntry[];
+  /**
+   * Whether the user has trusted this workspace.
+   *
+   * Passed in rather than read from the editor, like `workspaceFolders`: this layer stays free of
+   * `vscode` imports so its rules can be unit-tested. Absent means trusted, which keeps every
+   * existing caller and test honest — the one caller that matters sets it explicitly.
+   */
+  workspaceTrusted?: boolean;
   logger: StoreLogger;
   runId: string;
   findFiles?: FileFinder;

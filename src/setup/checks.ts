@@ -31,6 +31,8 @@ export interface SetupCheckContext {
   probeOutputFolder: () => Promise<{ ok: boolean; path: string; message: string }>;
   /** Smallest gap between two runs of a schedule, in minutes. Supplied by the scheduler. */
   minIntervalMinutes?: (expressions: string[]) => number | undefined;
+  /** Whether the user trusts this workspace. Absent means trusted. */
+  workspaceTrusted?: boolean;
 }
 
 export interface SetupCheck {
@@ -164,6 +166,15 @@ const scriptWhitelistCheck: SetupCheck = {
         check,
         'warn',
         'The whitelist is empty, so the runScript tool refuses every command. Add the commands you want agents to be able to run.',
+      );
+    }
+    // A configured whitelist that cannot be used is worth saying out loud. This check owns the
+    // subject, so it reports the state rather than the setup check list growing a seventh entry.
+    if (context.workspaceTrusted === false) {
+      return outcome(
+        check,
+        'warn',
+        `${entries.length} command(s) are allowed, but this workspace is not trusted, so runScript refuses all of them. Trust the workspace to use it.`,
       );
     }
     return outcome(
