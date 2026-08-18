@@ -116,10 +116,34 @@ function identitySection(model: AgentFormViewModel): string {
   </section>`;
 }
 
+/** What an agent may read from, with "nothing" first because it is the simplest thing to be. */
+const SOURCE_KINDS = [
+  { value: 'none', label: 'Nothing — just the prompt' },
+  { value: 'jira', label: 'An issue tracker' },
+  { value: 'git', label: 'A repository host' },
+];
+
 function sourceSection(model: AgentFormViewModel): string {
   const { draft, errors, context } = model;
   const vocabulary = sourceVocabulary(context.provider);
   const connections = context.connections.filter((endpoint) => endpoint.kind === draft.sourceKind);
+
+  if (draft.sourceKind === 'none') {
+    return `<section>
+      <h2>Source</h2>
+      <div class="field">
+        <label for="sourceKind">Reads from</label>
+        ${select({
+          id: 'sourceKind',
+          value: draft.sourceKind,
+          entries: SOURCE_KINDS,
+          errors,
+        })}
+        <p class="hint">This agent fetches nothing. Its prompt runs as written, with whatever its
+        tools find. {{items}}, {{issueKey}}, {{summary}} and {{diff}} are not available.</p>
+      </div>
+    </section>`;
+  }
 
   const perKind =
     draft.sourceKind === 'jira'
@@ -185,15 +209,7 @@ function sourceSection(model: AgentFormViewModel): string {
     <h2>Source</h2>
     <div class="field">
       <label for="sourceKind">Reads from</label>
-      ${select({
-        id: 'sourceKind',
-        value: draft.sourceKind,
-        entries: [
-          { value: 'jira', label: 'An issue tracker' },
-          { value: 'git', label: 'A repository host' },
-        ],
-        errors,
-      })}
+      ${select({ id: 'sourceKind', value: draft.sourceKind, entries: SOURCE_KINDS, errors })}
     </div>
     ${field({
       id: 'endpointName',
@@ -241,7 +257,9 @@ function promptSection(model: AgentFormViewModel): string {
             id: 'promptText',
             label: 'Prompt',
             errorKey: 'prompt',
-            hint: `Placeholders: ${['items', 'issueKey', 'summary', 'diff', 'date', 'datetime', 'workspace']
+            hint: `Placeholders: ${(draft.sourceKind === 'none'
+              ? ['date', 'datetime', 'workspace']
+              : ['items', 'issueKey', 'summary', 'diff', 'date', 'datetime', 'workspace'])
               .map((name) => `{{${name}}}`)
               .join(', ')}`,
             errors,
@@ -444,11 +462,13 @@ export function renderAgentForm(model: AgentFormViewModel): string {
   const editing = model.context.editing;
   const title = editing ? escapeHtml(editing.name) : 'New agent';
   let summary = '';
-  if (editing) {
+  if (editing?.source) {
     summary =
       editing.source.kind === 'git'
         ? formatRepository(editing.source.project, editing.source.repo)
         : editing.source.jql;
+  } else if (editing) {
+    summary = 'prompt only';
   }
 
   return `<h1>${title}</h1>

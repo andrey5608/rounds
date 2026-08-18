@@ -184,3 +184,38 @@ describe('truncation helpers', () => {
     assert.deepEqual(truncateList([1, 2, 3], 2), { items: [1, 2], truncated: true });
   });
 });
+
+
+describe('a prompt with no source to describe', () => {
+  it('refuses the placeholders that describe fetched items', () => {
+    // Rendering them empty would be worse than refusing: the model writes confidently about
+    // nothing, and nobody reads the prompt again afterwards.
+    assert.throws(
+      () => validatePrompt('Summarize {{items}}', { hasSource: false }),
+      /no source/,
+    );
+    assert.throws(
+      () => validatePrompt('Look at {{issueKey}}', { hasSource: false }),
+      /\{\{issueKey\}\}/,
+    );
+  });
+
+  it('names what is still available', () => {
+    assert.throws(
+      () => validatePrompt('Summarize {{items}}', { hasSource: false }),
+      /\{\{date\}\}, \{\{datetime\}\}, \{\{workspace\}\}/,
+    );
+  });
+
+  it('accepts the placeholders that need nothing fetched', () => {
+    const scan = validatePrompt('On {{date}} in {{workspace}}, report what changed.', {
+      hasSource: false,
+    });
+    assert.deepEqual(scan.used.sort(), ['date', 'workspace']);
+  });
+
+  it('leaves an agent that has a source alone', () => {
+    assert.doesNotThrow(() => validatePrompt('Summarize {{items}}', { hasSource: true }));
+    assert.doesNotThrow(() => validatePrompt('Summarize {{items}}'));
+  });
+});

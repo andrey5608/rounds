@@ -88,6 +88,17 @@ describe('setup checks', () => {
     assert.equal(byId(results, 'git').status, 'warn');
   });
 
+  it('reports nothing missing when the only agent has no source', async () => {
+    // An agent that visits nothing is not waiting for a connection, so a setup with none of them
+    // has nothing wrong with it.
+    const results = await runSetupChecks(
+      context({ agents: [agent({ source: undefined })], endpoints: {} }),
+    );
+
+    assert.notEqual(byId(results, 'jira').status, 'fail');
+    assert.notEqual(byId(results, 'git').status, 'fail');
+  });
+
   it('fails when an agent uses a source that has no base URL', async () => {
     const results = await runSetupChecks(context({ agents: [agent()] }));
     const jira = byId(results, 'jira');

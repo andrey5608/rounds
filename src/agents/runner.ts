@@ -25,7 +25,7 @@ import type { RoundsSettings } from '../state/settings.js';
 import type { RoundsStore } from '../state/store.js';
 import { systemClock } from '../state/time.js';
 import type { Clock } from '../state/time.js';
-import type { Agent, RunRecord, RunTrigger } from '../state/types.js';
+import type { Agent, AgentSource, RunRecord, RunTrigger } from '../state/types.js';
 import { createRunRegistry } from '../tools/index.js';
 import type {
   FileFinder,
@@ -79,7 +79,8 @@ interface SourceData extends FetchResult {
 }
 
 export interface ConnectorProvider {
-  forSource(source: Agent['source']): Promise<{
+  /** Only ever called for an agent that has a source; the runner checks before it asks. */
+  forSource(source: AgentSource): Promise<{
     tracker?: IssueTrackerConnector;
     repositoryHost?: RepositoryHostConnector;
   }>;
@@ -234,17 +235,24 @@ export class AgentRunner {
 
     const resolution = await this.resolvePrompt(agent, settings);
     record.promptResolution = resolution.record;
-    const scan = validatePrompt(resolution.text);
+    const scan = validatePrompt(resolution.text, { hasSource: agent.source !== undefined });
 
     const source = await this.fetchSource(agent, {
       needsComments: resolution.text.includes('{{items}}') || scan.perItem,
       needsDiff: scan.used.includes('diff'),
     });
     record.sourceItemCount = source.items.length;
-    logger.info(`Fetched ${source.items.length} item(s) from the ${agent.source.kind} source.`);
+    if (agent.source) {
+      logger.info(`Fetched ${source.items.length} item(s) from the ${agent.source.kind} source.`);
+    } else {
+      logger.info('This agent has no source; the prompt runs as written.');
+    }
 
     const prompts = this.renderPrompts(resolution.text, source, scan.perItem, timeZone);
-    if (prompts.length === 0) {
+    // An agent with no source always has exactly one prompt, so an empty list can only mean a
+    // source that returned nothing. Saying "the source returned nothing" about an agent that has
+    // none would be a lie about why nothing happened.
+    if (prompts.length === 0 && agent.source) {
       return this.finish(record, {
         status: 'skipped',
         summary: 'The source returned nothing to work on.',
@@ -378,17 +386,24 @@ export class AgentRunner {
     agent: Agent,
     needs: { needsComments: boolean; needsDiff: boolean },
   ): Promise<SourceData> {
-    const connectors = await this.dependencies.connectors.forSource(agent.source);
     const diffs = new Map<string, string>();
+    const source = agent.source;
+    if (!source) {
+      // Nothing to fetch, and nothing asked for: no connector is built, so this run works in an
+      // installation with no connections configured at all.
+      return { items: [], truncated: false, diffs };
+    }
 
-    if (agent.source.kind === 'jira') {
+    const connectors = await this.dependencies.connectors.forSource(source);
+
+    if (source.kind === 'jira') {
       const tracker = connectors.tracker;
       if (!tracker) {
         throw new Error('The issue tracker connection could not be created.');
       }
       const result = await tracker.search({
-        jql: agent.source.jql,
-        maxResults: agent.source.maxResults,
+        jql: source.jql,
+        maxResults: source.maxResults,
         includeComments: needs.needsComments,
         includeLinks: needs.needsComments,
       });
@@ -400,14 +415,14 @@ export class AgentRunner {
       throw new Error('The repository host connection could not be created.');
     }
     const result = await host.listPullRequests({
-      project: agent.source.project,
-      repo: agent.source.repo,
-      mode: agent.source.mode,
-      cursor: agent.source.sinceCursor,
+      project: source.project,
+      repo: source.repo,
+      mode: source.mode,
+      cursor: source.sinceCursor,
     });
     if (needs.needsDiff) {
       for (const item of result.items.slice(0, MAX_ITEM_PROMPTS)) {
-        const diff = await host.getDiff(agent.source.project, agent.source.repo, item.id);
+        const diff = await host.getDiff(source.project, source.repo, item.id);
         diffs.set(item.id, diff.text);
       }
     }
@@ -522,7 +537,7 @@ export class AgentRunner {
         }
         agent.lastRunAt = finished.finishedAt;
         // The cursor only moves on success: a failed run must see the same items again.
-        if (outcome.status === 'succeeded' && outcome.cursor && agent.source.kind === 'git') {
+        if (outcome.status === 'succeeded' && outcome.cursor && agent.source?.kind === 'git') {
           agent.source.sinceCursor = outcome.cursor;
         }
       });

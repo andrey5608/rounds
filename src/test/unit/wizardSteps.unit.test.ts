@@ -168,7 +168,7 @@ describe('draft conversion', () => {
     assert.equal(built.name, 'Evening triage');
     assert.equal(built.enabled, true);
     assert.equal(built.executionMode, 'chat');
-    assert.equal(built.source.kind, 'git');
+    assert.equal(built.source?.kind, 'git');
     assert.equal(built.createdAt, NOW.toISOString());
     assert.ok(built.id.length > 0);
   });
@@ -198,7 +198,7 @@ describe('draft conversion', () => {
     });
     const built = draftToAgent(agentToDraft(existing), NOW, existing);
     assert.equal(
-      built.source.kind === 'git' ? built.source.sinceCursor : undefined,
+      built.source?.kind === 'git' ? built.source.sinceCursor : undefined,
       '2026-08-16T00:00:00.000Z',
     );
   });
@@ -217,7 +217,7 @@ describe('draft conversion', () => {
 
     const built = draftToAgent({ ...agentToDraft(existing), repo: 'other' }, NOW, existing);
     // Keeping it would skip everything the new repository changed before now.
-    assert.equal(built.source.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
+    assert.equal(built.source?.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
   });
 
   it('drops the cursor when only the project changed', () => {
@@ -235,7 +235,7 @@ describe('draft conversion', () => {
     });
 
     const built = draftToAgent({ ...agentToDraft(existing), project: 'other' }, NOW, existing);
-    assert.equal(built.source.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
+    assert.equal(built.source?.kind === 'git' ? built.source.sinceCursor : 'kept', undefined);
   });
 
   it('keeps the prompt snapshot only while the file is the same', () => {
@@ -303,7 +303,36 @@ describe('duplicating an agent', () => {
       },
     });
     const copy = duplicateAgent(original, [original], NOW);
-    assert.equal(copy.source.kind === 'git' ? copy.source.sinceCursor : 'kept', undefined);
+    assert.equal(copy.source?.kind === 'git' ? copy.source.sinceCursor : 'kept', undefined);
+  });
+});
+
+describe('an agent that reads nothing', () => {
+  it('is built from a draft that says so', () => {
+    const built = draftToAgent(
+      {
+        ...agentToDraft(agent()),
+        sourceKind: 'none',
+        promptText: 'Report what changed in {{workspace}}.',
+      },
+      NOW,
+    );
+
+    assert.equal(built.source, undefined);
+  });
+
+  it('round-trips through a draft without inventing one', () => {
+    const promptOnly = agent({ source: undefined });
+    const draft = agentToDraft(promptOnly);
+
+    assert.equal(draft.sourceKind, 'none');
+    assert.equal(draft.endpointName, '');
+    assert.equal(draftToAgent(draft, NOW, promptOnly).source, undefined);
+  });
+
+  it('is copied without a source rather than with an empty one', () => {
+    const copy = duplicateAgent(agent({ source: undefined }), [], NOW);
+    assert.equal(copy.source, undefined);
   });
 });
 

@@ -184,6 +184,36 @@ describe('the agent form', () => {
     assert.match(html, /id="tool:research"[^>]*checked/);
   });
 
+  it('offers an agent that reads nothing, and hides the fields that would mean nothing', () => {
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: undefined }),
+        draft: { ...agentToDraft(agent()), sourceKind: 'none' },
+      }),
+    );
+
+    assert.match(html, /Nothing — just the prompt/);
+    assert.match(html, /fetches nothing/);
+    // Hidden rather than disabled: a hidden field cannot be half-filled.
+    assert.ok(!html.includes('id="endpointName"'));
+    assert.ok(!html.includes('id="jql"'));
+    assert.ok(!html.includes('id="repo"'));
+  });
+
+  it('lists only the placeholders such an agent can use', () => {
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: undefined }),
+        draft: { ...agentToDraft(agent()), sourceKind: 'none', promptSource: 'inline' },
+      }),
+    );
+
+    // The prompt hint offers only what works here; the source section names the rest to say
+    // plainly that they are not available, which is a different job.
+    assert.match(html, /Placeholders: \{\{date\}\}, \{\{datetime\}\}, \{\{workspace\}\}/);
+    assert.match(html, /\{\{issueKey\}\}[^<]*are not available/);
+  });
+
   it('says what to do when there is no model to choose', () => {
     const html = renderAgentForm(model({ context: context({ models: [] }) }));
     assert.match(html, /Run Check Setup/);

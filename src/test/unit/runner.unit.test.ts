@@ -338,6 +338,49 @@ describe('agent runner', () => {
     assert.match(content, /## ROUNDS-2 Leader lock heartbeat/);
   });
 
+  it('runs an agent that has no source at all', async () => {
+    // The point of the phase: a prompt on a schedule, in an installation that may have no
+    // connection configured anywhere.
+    const promptOnly = agent({
+      source: undefined,
+      prompt: { source: 'inline', inlineText: 'Report what changed in {{workspace}}.' },
+    });
+    const { runner, gateway, store } = await harness({ agent: promptOnly });
+
+    const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
+
+    assert.equal(record.status, 'succeeded');
+    assert.equal(record.sourceItemCount, 0);
+    assert.equal(gateway.requests.length, 1, 'one rendering, as written');
+    assert.equal((await store.reload()).counters.global, 1);
+  });
+
+  it('does not call the connector for an agent with no source', async () => {
+    const promptOnly = agent({
+      source: undefined,
+      prompt: { source: 'inline', inlineText: 'Report what changed.' },
+    });
+    const { runner } = await harness({
+      agent: promptOnly,
+      fetch: () => Promise.reject(new Error('a run with no source must not fetch')),
+    });
+
+    const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
+    assert.equal(record.status, 'succeeded');
+  });
+
+  it('does not call an empty result a skip when there was nothing to fetch', async () => {
+    // "The source returned nothing to work on" would be a lie about why nothing happened.
+    const promptOnly = agent({
+      source: undefined,
+      prompt: { source: 'inline', inlineText: 'Report what changed.' },
+    });
+    const { runner } = await harness({ agent: promptOnly });
+
+    const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
+    assert.notEqual(record.status, 'skipped');
+  });
+
   it('fails a run whose tool no extension provides any more', async () => {
     // The rule the specification already applies to a model that is gone: fail and name it. A
     // tool quietly dropped from the request changes what the agent does without saying so.
@@ -402,7 +445,7 @@ describe('agent runner', () => {
     await runner.run({ agent: gitAgent, trigger: 'manual' });
     const stored = (await store.reload()).agents[0];
     assert.equal(
-      stored?.source.kind === 'git' ? stored.source.sinceCursor : undefined,
+      stored?.source?.kind === 'git' ? stored.source.sinceCursor : undefined,
       '2026-08-17T08:00:00.000Z',
     );
   });
@@ -418,7 +461,7 @@ describe('agent runner', () => {
     const record = await runner.run({ agent: gitAgent, trigger: 'schedule' });
     assert.equal(record.status, 'failed');
     const stored = (await store.reload()).agents[0];
-    assert.equal(stored?.source.kind === 'git' ? stored.source.sinceCursor : 'unset', undefined);
+    assert.equal(stored?.source?.kind === 'git' ? stored.source.sinceCursor : 'unset', undefined);
   });
 
   it('records the tool calls a run made', async () => {

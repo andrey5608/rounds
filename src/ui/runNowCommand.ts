@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
-import { formatRepository } from '../agents/sourceLabels.js';
 import type { ServiceContainer } from '../container.js';
 import type { Agent, RunRecord } from '../state/types.js';
 
+import { describeAgentSource } from './agentsView.js';
 import { refreshView } from './viewState.js';
 
 /** Asks which agent to run when the command was invoked without one. */
@@ -30,10 +30,7 @@ export async function pickAgent(
     state.agents.map((agent) => ({
       label: agent.name,
       description: agent.enabled ? undefined : 'disabled',
-      detail:
-        agent.source.kind === 'jira'
-          ? agent.source.jql
-          : formatRepository(agent.source.project, agent.source.repo),
+      detail: describeAgentSource(agent),
       agent,
     })),
     { title, ignoreFocusOut: true },

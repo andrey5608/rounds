@@ -102,7 +102,7 @@ export async function editConnectionCommand(
     if (updated.name !== existing.name) {
       delete draft.endpoints[existing.name];
       for (const agent of draft.agents) {
-        if (agent.source.baseUrlRef === existing.name) {
+        if (agent.source?.baseUrlRef === existing.name) {
           agent.source.baseUrlRef = updated.name;
         }
       }
@@ -141,7 +141,8 @@ export async function deleteConnectionCommand(
     return;
   }
   const state = await container.store.read();
-  const used = state.agents.filter((agent) => agent.source.baseUrlRef === endpoint.name);
+  // An agent with no source references nothing, so it must not block a delete on its behalf.
+  const used = state.agents.filter((agent) => agent.source?.baseUrlRef === endpoint.name);
   if (used.length > 0) {
     await container.notifier.requested(
       'warning',

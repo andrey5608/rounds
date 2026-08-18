@@ -373,7 +373,7 @@ export class AgentPanel {
     const agent = data.state.agents.find((candidate) => candidate.id === this.agentId);
     const connections = Object.values(data.state.endpoints);
     const draftTools = this.draft?.tools ?? agent?.tools ?? [];
-    const reference = this.draft?.endpointName ?? agent?.source.baseUrlRef;
+    const reference = this.draft?.endpointName ?? agent?.source?.baseUrlRef;
     const chosen = connections.find((endpoint) => endpoint.name === reference);
 
     return {

@@ -73,7 +73,9 @@ function sourceCheck(kind: SourceKind): SetupCheck {
       const endpoints = Object.values(context.endpoints).filter(
         (endpoint) => endpoint.kind === kind,
       );
-      const used = context.agents.some((agent) => agent.source.kind === kind);
+      // Only agents that read from this kind of source. An agent with none is not waiting for a
+      // connection, so it must not turn a missing one into a failure.
+      const used = context.agents.some((agent) => agent.source?.kind === kind);
 
       if (endpoints.length === 0) {
         return used

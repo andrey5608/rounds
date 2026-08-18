@@ -62,6 +62,17 @@ export function describeRelative(target: Date, now: Date): string {
   return `in ${Math.round(hours / 24)} d`;
 }
 
+/** What an agent reads, in one line, including when it reads nothing. */
+export function describeAgentSource(agent: Agent): string {
+  const source = agent.source;
+  if (!source) {
+    return 'prompt only';
+  }
+  return source.kind === 'jira'
+    ? `query \`${source.jql}\``
+    : `${formatRepository(source.project, source.repo)} (${source.mode === 'newPullRequests' ? 'new' : 'updated'} pull requests)`;
+}
+
 /**
  * How long a run took, in the units somebody reads at a glance.
  *
@@ -164,7 +175,7 @@ export function presentAgent(
   tooltip.appendMarkdown(`**${agent.name}**\n\n`);
   tooltip.appendMarkdown(`- Schedule: ${describeCron(agent.schedule.cronExpressions)}\n`);
   tooltip.appendMarkdown(
-    `- Source: ${agent.source.kind === 'jira' ? `query \`${agent.source.jql}\`` : `${formatRepository(agent.source.project, agent.source.repo)} (${agent.source.mode === 'newPullRequests' ? 'new' : 'updated'} pull requests)`}\n`,
+    `- Source: ${describeAgentSource(agent)}\n`,
   );
   tooltip.appendMarkdown(`- Mode: ${agent.executionMode === 'api' ? 'result captured' : 'handed to chat'}\n`);
   tooltip.appendMarkdown(`- Model: ${agent.modelId}\n`);

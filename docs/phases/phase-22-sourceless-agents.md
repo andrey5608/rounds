@@ -24,7 +24,7 @@ can lean on the tools the workspace itself provides.
 - The README's agent table says the same, next to the row that currently describes a source as
   configuration every agent carries.
 
-### 22.2 `source` becomes optional, not a third kind of source
+### 22.2 `source` becomes optional, not a third kind of source ✅
 - `Agent.source?: AgentSource` rather than a `{ kind: 'none' }` member of the union.
 - The reason is what the compiler does with each. This code base reads a source through
   ternaries — `agent.source.kind === 'jira' ? … : …` — in the tree, the run picker, the form and
@@ -38,8 +38,11 @@ can lean on the tools the workspace itself provides.
   damaged and the agent returns when the build is current again, which is what the quarantine
   design is for — but it is a downgrade, not a crash, and this is where it is written down.
 - `validateSource` keeps its rules and simply is not called when the field is absent.
+- Done, and the compiler did the work promised above: it named fourteen call sites across the
+  runner, the tree, the run picker, the form, the chat tool, readiness, Check Setup and the
+  connection commands. Each was a decision rather than a mechanical fix.
 
-### 22.3 The run with nothing to fetch
+### 22.3 The run with nothing to fetch ✅
 - `runner.ts` skips the fetch, the connector factory and the cursor entirely. It never asks for
   a connection, so a prompt-only agent works in an installation with no connections at all —
   which is the point of the phase.
@@ -50,8 +53,10 @@ can lean on the tools the workspace itself provides.
   with no items there is one prompt, rendered as written.
 - The result file's front matter says the source is a prompt rather than omitting the field:
   a reader who finds no source line cannot tell whether the agent had none or the writer forgot.
+- Done. `fetchSource` returns an empty result before any connector is built, so a run works in an
+  installation with no connections at all — which is the point of the phase.
 
-### 22.4 The placeholders that stop making sense
+### 22.4 The placeholders that stop making sense ✅
 - `{{items}}`, `{{issueKey}}`, `{{summary}}` and `{{diff}}` have nothing to render without a
   source. `{{date}}`, `{{datetime}}` and `{{workspace}}` still do.
 - `validatePrompt` gains the knowledge of whether a source exists, and rejects the first group by
@@ -59,9 +64,10 @@ can lean on the tools the workspace itself provides.
   than refusing it: an agent that silently prompts about nothing produces confident text about
   nothing, and nobody reads the prompt again afterwards.
 - The form's hint under the prompt lists only the placeholders that apply, so the rule is visible
-  before it is enforced.
+  before it is enforced. The source section names the other four to say plainly that they are not
+  available here, which is a different job from offering them.
 
-### 22.5 Readiness, Check Setup and the connections that no longer count
+### 22.5 Readiness, Check Setup and the connections that no longer count ✅
 - `evaluateReadiness` asks for a connection and a token only when there is a source. Without one,
   an agent is ready when consent is on record and its model exists — and the workspace-trust rule
   from phase 15 still applies to `runScript`.
@@ -70,7 +76,7 @@ can lean on the tools the workspace itself provides.
 - Deleting a connection counts referencing agents the same way, or it will refuse a delete on
   behalf of an agent that never used it.
 
-### 22.6 The form and the rest of the interface
+### 22.6 The form and the rest of the interface ✅
 - The source select gains "Nothing — just the prompt" as its first option, and choosing it hides
   the connection, project, repository and query fields rather than disabling them. A hidden field
   cannot be half-filled; a disabled one looks like something to argue with.
@@ -79,8 +85,11 @@ can lean on the tools the workspace itself provides.
 - `rounds_query` reports `source: { kind: "none" }` rather than omitting the key. A model reading
   an absent field cannot tell "no source" from "not included in this view", and the whole point
   of that tool is answers that are true.
+- Done. An empty form also starts as a prompt-only agent when no connection is configured: with
+  nothing to point at, that is the only agent somebody could create, and offering a dead source
+  section instead would be a form arguing with itself.
 
-### 22.7 Tests
+### 22.7 Tests ✅
 - Unit: an agent with no source validates, survives a store round trip and renders one prompt;
   the item placeholders are rejected with a message naming what remains; readiness ignores
   connections and tokens; Check Setup passes with no connection configured; the run records zero
@@ -90,11 +99,11 @@ can lean on the tools the workspace itself provides.
 
 ## Exit criteria
 
-- [ ] An agent can be created, saved and run with no connection configured anywhere in the
+- [x] An agent can be created, saved and run with no connection configured anywhere in the
       installation.
-- [ ] Its run fetches nothing, calls no connector, records zero items and is not a skip.
-- [ ] A prompt using `{{items}}` or `{{issueKey}}` is refused with a message naming the
+- [x] Its run fetches nothing, calls no connector, records zero items and is not a skip.
+- [x] A prompt using `{{items}}` or `{{issueKey}}` is refused with a message naming the
       placeholders that still work.
-- [ ] Check Setup reports no failure for an installation whose only agent has no source.
-- [ ] Deleting a connection is not refused on behalf of an agent that never referenced it.
-- [ ] `plan.md` and the README say a source is optional and what an agent without one does.
+- [x] Check Setup reports no failure for an installation whose only agent has no source.
+- [x] Deleting a connection is not refused on behalf of an agent that never referenced it.
+- [x] `plan.md` and the README say a source is optional and what an agent without one does.
