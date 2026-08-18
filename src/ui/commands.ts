@@ -9,6 +9,7 @@ import {
   duplicateAgentCommand,
   editAgentCommand,
   openResultFolderCommand,
+  showAgentCommand,
   showHistoryCommand,
   toggleAgentCommand,
 } from './agentCommands.js';
@@ -30,6 +31,7 @@ export const COMMAND_IDS = [
   'rounds.runNow',
   'rounds.openResultFolder',
   'rounds.showHistory',
+  'rounds.showAgent',
   'rounds.checkSetup',
   'rounds.refreshView',
   'rounds.showOutput',
@@ -81,6 +83,9 @@ function implemented(
       void runAndReport(container, 'rounds.openResultFolder', () =>
         openResultFolderCommand(container, argument),
       );
+    },
+    'rounds.showAgent': (argument) => {
+      void runAndReport(container, 'rounds.showAgent', () => showAgentCommand(container, argument));
     },
     'rounds.showHistory': (argument) => {
       void runAndReport(container, 'rounds.showHistory', () =>

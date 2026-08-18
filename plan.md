@@ -41,7 +41,9 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.createAgent`, `rounds.editAgent`, `rounds.duplicateAgent`,
   `rounds.deleteAgent`, `rounds.toggleAgent`, `rounds.runNow`,
   `rounds.openResultFolder`, `rounds.showHistory`, `rounds.checkSetup`,
-  `rounds.refreshView`, `rounds.showOutput`
+  `rounds.refreshView`, `rounds.showOutput`, `rounds.showAgent`
+- `rounds.showAgent` opens one agent on a read-only panel beside the editor. It is an inline
+  action on the agent row rather than the row's click, which keeps expanding the runs.
 
 ### Settings
 - Configuration prefix: `rounds.`

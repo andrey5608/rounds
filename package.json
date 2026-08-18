@@ -1,6 +1,6 @@
 {
   "name": "rounds",
-  "displayName": "Rounds — Scheduled Task Agents",
+  "displayName": "Rounds \u2014 Scheduled Task Agents",
   "publisher": "rounds",
   "version": "1.0.0",
   "description": "Recurring agents that collect data from an issue tracker or a repository host, run a prompt through a language model, and store the result.",
@@ -80,6 +80,12 @@
         "title": "Open Result Folder",
         "category": "Rounds",
         "icon": "$(folder-opened)"
+      },
+      {
+        "command": "rounds.showAgent",
+        "title": "Show Agent",
+        "category": "Rounds",
+        "icon": "$(open-preview)"
       },
       {
         "command": "rounds.showHistory",
@@ -322,6 +328,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "rounds.showAgent",
+          "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",
+          "group": "inline@0"
+        },
         {
           "command": "rounds.runNow",
           "when": "view == rounds.agentsView && viewItem =~ /^rounds\\.agent/",

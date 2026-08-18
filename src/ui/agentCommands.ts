@@ -5,6 +5,7 @@ import { removeAgentHistory } from '../state/history.js';
 import type { Agent } from '../state/types.js';
 import type { ServiceContainer } from '../container.js';
 
+import { AgentPanel } from './panel/agentPanel.js';
 import { pickAgent } from './runNowCommand.js';
 import { runDocumentUri } from './runDetails.js';
 import { refreshView } from './viewState.js';
@@ -42,6 +43,23 @@ export async function createAgentCommand(container: ServiceContainer): Promise<v
   if (choice === 'Run Now') {
     await vscode.commands.executeCommand('rounds.runNow', agent);
   }
+}
+
+/**
+ * The `rounds.showAgent` command: one agent on a read-only panel beside the editor.
+ *
+ * An inline action on the row rather than the row's click, which keeps expanding the runs — the
+ * gesture already means something and a panel that stole it would trade one behaviour for another.
+ */
+export async function showAgentCommand(
+  container: ServiceContainer,
+  argument?: unknown,
+): Promise<void> {
+  const agent = await resolveAgent(container, argument, 'Which agent would you like to see?');
+  if (!agent) {
+    return;
+  }
+  await AgentPanel.show(container, agent);
 }
 
 export async function editAgentCommand(

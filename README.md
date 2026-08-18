@@ -154,6 +154,7 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | Rounds: Enable or Disable Agent | Switches scheduling for one agent |
 | Rounds: Run Now | Runs an agent immediately, in any window |
 | Rounds: Open Result Folder | Reveals the result folder in the file manager |
+| Rounds: Show Agent | Opens one agent on a read-only panel beside the editor: schedule, source, prompt, model, tools and recent runs |
 | Rounds: Show Run History | Lists an agent's runs; select one to open it |
 | Rounds: Check Setup | Runs the six checks and offers to fix what failed |
 | Rounds: Refresh | Re-reads the state and repaints the view |

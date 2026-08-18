@@ -80,7 +80,7 @@ it in the same commit:
   ESLint also learned that `media/**` is a browser context — the alternative was turning
   `no-undef` off for the one file that most needs it.
 
-### 14.6 How the panel opens
+### 14.6 How the panel opens ✅
 **Decided:** a contributed command `rounds.showAgent`, titled `Show Agent`, with an inline
 `$(open-preview)` icon on the agent row in `view/item/context`.
 - The click on an agent keeps expanding its runs. That gesture already means something,
@@ -97,23 +97,31 @@ it in the same commit:
   `when` clause keys on a context value the tree produces — both have to stay green.
 - The command takes an agent argument from the tree and falls back to a QuickPick of agents
   when invoked from the palette, which is how every other item-scoped command here behaves.
+- Done, in `plan.md`, `package.json` (command plus an `inline@0` menu entry), `COMMAND_IDS`
+  and the README.
 
-### 14.7 Tests
+### 14.7 Tests ✅
 - Unit: the content function — the agent name and prompt appear, a chat-mode agent carries
   its limitation sentence, a prompt containing `<script>` comes out escaped, the CSP meta
   tag names a nonce that the script tag actually uses.
 - Integration: opening the panel twice reuses one tab; disposing it releases the store
   subscription; a store change repaints; the Run Now message reaches the existing command.
+- Done: 13 unit tests for the document and 4 integration tests for the panel's lifetime. The
+  message handling is exercised through the panel's own dispatch rather than by simulating a
+  click — a webview cannot be clicked from a test, and asserting that the dispatch reaches the
+  existing command is the part that could actually break.
 
 ## Exit criteria
 
-- [ ] Opening an agent shows schedule, source, prompt, model, tools and the last ten runs in
+- [x] Opening an agent shows schedule, source, prompt, model, tools and the last ten runs in
       one panel beside the editor, and a store change repaints it without reopening.
-- [ ] The panel is read-only: every mutating action goes through an existing `rounds.*` command.
-- [ ] The CSP forbids every remote origin, the only script carries a nonce, and a prompt with
+- [x] The panel is read-only: every mutating action goes through an existing `rounds.*` command.
+- [x] The CSP forbids every remote origin, the only script carries a nonce, and a prompt with
       HTML in it is escaped — proven by a test, not by inspection.
-- [ ] The panel is legible in a light theme, a dark theme and a high-contrast theme.
-- [ ] `vsce package` includes the media file, and `check-package`, `check-network` and
+- [ ] The panel is legible in a light theme, a dark theme and a high-contrast theme. Every colour
+      comes from a `var(--vscode-*)` token, which is what makes this likely; confirming it is a
+      manual check, listed in [../manual-checks.md](../manual-checks.md).
+- [x] `vsce package` includes the media file, and `check-package`, `check-network` and
       `check-language` all cover it.
-- [ ] `plan.md`, `package.json` and the README list `rounds.showAgent`, the icon appears on the
+- [x] `plan.md`, `package.json` and the README list `rounds.showAgent`, the icon appears on the
       agent row, and clicking an agent still expands its runs.
