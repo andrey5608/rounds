@@ -124,7 +124,8 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 - **A daily limit** — `rounds.maxExecutionsPerDay` runs per local day across all agents, 24 by
   default, plus an optional lower limit per agent. You are told once per day when it stops a run.
 - **A frequency warning** — a schedule that fires more often than `rounds.minimumIntervalWarning`
-  minutes needs an explicit confirmation in the wizard and is flagged in the tree and in Check Setup.
+  minutes needs an explicit confirmation before it is saved, and is flagged in the tree and in
+  Check Setup.
 - **Time windows** — an agent can be restricted to a range of hours, overnight ranges included.
 - **Sequential runs** — due agents run one after another, never several at once.
 
@@ -149,8 +150,8 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 
 | Command | What it does |
 | --- | --- |
-| Rounds: Create Agent | Walks through every question and stores a new agent |
-| Rounds: Edit Agent | Opens a field list for an existing agent |
+| Rounds: Create Agent | Opens an empty agent form beside the editor |
+| Rounds: Edit Agent | Opens an existing agent in the same form |
 | Rounds: Duplicate Agent | Copies an agent, disabled, with its own identity |
 | Rounds: Delete Agent | Removes an agent and its history; result files are kept |
 | Rounds: Enable or Disable Agent | Switches scheduling for one agent |

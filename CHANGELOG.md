@@ -8,13 +8,37 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **The agent panel** — one surface beside the editor where an agent is read, created, changed and
+  deleted, with the schedule's next three runs, the source, the prompt and the recent runs on it.
+  The quick-pick wizard is gone: keeping both would have meant two implementations of every
+  validation rule.
+- **A Connections view** — the hosts agents read from can be listed, corrected and removed, and each
+  one now carries its own token instead of sharing one per source kind.
+- **Workspace trust** — `runScript` refuses to execute in an untrusted workspace, and an agent that
+  depends on it says so before it is due rather than failing at 09:00.
+- **`rounds_query`** — a read-only language model tool, so a chat conversation can answer what is
+  scheduled, why a run failed, and when an expression fires next.
+- **`rounds.notifications`** — `failures`, `all` or `silent`. Silent stops the toasts and nothing
+  else.
+- Prompt files already in the workspace are offered when choosing one, and an inline prompt is
+  written in a real editor document.
 - **Bitbucket support**, both the hosted service and self-hosted installations. They share a name and
   almost nothing else — different REST versions, paths, payloads, pagination and timestamp formats —
   so each has its own connector. A repository host connection now records which API it speaks; the
   setup flow asks only when the address does not say, which is the self-hosted case.
 
+### Changed
+
+- An agent stores its project and its repository separately, and the project is labelled the way
+  the chosen host labels it: owner, workspace or project key. Schema version 2 migrates what
+  version 1 wrote.
+- Notifications are one policy with one owner. A schedule shows what it means and its next three
+  runs while it is typed, and a run row says how many items it read and how long it took.
+
 ### Fixed
 
+- Four agents with fast schedules produced four identical warnings on every window start; they are
+  now one message.
 - Timestamps from a repository host are normalised to ISO-8601 UTC before they become a cursor. A
   cursor is compared as a string, so a host reporting epoch milliseconds or a non-`Z` offset could
   otherwise skip items or repeat them.

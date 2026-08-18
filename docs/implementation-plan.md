@@ -49,7 +49,7 @@ Source layout from `plan.md`, mapped to the phase that creates it:
 | `src/tools/` | Tool registry and the v1 tools | 7 |
 | `src/model/` | Language model access, agentic loop, chat handoff | 8 |
 | `src/scheduler/` | Cron evaluation, ticker, jitter, caps, time windows | 9 |
-| `src/ui/` | TreeView, wizard, quick picks, status bar | 10 |
+| `src/ui/` | TreeViews, the agent panel and its form, quick picks, status bar | 10, 14, 18, 20 |
 
 Dependency direction: `ui` → `agents`/`scheduler` → `model`/`connectors`/`tools` →
 `state`. Nothing below `ui` imports from `ui`. `state` imports nothing from the layers
@@ -116,6 +116,10 @@ Phases 18–20 belong together: connections become editable, a source stops bein
 the panel from phase 14 becomes the editor. Taken in that order each one is usable on its own;
 taken out of order, phase 20 would build a form for fields phase 19 has not defined yet.
 
+All of phases 13–20 are complete. Phase 20 removed the quick-pick wizard rather than leaving it
+beside the form, so `src/ui/wizard/` now holds the rules (`steps.ts`) and the prompt-file discovery
+(`promptFiles.ts`) and no flow of its own.
+
 ## Cross-cutting conventions
 
 - **Errors:** every failure path produces a typed error with a stable `code`, a
@@ -167,4 +171,4 @@ taken out of order, phase 20 would build a form for fields phase 19 has not defi
 | A repository that is merely opened reaches a shell through `runScript` | Local code execution from cloned content | Limited untrusted-workspace support, `rounds.scriptWhitelist` restricted, the tool denies rather than fails | 15 |
 | Notifications turn into a stream nobody reads, so the one that matters is missed | Failures go unnoticed | One notifier with dedup keys, coalesced warnings, a setting that silences toasts without silencing the record | 13 |
 | The panel becomes a second place where agents are edited | Two validations, two sets of tests, two behaviours | The panel is read-only; every mutation goes through an existing command | 14 |
-| Chat-side tools become the way around jitter, caps and windows | The safety features stop being safety features | Read-only first; any write shares the wizard's code path and the trust gate | 17 |
+| Chat-side tools become the way around jitter, caps and windows | The safety features stop being safety features | Read-only first; any write shares the form's validation and the trust gate | 17 |
