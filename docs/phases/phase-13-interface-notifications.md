@@ -32,7 +32,7 @@ inline in `src/extension.ts`.
   The mode is fixed at `failures` until step 13.3 introduces the setting, so this step
   changes behaviour in exactly one way: repeated warnings stop repeating.
 
-### 13.2 The policy itself, written down
+### 13.2 The policy itself, written down ✅
 | Event | Notified | Dedup key | Actions |
 | --- | --- | --- | --- |
 | Scheduled run succeeded | never | — | — |
@@ -45,6 +45,11 @@ inline in `src/extension.ts`.
 - Coalescing is the new part: `catchUp()` calls `warnAboutFrequency` for every agent, so
   four fast agents produce four warnings on every window start. One message naming the
   agents is one interruption instead of four.
+- Done. Two of these rows are reached through the failure path rather than through their own
+  call site: `runFailed` reads the run's error code and sends `model.noConsent` and
+  `model.unavailable` to the consent message, and anything `prompt.*` to the unreadable-prompt
+  message. A failure whose fix is in Check Setup must not arrive as "show the output".
+- The manual run goes through `notifier.requested`, the one path the mode never silences.
 
 ### 13.3 The `rounds.notifications` setting
 **Decided:** three values rather than a switch, because turning notifications off and

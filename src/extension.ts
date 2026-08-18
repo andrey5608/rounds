@@ -177,7 +177,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
         void refreshView(container);
       }
     },
-    onRunFailed: (agent, record) => notifier.runFailed(agent, record.summary),
+    onRunFailed: (agent, record) => notifier.runFailed(agent, record.summary, record.error?.code),
     onCapReached: (message) => notifier.capReached(message),
     onFrequencyWarning: (entries) => notifier.frequencyWarning(entries),
   });

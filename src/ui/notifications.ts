@@ -77,8 +77,23 @@ export class Notifier {
     this.clock = options.clock ?? systemClock;
   }
 
-  /** A scheduled run failed. Once per agent per local day. */
-  runFailed(agent: NotifiedAgent, summary: string): void {
+  /**
+   * A scheduled run failed. Once per agent per local day.
+   *
+   * Two failures get their own message instead of the generic one, because the generic one is
+   * a dead end for both: missing model access is fixed in Check Setup, and an unreadable
+   * prompt file is fixed by editing the agent. The error code decides, so a failure that is
+   * really one of those cannot arrive as "something went wrong".
+   */
+  runFailed(agent: NotifiedAgent, summary: string, errorCode?: string): void {
+    if (errorCode === 'model.noConsent' || errorCode === 'model.unavailable') {
+      this.consentMissing(`${agent.name}: ${summary}`);
+      return;
+    }
+    if (errorCode?.startsWith('prompt.')) {
+      this.promptUnreadable(agent, summary);
+      return;
+    }
     if (!this.claim('runFailed', agent.id, this.today())) {
       return;
     }

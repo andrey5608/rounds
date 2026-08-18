@@ -85,6 +85,27 @@ describe('notification policy', () => {
     assert.deepEqual(invoked, ['showHistory:agent-1']);
   });
 
+  it('sends a failure that is really missing model access to Check Setup', () => {
+    // "Something went wrong, show the output" is a dead end for this one: the fix is in Check
+    // Setup, so the message that names it is the one worth showing.
+    const { notifier, shown } = harness();
+
+    notifier.runFailed(triage, 'No language model is available.', 'model.noConsent');
+    assert.deepEqual(shown[0]?.actions, ['Check Setup']);
+
+    // And once per window, not once per agent per day: the cause is the editor, not the agent.
+    notifier.runFailed(release, 'No language model is available.', 'model.unavailable');
+    assert.equal(shown.length, 1);
+  });
+
+  it('sends a failure that is really an unreadable prompt to Edit Agent', () => {
+    const { notifier, shown } = harness();
+
+    notifier.runFailed(triage, 'the prompt file could not be read', 'prompt.fileUnreadable');
+    assert.deepEqual(shown[0]?.actions, ['Edit Agent']);
+    assert.equal(shown[0]?.level, 'warning');
+  });
+
   it('says nothing about a successful run unless it was asked to', () => {
     const { notifier, shown, setMode } = harness();
 
