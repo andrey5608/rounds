@@ -86,7 +86,7 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
 - Done in the adapter, so the trust gate reads as a permission check like `runScript`'s and lands
   in the audit trail the same way.
 
-### 21.5 Prompt files stop leaking their front matter
+### 21.5 Prompt files stop leaking their front matter ✅
 - A `.prompt.md` file carries YAML: `description`, `mode`, `model`, `tools`. Today the whole
   file is sent as the prompt, header included, so the model reads a header meant for the editor.
   That is a defect on its own and the reason this step is in this phase rather than its own.
@@ -97,6 +97,15 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
 - `mode` is ignored, with the reason in the code: chat modes are not reachable from `vscode.lm`.
 - No YAML dependency. This is a header of `key: value` lines and one short list; the runtime
   dependency list is three packages on purpose, and `check-dependencies` is what keeps it there.
+  Anything more elaborate — nested maps, anchors, multi-line scalars — is left alone and ignored
+  rather than half-understood.
+- Done. The header is removed in the resolver, before the snapshot is taken, so a stored snapshot
+  is the prompt rather than the file. An opening `---` with no closing one is a document that
+  begins with a horizontal rule and is left intact; cutting at the next one would have taken the
+  first paragraph with it.
+- **Not done, deliberately:** the description is not shown in the picker. That would mean reading
+  every candidate file to decorate a list, and a list does not earn fifty file reads. The tools a
+  chosen file asks for are read from that one file, which is where the value is.
 
 ### 21.6 The form says what is available and what is missing
 - The tools section grows a second group, "From this workspace", listing what the editor reports

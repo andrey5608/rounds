@@ -9,6 +9,7 @@ import { evaluateReadiness } from '../../setup/needsSetup.js';
 import { resolveOutputFolder } from '../../setup/outputFolder.js';
 import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
+import { parsePromptFile } from '../../agents/promptFrontMatter.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
 import { agentToDraft, describeScheduleInput, draftToAgent } from '../wizard/steps.js';
@@ -274,9 +275,52 @@ export class AgentPanel {
     if (!file) {
       return;
     }
-    this.draft = { ...draft, promptSource: 'file', promptFile: file };
+    const next: AgentDraft = { ...draft, promptSource: 'file', promptFile: file };
+    Object.assign(next, await this.readPromptFileHeader(file, next));
+
+    this.draft = next;
     this.dirty = true;
     await this.render();
+  }
+
+  /**
+   * What a chosen prompt file's header contributes to the draft.
+   *
+   * Tools it names are preselected — only the ones that exist, so a file cannot enable something
+   * nobody has — and its model is used only when the agent has none. A file quietly changing
+   * which model runs would be the substitution the specification refuses everywhere else, by
+   * another route.
+   */
+  private async readPromptFileHeader(
+    file: string,
+    draft: AgentDraft,
+  ): Promise<Partial<AgentDraft>> {
+    let content: string;
+    try {
+      content = Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(file))).toString('utf8');
+    } catch (error) {
+      this.container.logger.debug(`Could not read ${file} for its header: ${String(error)}`);
+      return {};
+    }
+
+    const header = parsePromptFile(content).frontMatter;
+    if (!header) {
+      return {};
+    }
+
+    const available = new Set(this.container.tools.names());
+    const asked = header.tools.filter((name) => available.has(name));
+    const ignored = header.tools.filter((name) => !available.has(name));
+    if (ignored.length > 0) {
+      this.container.logger.info(
+        `The prompt file asks for ${ignored.join(', ')}, which nothing registers; left off the agent.`,
+      );
+    }
+
+    return {
+      tools: [...new Set([...draft.tools, ...asked])],
+      modelId: draft.modelId || (header.model ?? ''),
+    };
   }
 
   /** Asks once before losing work, and only when there is work to lose. */
