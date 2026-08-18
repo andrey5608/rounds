@@ -116,10 +116,10 @@ GitHub connection and a Bitbucket connection share the same repository-host toke
 Listed so nobody files them as gaps. These are decisions from [`plan.md`](../plan.md), and a test
 asserts the first two are absent from the manifest rather than merely unmentioned:
 
-- No chat participant integration, and no writing to agents from chat. The read-only side of this
-  was reopened deliberately: [phase 17](./phases/phase-17-chat-tools.md) adds one tool that answers
-  questions about agents, runs and schedules. Until that phase lands, the test asserting the
-  manifest declares no `languageModelTools` stands.
+- No chat participant integration, and no writing to agents from chat. The read-only side was
+  reopened deliberately and shipped in [phase 17](./phases/phase-17-chat-tools.md): one tool,
+  `rounds_query`, answers questions about agents, runs and schedules. A test asserts the manifest
+  contributes exactly that one and no chat participant.
 - No execution while the editor is closed — the scheduler lives in the editor process.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.

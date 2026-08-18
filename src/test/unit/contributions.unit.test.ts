@@ -97,9 +97,20 @@ describe('manifest contributions', () => {
     // than remembered: a chat participant or a language model tool would change what the extension
     // is, not just what it can do.
     const contributes = manifest.contributes as unknown as Record<string, unknown>;
-    for (const key of ['chatParticipants', 'languageModelTools', 'configurationDefaults']) {
+    for (const key of ['chatParticipants', 'configurationDefaults']) {
       assert.equal(contributes[key], undefined, `v1 must not contribute ${key}`);
     }
+  });
+
+  it('contributes exactly one language model tool, and it only reads', () => {
+    // Phase 17 moved this line in `plan.md`: reading is in scope, writing is not. The manifest is
+    // where that promise is checkable, so a second tool has to be a deliberate edit here too.
+    const tools = (manifest.contributes as unknown as Record<string, unknown>)
+      .languageModelTools as { name: string; modelDescription: string }[];
+
+    assert.equal(tools.length, 1);
+    assert.equal(tools[0]?.name, 'rounds_query');
+    assert.match(tools[0]?.modelDescription ?? '', /Never writes/);
   });
 
   it('agrees with the changelog about the version', () => {

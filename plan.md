@@ -208,7 +208,12 @@ Minimal and functional; no custom styling work in v1.
 Each item shows pass/fail with a Fix action opening the relevant input.
 
 ## Out of scope for v1
-- Chat participant integration and Language Model Tools for managing agents from chat
+- Chat participant integration, and Language Model Tools that **manage** agents from chat:
+  creating, editing, deleting or enabling an agent from a conversation stays out of scope. A
+  write tool would have to reimplement every guard the wizard applies — the frequency warning,
+  the daily cap, the allowed window, model validity — or become the way around them.
+- In scope since phase 17: one **read-only** tool, `rounds_query`, which answers questions about
+  agents, runs and schedules. It takes no store and therefore cannot write.
 - Running when VS Code is closed
 - Team sync of agent configs
 - Model parameters beyond what `vscode.lm` accepts

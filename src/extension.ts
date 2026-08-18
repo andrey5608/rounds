@@ -32,6 +32,7 @@ import { SECRET_NAMES } from './state/secrets.js';
 import { registerAgentsView } from './ui/agentsView.js';
 import { registerRunDetails } from './ui/runDetails.js';
 import { refreshView } from './ui/viewState.js';
+import { registerChatTools } from './chat/registerChatTools.js';
 import { registerCommands } from './ui/commands.js';
 import { Notifier } from './ui/notifications.js';
 import { createNotifierCommands, createVscodeMessageHost } from './ui/vscodeMessageHost.js';
@@ -210,6 +211,9 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   };
 
   extensionContext.subscriptions.push(
+    // Read-only, and it never resolves a model: registering a tool is not asking for one, so the
+    // consent gate is untouched.
+    registerChatTools(container),
     output,
     secrets,
     store,

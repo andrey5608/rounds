@@ -214,6 +214,19 @@ Deleting an agent never deletes files it already wrote.
 | `runScript` refuses everything | `rounds.scriptWhitelist` is empty. Add the commands you want to allow, with their arguments. |
 | Something else | Open **Rounds: Show Output**. Every line, including the ones `rounds.logLevel` hides, is also written to `logs/rounds-<date>.log` inside the extension's storage folder — the output channel prints the full path at startup. Attach that file to a report: it is redacted before anything is written. |
 
+## Asking about agents in chat
+
+Rounds contributes one language model tool, `rounds_query`, so a chat conversation can answer
+questions about what is scheduled. Reference it with `#rounds`, or let agent mode pick it up:
+
+- "What does Rounds run tonight?"
+- "Why did the triage agent fail?"
+- "When does `0 9 * * 1-5` fire next in Europe/Berlin?"
+
+It only reads. Creating, editing, deleting or enabling an agent from chat is out of scope, so the
+tool takes no store and has no code path that could write. Tokens never appear in its answers: the
+result passes through the same redaction as the log.
+
 ## Known limitations in v1
 
 - No chat participant and no Language Model Tools contribution: agents are managed from the panel and
