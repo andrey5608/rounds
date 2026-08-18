@@ -28,7 +28,7 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
 
 ## Steps
 
-### 21.1 Change the specification first
+### 21.1 Change the specification first ✅
 - `plan.md` lists three v1 tools and says adding one means registering an object in the registry.
   It gains a second sentence: a tool the editor reports may be enabled per agent, subject to the
   gates in 21.4.
@@ -36,6 +36,8 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
   external tool is somebody else's code and may talk to hosts this extension never contacts. The
   guarantee about network access covers what is in `src/connectors/`, not what a third-party tool
   does when the model asks it to.
+- Done. The README also says what is *not* reachable — chat modes, slash commands, participants —
+  next to what is, because that is the sentence somebody needs before they go looking for it.
 
 ### 21.2 A second source for the registry
 - `src/tools/externalTools.ts`, free of `vscode`: turns a tool's reported information into the

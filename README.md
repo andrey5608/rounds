@@ -187,6 +187,22 @@ and the arguments it may be given:
 - Commands run directly, never through a shell, and only inside the workspace. `;`, `&&` and pipes are
   ordinary text that matches no pattern, so they cannot be used to chain anything.
 
+### Tools from other extensions
+
+Besides `readFile`, `listFiles` and `runScript`, an agent may enable a tool another extension
+registered — whatever the editor reports, listed in the agent form under **From this workspace**. A
+prompt can then research something before it writes about it.
+
+Read this part before you enable one. Such a tool is somebody else's code: the promise that Rounds
+only contacts the base URLs you configured covers the requests Rounds makes, and cannot cover what a
+tool does when the model asks it to. So enabling is per agent and explicit, an untrusted workspace
+refuses all of them, and a tool that is no longer registered fails the run by name instead of
+disappearing from it.
+
+Custom chat modes, `/slash` commands and `@participant` mentions are not available this way: they
+belong to the chat view rather than to the language model API. An agent in chat mode reaches them —
+and, as ever in that mode, does not see the answer.
+
 ## Where results are stored
 
 The folder is the agent's own, then `rounds.defaultOutputFolder`, then a `results` folder inside the

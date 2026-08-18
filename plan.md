@@ -182,6 +182,12 @@ settings, or the agent config.
   - `runScript(command, args, cwd)` — user-configured whitelist; nothing unlisted runs
   - `listFiles(globPattern)`
   Adding a tool must mean registering one object in a tool registry.
+- Since phase 21, an agent may also enable a tool another extension registered, as reported by
+  `vscode.lm.tools`, and the loop invokes it through `vscode.lm.invokeTool`. Such a tool is
+  third-party code: the guarantee that network access is limited to the configured base URLs
+  covers this extension's own requests and cannot cover what a tool does when the model asks it
+  to. Enabling one is therefore per agent and explicit, an untrusted workspace refuses all of
+  them, and a tool that is no longer registered fails the run rather than being dropped.
 - Handle `LanguageModelError` cases (no consent, quota, model unavailable) distinctly
   and actionably.
 
