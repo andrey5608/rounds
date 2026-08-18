@@ -17,7 +17,7 @@ can lean on the tools the workspace itself provides.
 
 ## Steps
 
-### 22.1 Change the specification first
+### 22.1 Change the specification first ✅
 - `plan.md` describes the agent model with a source. It gains the sentence that a source is
   optional, and what an agent without one means: no fetch, no connection, no token, one
   rendering of the prompt as written.

@@ -141,14 +141,19 @@ Stored in `ExtensionContext.globalState` (global, not workspace). Fields:
 - `id`, `name`, `enabled`, `executionMode` (`api` | `chat`)
 - `schedule`: cron expression(s), `timezone`, `runOnStartup`,
   `missedRunPolicy` (`skip` | `runOnce`) for when VS Code was closed at the due time
-- `source`: `jira` (base URL ref, JQL, max results) or
-  `git` (base URL ref, repo, mode `newPullRequests` | `updatedPullRequests`, since-cursor)
+- `source`: **optional**. `jira` (base URL ref, project, JQL, max results) or
+  `git` (base URL ref, project, repo, mode `newPullRequests` | `updatedPullRequests`,
+  since-cursor). An agent without one is a prompt on a schedule: nothing is fetched, no
+  connection or token is required, the prompt is rendered once as written, and the item
+  placeholders are refused because there are no items to render them from. Such an agent works
+  through its tools, and an installation with no connections at all is a valid installation.
 - `promptSource`: `inline` | `file`. For `file`, store the path AND a snapshot of the
   content. Re-sync the snapshot on startup and when the file changes. Add
   `promptFileFallback`: `snapshot` | `blockWhenResolvable` | `blockAlways` for when the
   file is unreadable at run time.
 - Placeholders: `{{issueKey}}`, `{{summary}}`, `{{diff}}`, `{{items}}`, `{{date}}`,
-  `{{datetime}}`, `{{workspace}}`
+  `{{datetime}}`, `{{workspace}}`. The first four describe fetched items and are refused when the
+  agent has no source; the last three always apply.
 - `modelId`, `tools` (enabled tool names), `outputFolder`
 Secrets (Jira token, Git token) go in `context.secrets` only — never in globalState,
 settings, or the agent config.

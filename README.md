@@ -33,7 +33,7 @@ and report back.
 | --- | --- |
 | agent | a configured recurring task |
 | run | one execution of an agent |
-| source | issue tracker or repository host configuration: a connection, and a project plus a repository — owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket |
+| source | optional. Issue tracker or repository host configuration: a connection, and a project plus a repository — owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket. An agent without one is a prompt on a schedule |
 | tool | a function the model may call during a run |
 
 ## Requirements
@@ -83,6 +83,11 @@ A prompt may use these placeholders:
 | `{{diff}}` | the diff of the current pull request |
 | `{{date}}`, `{{datetime}}` | the local date and time in the agent's time zone |
 | `{{workspace}}` | the name of the first workspace folder |
+
+An agent with no source has nothing to fetch, so `{{items}}`, `{{issueKey}}`, `{{summary}}` and
+`{{diff}}` are refused when it is saved; `{{date}}`, `{{datetime}}` and `{{workspace}}` still work.
+Such an agent runs its prompt once, with whatever its tools find — which is how "every morning,
+summarize what changed here" works without a connection to anything.
 
 `{{items}}` describes the whole batch, so the prompt runs once. `{{issueKey}}`, `{{summary}}` and
 `{{diff}}` describe one item, so the prompt runs once per item — at most ten per run, so a query
