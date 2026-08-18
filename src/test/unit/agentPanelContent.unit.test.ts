@@ -51,6 +51,7 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
       { name: 'runScript', description: 'runs a command' },
     ],
     emptyScriptWhitelist: false,
+    scriptWhitelist: ['npm test'],
     provider: 'github',
     ...overrides,
   };
@@ -126,13 +127,38 @@ describe('the agent form', () => {
     assert.match(html, /does not capture the answer/);
   });
 
-  it('warns that runScript is inert while the whitelist is empty', () => {
+  it('warns that runScript is inert while the whitelist is empty, and offers a way out', () => {
+    // The warning used to name the problem and leave somebody to find a JSON array in the
+    // settings, which is a long way to travel from the place that says what is wrong.
     const withScript = agent({ tools: ['runScript'] });
     const html = renderAgentForm(
-      model({ context: context({ editing: withScript, emptyScriptWhitelist: true }) }),
+      model({
+        context: context({ editing: withScript, emptyScriptWhitelist: true, scriptWhitelist: [] }),
+        draft: { ...agentToDraft(withScript), tools: ['runScript'] },
+      }),
     );
 
     assert.match(html, /refuses every command/);
+    assert.match(html, /data-command="allowCommand"/);
+  });
+
+  it('lists what runScript is already allowed to run', () => {
+    const withScript = agent({ tools: ['runScript'] });
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: withScript, scriptWhitelist: ['npm test', 'git status --short'] }),
+        draft: { ...agentToDraft(withScript), tools: ['runScript'] },
+      }),
+    );
+
+    assert.match(html, /<code>npm test<\/code>/);
+    assert.match(html, /<code>git status --short<\/code>/);
+    assert.ok(!html.includes('refuses every command'));
+  });
+
+  it('says nothing about the whitelist for an agent that cannot run commands', () => {
+    const html = renderAgentForm(model({ context: context({ scriptWhitelist: [] }) }));
+    assert.ok(!html.includes('data-command="allowCommand"'));
   });
 
   it('keeps the tools from the workspace in a group of their own', () => {

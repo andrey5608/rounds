@@ -53,6 +53,8 @@ export interface FormContext {
   tools: readonly FormTool[];
   /** True while `runScript` would refuse everything anyway. */
   emptyScriptWhitelist: boolean;
+  /** What `runScript` is allowed to run, as command lines, so the form can show it. */
+  scriptWhitelist: readonly string[];
   /** What the chosen connection speaks, for the project field's label. */
   provider: GitProvider;
 }

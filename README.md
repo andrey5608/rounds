@@ -173,8 +173,10 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 
 ### Allowing a command to run
 
-The `runScript` tool refuses everything until you list what it may run. Each entry names one command
-and the arguments it may be given:
+The `runScript` tool refuses everything until you list what it may run. The quickest way is the
+**Allow a command…** button in the agent form, next to the tools — it asks for one command line and
+adds it to your user settings. The setting itself takes the same thing as JSON, one entry per
+command with the arguments it may be given:
 
 ```json
 "rounds.scriptWhitelist": [

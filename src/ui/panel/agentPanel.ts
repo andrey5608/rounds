@@ -10,6 +10,7 @@ import { resolveOutputFolder } from '../../setup/outputFolder.js';
 import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
+import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
@@ -144,6 +145,11 @@ export class AgentPanel {
         return;
       case 'pickPromptFile':
         await this.pickPromptFile(draftFromMessage(message.draft));
+        return;
+      case 'allowCommand':
+        this.draft = draftFromMessage(message.draft);
+        this.dirty = true;
+        await this.allowCommand();
         return;
       case 'run':
         await this.withAgent((agent) => vscode.commands.executeCommand('rounds.runNow', agent));
@@ -324,6 +330,53 @@ export class AgentPanel {
     };
   }
 
+  /**
+   * Adds one command line to `rounds.scriptWhitelist`.
+   *
+   * The warning used to name the problem and leave somebody to find a JSON array in the settings,
+   * which is a long way to travel from the place that says what is wrong. Written to the user
+   * settings rather than the workspace: agents are global here, and the setting is restricted in
+   * an untrusted workspace, so a workspace value would be the one that does not apply.
+   */
+  private async allowCommand(): Promise<void> {
+    const typed = await vscode.window.showInputBox({
+      title: 'Allow a command for runScript',
+      prompt: 'Exactly what may run, arguments included. A pattern may end with * to accept any suffix.',
+      placeHolder: 'npm test',
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        const parsed = parseCommandLine(value);
+        return parsed.ok ? undefined : parsed.message;
+      },
+    });
+    if (!typed) {
+      return;
+    }
+    const parsed = parseCommandLine(typed);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const current = this.container.settings().scriptWhitelist;
+    const { whitelist, added } = addToWhitelist(current, parsed.entry);
+    if (!added) {
+      await this.container.notifier.requested(
+        'info',
+        `"${describeEntry(parsed.entry)}" is already allowed.`,
+      );
+      return;
+    }
+
+    await vscode.workspace
+      .getConfiguration()
+      .update('rounds.scriptWhitelist', whitelist, vscode.ConfigurationTarget.Global);
+    await this.container.notifier.requested(
+      'info',
+      `runScript may now run "${describeEntry(parsed.entry)}".`,
+    );
+    await this.render();
+  }
+
   /** Asks once before losing work, and only when there is work to lose. */
   private async confirmDiscard(): Promise<boolean> {
     if (!this.dirty) {
@@ -383,6 +436,7 @@ export class AgentPanel {
       models: data.state.setup.models ?? [],
       tools: this.availableTools(draftTools),
       emptyScriptWhitelist: this.container.settings().scriptWhitelist.length === 0,
+      scriptWhitelist: this.container.settings().scriptWhitelist.map(describeEntry),
       provider: chosen && chosen.kind === 'git' ? resolveProvider(chosen) : 'github',
     };
   }

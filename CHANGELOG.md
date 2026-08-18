@@ -44,6 +44,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- The agent form warned that the script whitelist was empty and left you to find a JSON array in
+  the settings. It now lists what `runScript` may run and offers to add a command line to it.
 - A `.prompt.md` file's YAML header was sent to the model as prompt text. It is removed before the
   prompt is used, and what maps — the tools it names — is offered instead.
 - Four agents with fast schedules produced four identical warnings on every window start; they are

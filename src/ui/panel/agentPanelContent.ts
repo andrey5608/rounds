@@ -132,6 +132,8 @@ function styles(): string {
     .tools { display: flex; flex-direction: column; gap: 0.5rem; }
     .tools .tool .hint { margin-left: 1.4rem; }
     .tools .tool.missing { color: var(--vscode-editorWarning-foreground); }
+    ul.allowed { list-style: none; margin: 0.25rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+    ul.allowed code { font-family: var(--vscode-editor-font-family, monospace); }
     label.check { display: flex; align-items: center; gap: 0.35rem; color: var(--vscode-foreground); }
     label.check input { width: auto; }
     details { margin: 1.5rem 0 0; }

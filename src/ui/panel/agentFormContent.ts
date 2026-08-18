@@ -282,10 +282,23 @@ function promptSection(model: AgentFormViewModel): string {
 
 function modelSection(model: AgentFormViewModel): string {
   const { draft, errors, context } = model;
-  const whitelistNote =
-    draft.tools.includes('runScript') && context.emptyScriptWhitelist
-      ? `<p class="warning">runScript is on, but the script whitelist is empty, so it refuses every command.</p>`
-      : '';
+  const whitelistNote = draft.tools.includes('runScript')
+    ? `<div class="field">
+        <span class="label-text">Commands runScript may run</span>
+        ${
+          context.scriptWhitelist.length === 0
+            ? `<p class="warning">The whitelist is empty, so runScript refuses every command.</p>`
+            : `<ul class="allowed">${context.scriptWhitelist
+                .map((entry) => `<li><code>${escapeHtml(entry)}</code></li>`)
+                .join('')}</ul>`
+        }
+        <p class="hint">Each entry allows exactly that command line. Arguments are matched one for
+        one, and a pattern may end with * to accept any suffix.</p>
+        <div class="row-inline">
+          <button type="button" data-command="allowCommand">Allow a command…</button>
+        </div>
+      </div>`
+    : '';
 
   return `<section>
     <h2>Model and tools</h2>
