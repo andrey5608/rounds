@@ -172,6 +172,8 @@ export function validateTimeZoneInput(value: string): string | undefined {
 /** Everything the wizard collects. */
 export interface AgentDraft {
   name: string;
+  /** Whether scheduled runs are on. Absent keeps what an edited agent already had. */
+  enabled?: boolean;
   executionMode: Agent['executionMode'];
   sourceKind: 'jira' | 'git';
   endpointName: string;
@@ -268,6 +270,7 @@ export function agentToDraft(agent: Agent): AgentDraft {
     endpointName: agent.source.baseUrlRef,
     jql: agent.source.kind === 'jira' ? agent.source.jql : undefined,
     maxResults: agent.source.kind === 'jira' ? agent.source.maxResults : undefined,
+    enabled: agent.enabled,
     project: agent.source.kind === 'git' ? agent.source.project : agent.source.project,
     repo: agent.source.kind === 'git' ? agent.source.repo : undefined,
     gitMode: agent.source.kind === 'git' ? agent.source.mode : undefined,

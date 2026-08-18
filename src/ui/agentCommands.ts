@@ -9,7 +9,6 @@ import { AgentPanel } from './panel/agentPanel.js';
 import { pickAgent } from './runNowCommand.js';
 import { runDocumentUri } from './runDetails.js';
 import { refreshView } from './viewState.js';
-import { agentWizard } from './wizard/agentWizard.js';
 import { deleteConfirmation, duplicateAgent } from './wizard/steps.js';
 
 /** Pulls the agent out of a tree item argument, or asks for one. */
@@ -29,20 +28,9 @@ async function resolveAgent(
   return pickAgent(container, title);
 }
 
+/** `rounds.createAgent`: the same form as editing, with nothing filled in. */
 export async function createAgentCommand(container: ServiceContainer): Promise<void> {
-  const agent = await agentWizard(container);
-  if (!agent) {
-    return;
-  }
-  await container.ticker.recomputeAll();
-  await refreshView(container);
-  const choice = await vscode.window.showInformationMessage(
-    `The agent "${agent.name}" was created.`,
-    'Run Now',
-  );
-  if (choice === 'Run Now') {
-    await vscode.commands.executeCommand('rounds.runNow', agent);
-  }
+  await AgentPanel.show(container);
 }
 
 /**
@@ -62,6 +50,12 @@ export async function showAgentCommand(
   await AgentPanel.show(container, agent);
 }
 
+/**
+ * `rounds.editAgent`: the same panel as `rounds.showAgent`.
+ *
+ * Viewing and editing an agent are not different enough to be different surfaces, and two of them
+ * would mean two implementations of every rule — which is what phase 20 exists to avoid.
+ */
 export async function editAgentCommand(
   container: ServiceContainer,
   argument?: unknown,
@@ -70,14 +64,10 @@ export async function editAgentCommand(
   if (!agent) {
     return;
   }
-  const updated = await agentWizard(container, agent);
-  if (!updated) {
-    return;
-  }
-  // A changed schedule or time zone makes the stored next run meaningless.
-  await container.ticker.recomputeAll();
-  await refreshView(container);
+  await AgentPanel.show(container, agent);
 }
+
+
 
 export async function duplicateAgentCommand(
   container: ServiceContainer,

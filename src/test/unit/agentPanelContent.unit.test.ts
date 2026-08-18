@@ -1,10 +1,19 @@
 import * as assert from 'node:assert/strict';
 
 import type { Agent } from '../../state/types.js';
-import { escapeHtml, renderAgentPanel } from '../../ui/panel/agentPanelContent.js';
-import type { AgentPanelViewModel } from '../../ui/panel/agentPanelContent.js';
+import { renderAgentForm } from '../../ui/panel/agentFormContent.js';
+import type { AgentFormViewModel } from '../../ui/panel/agentFormContent.js';
+import { draftFromMessage, emptyDraft, validateDraft } from '../../ui/panel/agentFormModel.js';
+import type { FormContext } from '../../ui/panel/agentFormModel.js';
+import { escapeHtml, renderDocument } from '../../ui/panel/agentPanelContent.js';
+import { agentToDraft } from '../../ui/wizard/steps.js';
 
-const OPTIONS = { nonce: 'abc123==', cspSource: 'vscode-resource://host', scriptUri: 'https://host/media/agentPanel.js' };
+const OPTIONS = {
+  title: 'Morning triage',
+  nonce: 'abc123==',
+  cspSource: 'vscode-resource://host',
+  scriptUri: 'https://host/media/agentPanel.js',
+};
 
 function agent(overrides: Partial<Agent> = {}): Agent {
   return {
@@ -23,59 +32,136 @@ function agent(overrides: Partial<Agent> = {}): Agent {
   };
 }
 
-function model(overrides: Partial<AgentPanelViewModel> = {}): AgentPanelViewModel {
+function context(overrides: Partial<FormContext> = {}): FormContext {
   return {
-    agent: agent(),
-    schedule: 'At 09:00',
-    timeZone: 'UTC',
-    nextRuns: ['18/08/2026, 09:00:00', '19/08/2026, 09:00:00', '20/08/2026, 09:00:00'],
-    placeholders: ['items'],
-    outputFolder: '/storage/results',
+    agents: [agent()],
+    editing: agent(),
+    connections: [
+      { name: 'tracker', kind: 'jira', baseUrl: 'https://tracker.invalid', authScheme: 'basic' },
+      { name: 'github', kind: 'git', baseUrl: 'https://github.com', authScheme: 'bearer' },
+    ],
+    models: [{ id: 'model-a', name: 'Model A', vendor: 'vendor', family: 'family' }],
+    tools: [
+      { name: 'readFile', description: 'reads a file' },
+      { name: 'runScript', description: 'runs a command' },
+    ],
     emptyScriptWhitelist: false,
-    connection: { name: 'tracker', baseUrl: 'https://tracker.invalid', ready: true },
-    runs: [],
+    provider: 'github',
     ...overrides,
   };
 }
 
-describe('agent panel content', () => {
-  it('shows the agent, its schedule and what it reads', () => {
-    const html = renderAgentPanel(model(), OPTIONS);
+function model(overrides: Partial<AgentFormViewModel> = {}): AgentFormViewModel {
+  const formContext = overrides.context ?? context();
+  return {
+    draft: agentToDraft(formContext.editing ?? agent()),
+    context: formContext,
+    errors: {},
+    canSave: false,
+    outputFolder: '/storage/results',
+    ...overrides,
+  };
+}
 
-    assert.match(html, /<h1>Morning triage<\/h1>/);
-    assert.match(html, /At 09:00/);
-    assert.match(html, /18\/08\/2026, 09:00:00/);
-    assert.match(html, /project = ROUNDS/);
-    assert.match(html, /model-a/);
-    assert.match(html, /readFile/);
-    assert.match(html, /\/storage\/results/);
+describe('the agent form', () => {
+  it('renders every value the agent already has', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /value="Morning triage"/);
+    assert.match(html, /value="project = ROUNDS"/);
+    assert.match(html, /<option value="model-a" selected/);
+    assert.match(html, /value="0 9 \* \* \*"/);
+    assert.match(html, /id="tool:readFile"[^>]*checked/);
+  });
+
+  it('starts an empty form with defaults rather than blanks', () => {
+    const formContext = context({ editing: undefined });
+    const html = renderAgentForm(model({ context: formContext, draft: emptyDraft(formContext) }));
+
+    assert.match(html, /<h1>New agent<\/h1>/);
+    assert.match(html, /Summarize \{\{items\}\}/);
+    // Nothing to delete or reveal yet.
+    assert.ok(!html.includes('data-command="delete"'));
+    assert.ok(!html.includes('data-command="openFolder"'));
+  });
+
+  it('keeps Save disabled until something changes', () => {
+    assert.match(renderAgentForm(model()), /id="save" disabled/);
+    assert.ok(!renderAgentForm(model({ canSave: true })).includes('id="save" disabled'));
+  });
+
+  it('labels the project field with the word the host uses', () => {
+    const git = agent({
+      source: { kind: 'git', baseUrlRef: 'github', project: 'octo', repo: 'rounds', mode: 'newPullRequests' },
+    });
+
+    const forGithub = renderAgentForm(
+      model({ context: context({ editing: git, provider: 'github' }) }),
+    );
+    assert.match(forGithub, /<label for="project">Owner<\/label>/);
+
+    const forServer = renderAgentForm(
+      model({ context: context({ editing: git, provider: 'bitbucketServer' }) }),
+    );
+    assert.match(forServer, /<label for="project">Project key<\/label>/);
+    assert.match(forServer, /~username/);
+  });
+
+  it('draws an error next to the field that produced it, and says which', () => {
+    const html = renderAgentForm(model({ errors: { name: 'A name is required.' } }));
+
+    assert.match(html, /aria-invalid="true" aria-describedby="name-error"/);
+    assert.match(html, /id="name-error" role="alert">A name is required\./);
+  });
+
+  it('states the chat-mode limitation next to the choice, not in a tooltip', () => {
+    const chat = agent({ executionMode: 'chat' });
+    const html = renderAgentForm(model({ context: context({ editing: chat }) }));
+
+    assert.match(html, /does not capture the answer/);
+  });
+
+  it('warns that runScript is inert while the whitelist is empty', () => {
+    const withScript = agent({ tools: ['runScript'] });
+    const html = renderAgentForm(
+      model({ context: context({ editing: withScript, emptyScriptWhitelist: true }) }),
+    );
+
+    assert.match(html, /refuses every command/);
+  });
+
+  it('says what to do when there is no model to choose', () => {
+    const html = renderAgentForm(model({ context: context({ models: [] }) }));
+    assert.match(html, /Run Check Setup/);
   });
 
   it('escapes user content on its way into the document', () => {
     // The prompt is the one place in this extension where an injection is possible at all.
-    const html = renderAgentPanel(
-      model({
-        agent: agent({
-          name: 'Triage <img src=x onerror=alert(1)>',
-          prompt: { source: 'inline', inlineText: '</pre><script>alert("x")</script>' },
-        }),
-      }),
-      OPTIONS,
-    );
+    const nasty = agent({
+      name: 'Triage <img src=x onerror=alert(1)>',
+      prompt: { source: 'inline', inlineText: '</textarea><script>alert("x")</script>' },
+    });
+    const html = renderAgentForm(model({ context: context({ editing: nasty, agents: [nasty] }) }));
 
-    assert.ok(!html.includes('<img src=x'), 'the name is escaped');
-    assert.ok(!html.includes('<script>alert'), 'the prompt cannot open a tag');
+    assert.ok(!html.includes('<img src=x'));
+    assert.ok(!html.includes('<script>alert'));
     assert.match(html, /&lt;script&gt;alert/);
-    // The only script element is the one the panel put there itself.
-    assert.equal(html.match(/<script/g)?.length, 1);
   });
 
-  it('escapes the characters that end an attribute or a tag', () => {
-    assert.equal(escapeHtml(`<a href="x">&'`), '&lt;a href=&quot;x&quot;&gt;&amp;&#39;');
+  it('collapses the settings that used to make creation feel like an interrogation', () => {
+    const html = renderAgentForm(model());
+    assert.match(html, /<details>\s*<summary>Advanced<\/summary>/);
   });
 
+  it('shows the schedule preview beside the expression', () => {
+    const html = renderAgentForm(model({ schedulePreview: 'At 09:00. Next: tomorrow.' }));
+    assert.match(html, /At 09:00\. Next: tomorrow\./);
+  });
+});
+
+describe('the document around the form', () => {
   it('forbids every remote origin and carries a nonce the script uses', () => {
-    const html = renderAgentPanel(model(), OPTIONS);
+    const html = renderDocument({ ...OPTIONS, body: '<p>body</p>' });
 
     assert.match(html, /default-src 'none'/);
     assert.match(html, /script-src 'nonce-abc123=='/);
@@ -86,86 +172,95 @@ describe('agent panel content', () => {
 
   it('refuses a nonce that is not a nonce', () => {
     assert.throws(
-      () => renderAgentPanel(model(), { ...OPTIONS, nonce: "x' src='evil" }),
+      () => renderDocument({ ...OPTIONS, body: '', nonce: "x' src='evil" }),
       /base64/,
     );
   });
 
-  it('states the chat-mode limitation in the same words as the rest of the UI', () => {
-    const html = renderAgentPanel(
-      model({ agent: agent({ executionMode: 'chat' }) }),
-      OPTIONS,
-    );
-    assert.match(html, /does not capture the answer/);
+  it('escapes the characters that end an attribute or a tag', () => {
+    assert.equal(escapeHtml(`<a href="x">&'`), '&lt;a href=&quot;x&quot;&gt;&amp;&#39;');
+  });
+});
+
+describe('reading a draft back off the wire', () => {
+  it('takes every value as the string the form sent', () => {
+    const draft = draftFromMessage({
+      name: '  Morning triage  ',
+      enabled: 'true',
+      sourceKind: 'git',
+      endpointName: 'github',
+      project: 'octo',
+      repo: 'rounds',
+      gitMode: 'updatedPullRequests',
+      promptSource: 'inline',
+      promptText: 'Summarize {{items}}',
+      modelId: 'model-a',
+      tools: ['readFile', 42],
+      schedule: '0 9 * * *; 0 18 * * *',
+      maxExecutionsPerDay: '5',
+    });
+
+    assert.equal(draft.name, 'Morning triage');
+    assert.equal(draft.enabled, true);
+    assert.equal(draft.sourceKind, 'git');
+    assert.deepEqual(draft.schedule, ['0 9 * * *', '0 18 * * *']);
+    assert.deepEqual(draft.tools, ['readFile'], 'anything that is not a tool name is dropped');
+    assert.equal(draft.maxExecutionsPerDay, 5);
   });
 
-  it('says why an agent cannot run, when it cannot', () => {
-    const html = renderAgentPanel(model({ notReady: 'No token is stored for the tracker.' }), OPTIONS);
-    assert.match(html, /No token is stored for the tracker\./);
+  it('survives a message that is not a draft at all', () => {
+    const draft = draftFromMessage(undefined);
+    assert.equal(draft.name, '');
+    assert.deepEqual(draft.schedule, []);
+  });
+});
+
+describe('the rules the form applies', () => {
+  it('accepts a draft that is complete', () => {
+    assert.deepEqual(validateDraft(agentToDraft(agent()), context()), {});
   });
 
-  it('warns that runScript is inert while the whitelist is empty', () => {
-    const html = renderAgentPanel(model({ emptyScriptWhitelist: true }), OPTIONS);
-    assert.match(html, /whitelist is empty/);
+  it('reports each problem against its own field', () => {
+    const draft = {
+      ...agentToDraft(agent()),
+      name: '',
+      jql: '',
+      modelId: '',
+      schedule: ['not a cron expression'],
+    };
+
+    const errors = validateDraft(draft, context());
+
+    assert.ok(errors.name);
+    assert.ok(errors.jql);
+    assert.ok(errors.model);
+    assert.ok(errors.schedule);
   });
 
-  it('lists runs with what they cost and where they lead', () => {
-    const html = renderAgentPanel(
-      model({
-        runs: [
-          {
-            id: 'run-1',
-            status: 'succeeded',
-            startedAt: '17/08/2026, 09:00:00',
-            description: '12 items · 8.4 s — Two issues need attention.',
-            target: 'file:///storage/results/triage.md',
-          },
-        ],
-      }),
-      OPTIONS,
-    );
+  it('applies the repository rules only to a repository source', () => {
+    const git = {
+      ...agentToDraft(agent()),
+      sourceKind: 'git' as const,
+      project: '',
+      repo: 'octo/rounds',
+    };
+    const errors = validateDraft(git, context());
 
-    assert.match(html, /12 items · 8\.4 s/);
-    assert.match(html, /data-target="file:\/\/\/storage\/results\/triage\.md"/);
+    assert.match(errors.project ?? '', /Enter the owner/);
+    assert.match(errors.repo ?? '', /separate field/);
+    assert.equal(errors.jql, undefined);
   });
 
-  it('says there are no runs rather than showing an empty list', () => {
-    assert.match(renderAgentPanel(model(), OPTIONS), /No runs yet\./);
+  it('lets an agent keep its own name while it is being edited', () => {
+    const errors = validateDraft(agentToDraft(agent()), context({ agents: [agent()] }));
+    assert.equal(errors.name, undefined);
   });
 
-  it('offers the three actions and nothing that acts on its own', () => {
-    const html = renderAgentPanel(model(), OPTIONS);
+  it('rejects a name another agent already has', () => {
+    const other = agent({ id: 'agent-2', name: 'Release watch' });
+    const draft = { ...agentToDraft(agent()), name: 'Release watch' };
 
-    assert.match(html, /data-command="run"/);
-    assert.match(html, /data-command="edit"/);
-    assert.match(html, /data-command="openFolder"/);
-    assert.ok(!/onclick=/.test(html), 'no inline handlers: the CSP would refuse them anyway');
-  });
-
-  it('marks a connection with no token instead of implying it works', () => {
-    const html = renderAgentPanel(
-      model({ connection: { name: 'tracker', baseUrl: 'https://tracker.invalid', ready: false } }),
-      OPTIONS,
-    );
-    assert.match(html, /no token/);
-  });
-
-  it('reports a prompt file that is being served from its snapshot', () => {
-    const html = renderAgentPanel(
-      model({
-        agent: agent({
-          prompt: {
-            source: 'file',
-            filePath: '/workspace/prompts/triage.md',
-            snapshot: { content: 'Summarize {{items}}', hash: 'abc', capturedAt: '2026-08-01T00:00:00.000Z' },
-          },
-        }),
-        promptFallback: 'showing the stored snapshot of the prompt file',
-      }),
-      OPTIONS,
-    );
-
-    assert.match(html, /triage\.md/);
-    assert.match(html, /stored snapshot/);
+    const errors = validateDraft(draft, context({ agents: [agent(), other] }));
+    assert.ok(errors.name);
   });
 });

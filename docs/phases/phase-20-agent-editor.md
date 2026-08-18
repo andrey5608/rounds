@@ -14,7 +14,7 @@ form and the tests speak through.
 
 ## Steps
 
-### 20.1 One form, two entry points
+### 20.1 One form, two entry points ✅
 - `rounds.showAgent` (phase 14) opens an agent in the panel. `rounds.editAgent` opens the
   same panel with the first field focused. `rounds.createAgent` opens it with an empty
   draft. No new command ids: viewing and editing an agent are not different enough to be
@@ -23,8 +23,10 @@ form and the tests speak through.
   a write.
 - Leaving with unsaved changes asks once. A form that discards work silently is worse than
   a form that interrupts.
+- Done. A store change from elsewhere repaints the panel only while nothing is being typed;
+  otherwise it would throw away the draft to show news nobody asked for.
 
-### 20.2 The fields
+### 20.2 The fields ✅
 - Identity: name (unique, validated by the existing rule), enabled, execution mode with the
   chat-mode consequence spelled out next to it rather than in a tooltip.
 - Source: connection (a dropdown of what phase 18 manages, filtered by kind), then the
@@ -38,7 +40,7 @@ form and the tests speak through.
   folder. Collapsed because phase 10 learned that asking these questions up front is what
   made creation feel like an interrogation.
 
-### 20.3 Where the rules live
+### 20.3 Where the rules live ✅
 - The webview holds the draft and renders errors. It decides nothing: every keystroke that
   matters is validated by the extension side calling the same functions in `steps.ts` that
   the unit tests call.
@@ -47,8 +49,11 @@ form and the tests speak through.
   not reading it.
 - Saving goes through `draftToAgent` and one revisioned store update; a conflict reloads,
   re-applies and retries, exactly like every other write in this extension.
+- Done. `validateDraft` in `agentFormModel.ts` is the whole rule set, and every line of it calls a
+  function `steps.ts` already exported to the unit tests. The webview reads its own controls,
+  posts them, and draws the errors that come back.
 
-### 20.4 Retiring the question sequence
+### 20.4 Retiring the question sequence ✅
 - `agentWizard.ts` loses the QuickPick flow — around seven hundred lines whose job the form
   now does. Its callers become the panel.
 - `steps.ts` keeps every validator and gains the ones the wizard held inline.
@@ -57,20 +62,28 @@ form and the tests speak through.
   replaces them is in 20.6.
 - This is the phase's real cost and it is worth stating plainly: working, tested code is
   removed because keeping it would mean maintaining two ways to build the same object.
+- Done: `agentWizard.ts` is deleted. What it held that was worth keeping moved rather than died —
+  the prompt-file discovery picker from phase 16 is now `src/ui/panel/promptFilePicker.ts`, and
+  the read-only renderer from phase 14 shrank to the document shell both bodies share.
+- One consequence worth naming: the model list in the form is the cached one. The wizard resolved
+  models live through the consent gate; a form that did that on every repaint would ask the editor
+  for models far too often, so an empty list says to run Check Setup instead.
 
-### 20.5 Deleting from the panel
+### 20.5 Deleting from the panel ✅
 - The delete action reuses `rounds.deleteAgent` and its modal confirmation, unchanged: the
   panel adds no destructive behaviour of its own, and the wording that says result files
   are kept and history is removed stays in one place.
 
-### 20.6 Keyboard and accessibility
+### 20.6 Keyboard and accessibility ✅
 - The flow being replaced was keyboard-only, so the form has to be usable the same way:
   every control reachable by Tab in reading order, every input tied to a real `<label>`, the
   error summary focusable, Escape closing the panel with the unsaved-changes question.
 - This is not polish. Replacing a keyboard-first flow with a mouse-first one is a
   regression whatever it looks like.
+- Done: every control is a real `<label for>`/input pair, errors carry `role="alert"` and are
+  named by `aria-describedby`, the focus ring is the editor's own, and Ctrl/Cmd+S saves.
 
-### 20.7 Tests
+### 20.7 Tests ✅
 - Unit: the draft-to-agent conversion for every field, including the source shapes from
   phase 19; validation results mapped to the field that produced them; unsaved-change
   detection.
@@ -80,10 +93,11 @@ form and the tests speak through.
 
 ## Exit criteria
 
-- [ ] An agent is created, read, changed and deleted from the panel, with no quick-pick sequence
+- [x] An agent is created, read, changed and deleted from the panel, with no quick-pick sequence
       left in the code.
-- [ ] Every validation rule has exactly one implementation, called by both the form and the tests.
-- [ ] A sub-threshold schedule still requires an explicit confirmation before it is saved.
-- [ ] A save that collides with another window keeps the user's edit.
-- [ ] The form is fully usable from the keyboard.
-- [ ] Opening an agent and closing it again writes nothing.
+- [x] Every validation rule has exactly one implementation, called by both the form and the tests.
+- [x] A sub-threshold schedule still requires an explicit confirmation before it is saved.
+- [x] A save that collides with another window keeps the user's edit — the store reloads and
+      retries, and the panel holds the draft until the write returns.
+- [x] The form is fully usable from the keyboard.
+- [x] Opening an agent and closing it again writes nothing: Save is disabled until a field changes.

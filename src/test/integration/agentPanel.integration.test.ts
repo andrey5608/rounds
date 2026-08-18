@@ -12,6 +12,7 @@ import { FileStateBackend } from '../../state/fileStore.js';
 import { Logger } from '../../state/logger.js';
 import { RoundsSecrets } from '../../state/secrets.js';
 import { SETTING_DEFAULTS } from '../../state/settings.js';
+import { createToolRegistry } from '../../tools/index.js';
 import type { Agent } from '../../state/types.js';
 
 const agent: Agent = {
@@ -84,6 +85,9 @@ async function harness(): Promise<{ container: ServiceContainer; cleanup: () => 
     secrets,
     settings: () => SETTING_DEFAULTS,
     workspaceTrusted: () => true,
+    tools: createToolRegistry(),
+    ticker: { recomputeAll: () => Promise.resolve() },
+    notifier: { requested: () => Promise.resolve() },
     runningAgents: new Set<string>(),
   } as unknown as ServiceContainer;
 
@@ -98,7 +102,7 @@ async function harness(): Promise<{ container: ServiceContainer; cleanup: () => 
 }
 
 describe('agent panel', () => {
-  it('renders the agent it was opened for', async () => {
+  it('opens the agent it was asked for', async () => {
     const { container, cleanup } = await harness();
     try {
       await AgentPanel.show(container, agent);
@@ -114,6 +118,7 @@ describe('agent panel', () => {
       const first = await AgentPanel.show(container, agent);
       const second = await AgentPanel.show(container, { ...agent, id: 'agent-1', name: 'Renamed' });
       assert.equal(first, second, 'a panel per agent would turn the editor into a wall of tabs');
+      assert.equal(AgentPanel.hasUnsavedChanges, false, 'opening one to look at it changes nothing');
     } finally {
       await cleanup();
     }
@@ -132,6 +137,17 @@ describe('agent panel', () => {
       // The repaint is queued by the store event; giving it a turn is enough.
       await new Promise((resolve) => setTimeout(resolve, 20));
       assert.equal(AgentPanel.openAgentId, 'agent-1');
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('opens an empty form when no agent is given', async () => {
+    const { container, cleanup } = await harness();
+    try {
+      await AgentPanel.show(container);
+      assert.equal(AgentPanel.openAgentId, undefined);
+      assert.equal(AgentPanel.hasUnsavedChanges, false);
     } finally {
       await cleanup();
     }
