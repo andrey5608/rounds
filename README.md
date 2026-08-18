@@ -264,15 +264,6 @@ result passes through the same redaction as the log.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.
 
-## Brand assets
-
-The logo lives in [`docs/media/`](./docs/media): [`rounds-lockup.svg`](./docs/media/rounds-lockup.svg) is the vector
-lockup shown above, with [`rounds-lockup.png`](./docs/media/rounds-lockup.png) rendered from it because a
-marketplace README may not embed an SVG. Also there:
-[`rounds-icon.svg`](./docs/media/rounds-icon.svg) with its 128 and 512 pixel renders,
-[`rounds-activitybar.svg`](./docs/media/rounds-activitybar.svg) for the activity bar, and
-[`rounds-wordmark.svg`](./docs/media/rounds-wordmark.svg).
-
 ## Documentation
 
 - [`plan.md`](./plan.md) — product specification and constraints
