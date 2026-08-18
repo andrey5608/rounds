@@ -104,7 +104,31 @@ describe('setup checks', () => {
     );
     const jira = byId(results, 'jira');
     assert.equal(jira.status, 'fail');
-    assert.match(jira.message, /no token is stored/);
+    assert.match(jira.message, /No token is stored for tracker/);
+  });
+
+  it('names the connection whose token is missing, not the pair', async () => {
+    // Two repository hosts hold two tokens now. Reporting on the kind as a whole would hide
+    // exactly the case where the second one was never entered.
+    const results = await runSetupChecks(
+      context({
+        endpoints: {
+          github: { name: 'github', kind: 'git', baseUrl: 'https://github.com', authScheme: 'bearer' },
+          bitbucket: {
+            name: 'bitbucket',
+            kind: 'git',
+            baseUrl: 'https://bitbucket.org',
+            authScheme: 'bearer',
+          },
+        },
+        hasTokenFor: (endpoint) => Promise.resolve(endpoint.name === 'github'),
+      }),
+    );
+
+    const outcome = byId(results, 'git');
+    assert.equal(outcome.status, 'fail');
+    assert.match(outcome.message, /bitbucket/);
+    assert.ok(!outcome.message.includes('github'));
   });
 
   it('warns when reachability cannot be verified', async () => {

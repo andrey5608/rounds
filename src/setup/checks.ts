@@ -26,6 +26,8 @@ export interface SetupCheckContext {
   hasConsent: boolean;
   models: CachedModel[];
   hasSecret: (name: SecretName) => Promise<boolean>;
+  /** Whether one connection has a token of its own. Per connection since phase 18. */
+  hasTokenFor?: (endpoint: EndpointConfig) => Promise<boolean>;
   /** Live reachability test. Supplied by the connectors; without it the check only warns. */
   pingEndpoint?: (endpoint: EndpointConfig) => Promise<EndpointPing>;
   probeOutputFolder: () => Promise<{ ok: boolean; path: string; message: string }>;
@@ -87,11 +89,21 @@ function sourceCheck(kind: SourceKind): SetupCheck {
             );
       }
 
-      if (!(await context.hasSecret(SECRET_BY_KIND[kind]))) {
+      // Per connection, not per kind: two repository hosts hold two tokens, and reporting on the
+      // pair as one hides exactly the case where the second was never entered.
+      const hasToken =
+        context.hasTokenFor ?? (() => context.hasSecret(SECRET_BY_KIND[kind]));
+      const withoutToken: string[] = [];
+      for (const endpoint of endpoints) {
+        if (!(await hasToken(endpoint))) {
+          withoutToken.push(endpoint.name);
+        }
+      }
+      if (withoutToken.length > 0) {
         return outcome(
           check,
           'fail',
-          'A base URL is configured but no token is stored. Enter the token so runs can authenticate.',
+          `No token is stored for ${withoutToken.join(', ')}. Enter it from the Connections view so runs can authenticate.`,
         );
       }
 

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { ConnectorFactory } from '../connectors/factory.js';
+import { ConnectorFactory, tokenFor } from '../connectors/factory.js';
 import type { ServiceContainer } from '../container.js';
 import { mapModelError } from '../model/errors.js';
 import type { CheckOutcome, CheckStatus, SourceKind } from '../state/types.js';
@@ -34,6 +34,8 @@ export async function buildCheckContext(container: ServiceContainer): Promise<Se
     hasConsent: state.setup.consentGrantedAt !== undefined,
     models: state.setup.models ?? [],
     hasSecret: (name) => container.secrets.has(name),
+    hasTokenFor: async (endpoint) =>
+      (await tokenFor(container.secrets, endpoint)) !== undefined,
     workspaceTrusted: container.workspaceTrusted(),
     // Live reachability, so the check reports what a run would actually hit.
     pingEndpoint: (endpoint) => factory.ping(endpoint),

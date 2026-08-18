@@ -87,28 +87,34 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
 - `ping` already reports instead of throwing, and the message already avoids the token —
   both were built in phase 5 for Check Setup and neither needs changing here.
 
-### 18.8 Check Setup keeps its six checks
+### 18.8 Check Setup keeps its six checks ✅
 - The tracker and repository checks report per connection instead of per kind: three
   connections, three lines under the same two checks.
 - The fix action on a failing line opens that connection's edit flow rather than the
   add flow, which is what somebody with a typo in a base URL actually needs.
+- Done: the source checks ask `hasTokenFor(endpoint)` and name the connections that have no
+  token. Reporting on the kind as a whole hid exactly the case this phase exists for — the
+  second repository host whose token was never entered.
 
-### 18.9 Tests
+### 18.9 Tests ✅
 - Unit: the secret migration (a connection with a token, one without, a second window
   running it twice); rename rewrites referencing agents; delete is refused while referenced;
   the row's description and tooltip contain no token when one is stored.
 - Integration: the view is declared and welcomes an empty state; the three commands appear
   in the manifest with menu clauses that key on context values the view produces.
+- Done: 6 unit tests for the secret migration and the fallback, 1 for per-connection reporting
+  in Check Setup, and 8 integration tests for the view. The menu test now covers both views, so
+  a menu entry cannot key on a context value nothing sets.
 
 ## Exit criteria
 
-- [ ] Connections are listed, added, edited and deleted from the view, with no path through
+- [x] Connections are listed, added, edited and deleted from the view, with no path through
       Check Setup or the agent wizard required.
-- [ ] A GitHub connection and a Bitbucket connection each hold their own token, and an existing
+- [x] A GitHub connection and a Bitbucket connection each hold their own token, and an existing
       installation keeps working across the migration without re-entering either.
-- [ ] Renaming a connection keeps every agent that used it working.
-- [ ] Deleting is refused while an agent references the connection, and removes the token when
+- [x] Renaming a connection keeps every agent that used it working.
+- [x] Deleting is refused while an agent references the connection, and removes the token when
       it is not.
-- [ ] No token, masked or otherwise, appears in a row, a tooltip, a log line or an error.
-- [ ] `plan.md`, `package.json` and the README agree on the new view, the three commands and the
+- [x] No token, masked or otherwise, appears in a row, a tooltip, a log line or an error.
+- [x] `plan.md`, `package.json` and the README agree on the new view, the three commands and the
       per-connection secret key.
