@@ -46,7 +46,7 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
   auth scheme, user name, provider, name — seeded with the current values. A field left
   unchanged stays unchanged; this is an edit, not a re-creation.
 
-### 18.4 One token per connection
+### 18.4 One token per connection ✅
 - Add `secretRef` to `EndpointConfig`: a short opaque id generated when the connection is
   created. The token lives at `rounds.secret.connection.<secretRef>`.
 - Keyed on `secretRef` rather than on the name, so renaming a connection moves nothing:
@@ -57,8 +57,12 @@ self-hosted Bitbucket all supported, two repository connections **share one toke
   `gitToken` into its own key. The old keys are read as a fallback for one release and
   deleted only after a connection has a key of its own — a token that vanishes because a
   migration ran in the wrong window is unrecoverable, since nobody keeps a copy.
-- `SECRET_BY_KIND` disappears from `factory.ts` and `endpointEditor.ts`: the connection
-  says which secret it uses.
+- `SECRET_BY_KIND` stays in `factory.ts` as the fallback path and nothing else reads it to
+  decide where a token goes; `tokenFor(secrets, endpoint)` is the one place that answers that.
+- Done. The migration runs once at activation, is additive, and is safe to run twice or in two
+  windows: it assigns a reference, copies the shared token under it, and skips a connection that
+  already has one. A test holds the defect this exists for — two repository connections holding
+  different tokens.
 
 ### 18.5 Renaming, when agents point at the name
 - Agents reference a connection through `source.baseUrlRef`, which is its name. A rename

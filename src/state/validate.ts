@@ -89,6 +89,9 @@ function validateEndpoint(value: unknown): EndpointConfig | string {
   if (isOneOf(value.provider, ['github', 'bitbucketCloud', 'bitbucketServer'] as const)) {
     endpoint.provider = value.provider;
   }
+  if (isNonEmptyString(value.secretRef)) {
+    endpoint.secretRef = value.secretRef;
+  }
   return endpoint;
 }
 

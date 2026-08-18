@@ -69,7 +69,11 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
 - Status bar item id: `rounds.status`
 - `globalState` keys: `rounds.agents`, `rounds.history`, `rounds.stateRevision`,
   `rounds.dailyCounters`
-- `secrets` keys: `rounds.secret.jiraToken`, `rounds.secret.gitToken`
+- `secrets` keys: `rounds.secret.connection.<secretRef>`, one per configured connection.
+  `rounds.secret.jiraToken` and `rounds.secret.gitToken` are the pre-phase-18 keys: they are
+  migrated from, and stay readable as a fallback, because a token that disappears cannot be
+  recovered. One key per source kind stopped being enough once a second repository host API
+  was supported — two connections would share one token.
 - Leader lock file: `rounds.lock` in the extension's global storage path
 - Result files: `<outputFolder>/<agent-name-slug>-<YYYYMMDD-HHmmss>.md`
 

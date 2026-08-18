@@ -208,6 +208,15 @@ export interface EndpointConfig {
   username?: string;
   /** Repository hosts only. Absent means it is inferred from the base URL. */
   provider?: GitProvider;
+  /**
+   * Which secret this connection authenticates with. The key itself is built in `state/secrets.ts`,
+   * which is the only module that knows what storage keys look like.
+   *
+   * An opaque id generated once, not the name: names are user-facing and change, and a rename
+   * that has to move a secret is a rename that can half-fail. Absent means the connection
+   * predates per-connection tokens and still reads the shared one for its kind.
+   */
+  secretRef?: string;
 }
 
 /** A model as the editor reported it. Ids and labels only; no credentials involved. */

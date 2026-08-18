@@ -1,11 +1,26 @@
 import { Emitter } from './emitter.js';
 import type { Disposable } from './emitter.js';
 
-/** Secret storage keys, exactly as specified in plan.md. */
+/**
+ * The two keys `plan.md` fixed, one per source kind.
+ *
+ * Kept because installations have tokens under them, but they are no longer where a token is
+ * written: with GitHub, Bitbucket Cloud and self-hosted Bitbucket all supported, one key per kind
+ * meant two repository connections sharing a token. Connections now carry their own key; these
+ * two are the migration source and the fallback for a connection that has not been migrated yet.
+ */
 export const SECRET_KEYS = {
   jiraToken: 'rounds.secret.jiraToken',
   gitToken: 'rounds.secret.gitToken',
 } as const;
+
+/** Prefix of the per-connection keys: `rounds.secret.connection.<secretRef>`. */
+export const CONNECTION_SECRET_PREFIX = 'rounds.secret.connection.';
+
+/** The storage key a connection's token lives under. */
+export function connectionSecretKey(secretRef: string): string {
+  return `${CONNECTION_SECRET_PREFIX}${secretRef}`;
+}
 
 export type SecretName = keyof typeof SECRET_KEYS;
 
@@ -30,10 +45,16 @@ export interface SecretStorageLike {
 export class RoundsSecrets {
   private readonly changeEmitter = new Emitter<SecretName>();
   private readonly cache = new Map<SecretName, string>();
+  /** Per-connection tokens, keyed by `secretRef`. Same purpose as `cache`, different key space. */
+  private readonly connectionCache = new Map<string, string>();
   private readonly subscription: Disposable;
 
   constructor(private readonly storage: SecretStorageLike) {
     this.subscription = storage.onDidChange((event) => {
+      if (event.key.startsWith(CONNECTION_SECRET_PREFIX)) {
+        this.connectionCache.delete(event.key.slice(CONNECTION_SECRET_PREFIX.length));
+        return;
+      }
       const name = SECRET_NAMES.find((candidate) => SECRET_KEYS[candidate] === event.key);
       if (!name) {
         return;
@@ -41,6 +62,32 @@ export class RoundsSecrets {
       this.cache.delete(name);
       this.changeEmitter.fire(name);
     });
+  }
+
+  /** The token of one connection. */
+  async getForConnection(secretRef: string): Promise<string | undefined> {
+    const value = await this.storage.get(connectionSecretKey(secretRef));
+    if (value === undefined) {
+      this.connectionCache.delete(secretRef);
+      return undefined;
+    }
+    this.connectionCache.set(secretRef, value);
+    return value;
+  }
+
+  async setForConnection(secretRef: string, value: string): Promise<void> {
+    await this.storage.store(connectionSecretKey(secretRef), value);
+    this.connectionCache.set(secretRef, value);
+  }
+
+  /** Removes a connection's token. Called when the connection itself is deleted. */
+  async deleteForConnection(secretRef: string): Promise<void> {
+    await this.storage.delete(connectionSecretKey(secretRef));
+    this.connectionCache.delete(secretRef);
+  }
+
+  async hasForConnection(secretRef: string): Promise<boolean> {
+    return (await this.getForConnection(secretRef)) !== undefined;
   }
 
   /** Fires when one of our secrets was stored, changed or deleted. */
@@ -81,12 +128,15 @@ export class RoundsSecrets {
    * redacted by value, which is why the logger also redacts by pattern.
    */
   knownValues(): string[] {
-    return [...this.cache.values()].filter((value) => value.length >= 8);
+    return [...this.cache.values(), ...this.connectionCache.values()].filter(
+      (value) => value.length >= 8,
+    );
   }
 
   dispose(): void {
     this.subscription.dispose();
     this.changeEmitter.dispose();
     this.cache.clear();
+    this.connectionCache.clear();
   }
 }

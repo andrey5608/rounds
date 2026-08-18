@@ -13,6 +13,7 @@ import { recoverStaleClaims } from './scheduler/recovery.js';
 import { Ticker } from './scheduler/ticker.js';
 import { RunClaims } from './scheduler/runClaims.js';
 import { VscodeLanguageModelGateway } from './model/vscodeGateway.js';
+import { migrateConnectionSecrets } from './setup/connectionSecrets.js';
 import { logEnvironment } from './setup/diagnostics.js';
 import { FileLogSink } from './state/fileSink.js';
 import { showFirstRunNotice } from './setup/firstRunNotice.js';
@@ -308,6 +309,8 @@ async function bootstrap(services: ServiceContainer): Promise<void> {
       windowId: services.leadership.windowId,
       logger: services.logger,
     });
+    // Gives connections configured before phase 18 a token of their own. Additive and idempotent.
+    await migrateConnectionSecrets(services.store, services.secrets, services.logger);
     await services.stateWatcher.start();
     services.leadership.start();
     // Prompt files may have changed while this window was closed.
