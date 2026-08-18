@@ -1,6 +1,13 @@
 import * as assert from 'node:assert/strict';
 
-import { ConnectorFactory, authorizationHeader, resolveEndpoint } from '../../connectors/factory.js';
+import {
+  ConnectorFactory,
+  authorizationHeader,
+  providerFromHost,
+  resolveApiRoot,
+  resolveEndpoint,
+  resolveProvider,
+} from '../../connectors/factory.js';
 import { ConfigError } from '../../connectors/errors.js';
 import type { FetchLike, HttpResponseLike } from '../../connectors/http.js';
 import { Emitter } from '../../state/emitter.js';
@@ -149,6 +156,32 @@ describe('connector factory', () => {
     assert.equal(headers[0]?.Authorization, 'Bearer repo-token');
   });
 
+  it('speaks the Bitbucket API when the connection points at Bitbucket', async () => {
+    const { factory, urls } = await factoryWith((secrets) => secrets.set('gitToken', 'repo-token'));
+
+    const connector = await factory.createRepositoryHost({ ...repos, baseUrl: 'https://bitbucket.org' });
+    await connector.ping();
+
+    // The GitHub connector proves the token with /user too, so the API root is what tells them apart.
+    assert.equal(urls[0], 'https://api.bitbucket.org/2.0/user');
+  });
+
+  it('speaks the self-hosted Bitbucket API when the connection says that is what it is', async () => {
+    const { factory, urls } = await factoryWith((secrets) => secrets.set('gitToken', 'repo-token'));
+
+    const connector = await factory.createRepositoryHost({
+      ...repos,
+      baseUrl: 'https://bitbucket.example.invalid',
+      provider: 'bitbucketServer',
+    });
+    await connector.ping();
+
+    assert.equal(
+      urls[0],
+      'https://bitbucket.example.invalid/rest/api/1.0/profile/recent/repos?limit=1',
+    );
+  });
+
   it('refuses to connect without a stored token', async () => {
     const { factory } = await factoryWith(() => Promise.resolve());
     await assert.rejects(factory.createIssueTracker(tracker), (error: unknown) => {
@@ -217,5 +250,218 @@ describe('connector factory', () => {
 
     const result = await factory.ping(repos);
     assert.ok(!result.message.includes('super-secret-token'));
+  });
+});
+
+/**
+ * The whole github.com path, end to end.
+ *
+ * Every piece of it is unit tested elsewhere, and it still failed in a real installation: the API root
+ * was resolved wrongly, so a correct repository produced a 404 that blamed the repository. These tests
+ * take the same route a run takes — connection, factory, connector, payload — and assert the URLs that
+ * actually leave the process.
+ */
+describe('pull requests from github.com', () => {
+  const github: EndpointConfig = { ...repos, baseUrl: 'https://github.com' };
+
+  const pullRequests = [
+    {
+      number: 7,
+      title: 'Fix the leader lock heartbeat',
+      body: 'The lock was never refreshed.',
+      state: 'open',
+      draft: false,
+      created_at: '2026-08-15T08:00:00Z',
+      updated_at: '2026-08-17T09:00:00Z',
+      user: { login: 'alex' },
+      head: { ref: 'fix/heartbeat' },
+      base: { ref: 'main' },
+    },
+    {
+      number: 8,
+      title: 'Add the result writer',
+      body: null,
+      state: 'closed',
+      draft: false,
+      created_at: '2026-08-17T07:00:00Z',
+      updated_at: '2026-08-17T07:30:00Z',
+      merged_at: '2026-08-17T07:30:00Z',
+      user: { login: 'sam' },
+      head: { ref: 'feature/results' },
+      base: { ref: 'main' },
+    },
+  ];
+
+  it('asks api.github.com for the repository the agent named', async () => {
+    const { factory, urls, headers } = await factoryWith(
+      (secrets) => secrets.set('gitToken', 'repo-token'),
+      [json(pullRequests)],
+    );
+
+    const connector = await factory.createRepositoryHost(github);
+    const result = await connector.listPullRequests({
+      repo: 'octo/rounds',
+      mode: 'updatedPullRequests',
+      maxResults: 10,
+    });
+
+    const url = new URL(urls[0] ?? '');
+    assert.equal(url.origin, 'https://api.github.com');
+    assert.equal(url.pathname, '/repos/octo/rounds/pulls');
+    assert.equal(url.searchParams.get('state'), 'all');
+    assert.equal(url.searchParams.get('sort'), 'updated');
+    assert.equal(url.searchParams.get('direction'), 'desc');
+    assert.equal(headers[0]?.Authorization, 'Bearer repo-token');
+
+    assert.deepEqual(result.items.map((item) => item.id), ['7', '8']);
+    assert.equal(result.items[0]?.url, 'https://github.com/octo/rounds/pull/7');
+    assert.equal(result.items[0]?.body, 'The lock was never refreshed.');
+    assert.equal(result.items[0]?.extra.author, 'alex');
+    assert.equal(result.items[1]?.extra.mergedAt, '2026-08-17T07:30:00Z');
+    assert.equal(result.cursor, '2026-08-17T09:00:00Z');
+    assert.equal(result.truncated, false);
+  });
+
+  it('carries the cursor forward so a second run sees only what changed', async () => {
+    const { factory } = await factoryWith(
+      (secrets) => secrets.set('gitToken', 'repo-token'),
+      [json(pullRequests)],
+    );
+
+    const connector = await factory.createRepositoryHost(github);
+    const result = await connector.listPullRequests({
+      repo: 'octo/rounds',
+      mode: 'updatedPullRequests',
+      cursor: '2026-08-17T08:00:00Z',
+    });
+
+    assert.deepEqual(result.items.map((item) => item.id), ['7']);
+  });
+
+  it('fetches the diff as a diff, from the same API host', async () => {
+    const diff = 'diff --git a/file b/file\n+added line\n';
+    const { factory, urls, headers } = await factoryWith(
+      (secrets) => secrets.set('gitToken', 'repo-token'),
+      [{ status: 200, headers: { get: () => null }, text: () => Promise.resolve(diff) }],
+    );
+
+    const connector = await factory.createRepositoryHost(github);
+    const result = await connector.getDiff('octo/rounds', '7');
+
+    assert.equal(urls[0], 'https://api.github.com/repos/octo/rounds/pulls/7');
+    assert.match(headers[0]?.Accept ?? '', /diff/);
+    assert.equal(result.text, diff);
+  });
+
+  it('names the path when the host has nothing there', async () => {
+    const { factory } = await factoryWith(
+      (secrets) => secrets.set('gitToken', 'repo-token'),
+      [json({ message: 'Not Found' }, 404)],
+    );
+
+    const connector = await factory.createRepositoryHost(github);
+    await assert.rejects(
+      connector.listPullRequests({ repo: 'octo/rounds', mode: 'newPullRequests' }),
+      (error: unknown) => {
+        assert.ok(error instanceof ConfigError);
+        assert.match(error.message, /has nothing at \/repos\/octo\/rounds\/pulls/);
+        return true;
+      },
+    );
+  });
+});
+
+describe('where the API lives', () => {
+  const git = (baseUrl: string): EndpointConfig => ({
+    name: 'repos',
+    kind: 'git',
+    baseUrl,
+    authScheme: 'bearer',
+  });
+
+  it('sends github.com to its API host, not to a path under it', () => {
+    // The reported failure: /api/v3 under github.com is a 404 that reads as "you typed the repository
+    // wrong", which is the wrong thing to say to somebody who typed it correctly.
+    assert.equal(resolveApiRoot(git('https://github.com')), 'https://api.github.com/');
+    assert.equal(resolveApiRoot(git('https://www.github.com/')), 'https://api.github.com/');
+  });
+
+  it('leaves a base URL that already points at an API root alone', () => {
+    assert.equal(resolveApiRoot(git('https://api.github.com')), 'https://api.github.com/');
+  });
+
+  it('uses the enterprise path for a self-hosted installation', () => {
+    assert.equal(resolveApiRoot(git('https://git.example.invalid')), 'https://git.example.invalid/api/v3/');
+  });
+
+  it('names the hosts it does not speak instead of failing later with a 404', () => {
+    for (const host of ['https://gitlab.com', 'https://dev.azure.com', 'https://codeberg.org']) {
+      assert.throws(() => resolveApiRoot(git(host)), (error: unknown) => {
+        assert.ok(error instanceof ConfigError);
+        assert.match(error.message, /not supported yet/);
+        assert.match(error.message, /Bitbucket Cloud/);
+        return true;
+      }, host);
+    }
+  });
+
+  it('sends bitbucket.org to its own API host', () => {
+    assert.equal(resolveApiRoot(git('https://bitbucket.org')), 'https://api.bitbucket.org/2.0/');
+    assert.equal(resolveApiRoot(git('https://api.bitbucket.org/')), 'https://api.bitbucket.org/2.0/');
+  });
+
+  it('uses the versioned path for a host declared as the hosted Bitbucket API', () => {
+    assert.equal(
+      resolveApiRoot({ ...git('https://bb.example.invalid'), provider: 'bitbucketCloud' }),
+      'https://bb.example.invalid/2.0/',
+    );
+  });
+
+  it('uses REST 1.0 for a self-hosted Bitbucket installation, context path included', () => {
+    // The self-hosted product shares the name and not the API: 2.0 endpoints do not exist there.
+    assert.equal(
+      resolveApiRoot({ ...git('https://bitbucket.example.invalid'), provider: 'bitbucketServer' }),
+      'https://bitbucket.example.invalid/rest/api/1.0/',
+    );
+    assert.equal(
+      resolveApiRoot({ ...git('https://tools.example.invalid/bitbucket/'), provider: 'bitbucketServer' }),
+      'https://tools.example.invalid/bitbucket/rest/api/1.0/',
+    );
+  });
+
+  it('does not repeat the REST path a careful user already typed', () => {
+    assert.equal(
+      resolveApiRoot({
+        ...git('https://bitbucket.example.invalid/rest/api/1.0'),
+        provider: 'bitbucketServer',
+      }),
+      'https://bitbucket.example.invalid/rest/api/1.0/',
+    );
+  });
+
+  it('recognises the provider from the host, and lets a stored choice win', () => {
+    assert.equal(resolveProvider(git('https://bitbucket.org')), 'bitbucketCloud');
+    assert.equal(resolveProvider(git('https://github.com')), 'github');
+    // A self-hosted installation cannot be recognised from its address, so the wizard stores the
+    // answer and it has to survive.
+    assert.equal(resolveProvider(git('https://git.example.invalid')), 'github');
+    assert.equal(
+      resolveProvider({ ...git('https://git.example.invalid'), provider: 'bitbucketCloud' }),
+      'bitbucketCloud',
+    );
+  });
+
+  it('stays silent about a host that does not announce its API, so the wizard asks', () => {
+    assert.equal(providerFromHost('https://bitbucket.org/'), 'bitbucketCloud');
+    assert.equal(providerFromHost('https://github.com'), 'github');
+    assert.equal(providerFromHost('https://git.example.invalid'), undefined);
+    assert.equal(providerFromHost('whatever the user typed'), undefined);
+  });
+
+  it('builds the tracker API path from the configured host', () => {
+    assert.equal(
+      resolveApiRoot({ name: 'tracker', kind: 'jira', baseUrl: 'https://tracker.invalid/', authScheme: 'bearer' }),
+      'https://tracker.invalid/rest/api/2/',
+    );
   });
 });

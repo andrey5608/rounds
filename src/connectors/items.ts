@@ -31,6 +31,24 @@ export interface FetchResult {
   cursor?: string;
 }
 
+/**
+ * A timestamp in ISO-8601 UTC, whatever the host called it.
+ *
+ * Cursor comparison is a string comparison, which only holds while every timestamp from a source has
+ * the same shape and the same offset. Hosts do not agree: one sends `Z`, one sends six fractional
+ * digits and an explicit `+00:00`, one sends epoch milliseconds. Normalising here keeps the ordering
+ * rule the same for all of them. A value that cannot be parsed is passed through rather than dropped:
+ * an odd string still orders consistently against itself, and an empty one would silently reset the
+ * cursor.
+ */
+export function toIsoTimestamp(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') {
+    return '';
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
+
 /** Newest first. */
 export function byUpdatedAtDescending(left: SourceItem, right: SourceItem): number {
   return right.updatedAt.localeCompare(left.updatedAt);

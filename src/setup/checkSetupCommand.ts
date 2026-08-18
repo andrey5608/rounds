@@ -9,7 +9,7 @@ import { runSetupChecks, worstStatus } from './checks.js';
 import { ModelRequestCancelledError, ModelRequestTimeoutError } from './modelCatalog.js';
 import type { SetupCheckContext } from './checks.js';
 import { userAction } from './consentGate.js';
-import { addOrUpdateEndpoint, enterToken } from './endpointEditor.js';
+import { addConnection, enterToken } from './endpointEditor.js';
 import { probeOutputFolder, resolveOutputFolder } from './outputFolder.js';
 
 const STATUS_ICON: Record<CheckStatus, string> = {
@@ -196,8 +196,8 @@ async function fixSource(container: ServiceContainer, kind: SourceKind): Promise
 
   const action = await vscode.window.showQuickPick(
     [
-      { label: '$(add) Add or replace a base URL', value: 'endpoint' as const },
-      { label: '$(key) Enter the token', value: 'token' as const },
+      { label: '$(add) Add a connection', detail: 'Base URL, how it authenticates, and its token', value: 'endpoint' as const },
+      { label: '$(key) Replace the token only', value: 'token' as const },
     ],
     {
       title: existing.length > 0 ? `Configured: ${existing.map((e) => e.name).join(', ')}` : 'Nothing configured yet',
@@ -208,9 +208,9 @@ async function fixSource(container: ServiceContainer, kind: SourceKind): Promise
     return;
   }
   if (action.value === 'endpoint') {
-    const endpoint = await addOrUpdateEndpoint(container.store, kind);
+    const endpoint = await addConnection(container.store, container.secrets, kind);
     if (endpoint) {
-      container.logger.info(`Configured the ${kind} connection "${endpoint.name}".`);
+      container.logger.info(`Configured the ${kind} connection "${endpoint.name}" and stored its token.`);
     }
     return;
   }

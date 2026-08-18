@@ -8,7 +8,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 ## Steps
 
 ### 1.1 Extension identity ✅
-- `icon`: `media/rounds-icon-128.png`. Added later, when the owner supplied brand assets; the activity
+- `icon`: `docs/media/rounds-icon-128.png`. Added later, when the owner supplied brand assets; the activity
   bar glyph replaced the `$(history)` codicon at the same time and `plan.md` was amended to match,
   because a specification that contradicts the shipped manifest gets "corrected" back by the next
   reader.
@@ -32,7 +32,7 @@ all commands registered as stubs, activation free of any model call. Milestone *
 ### 1.3 Views ✅
 ```jsonc
 "viewsContainers": {
-  "activitybar": [{ "id": "rounds", "title": "Rounds", "icon": "media/rounds-activitybar.svg" }]
+  "activitybar": [{ "id": "rounds", "title": "Rounds", "icon": "docs/media/rounds-activitybar.svg" }]
 },
 "views": {
   "rounds": [{ "id": "rounds.agentsView", "name": "Agents" }]

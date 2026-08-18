@@ -64,6 +64,9 @@ describe('wizard validation', () => {
 
   it('validates a repository name', () => {
     assert.equal(validateRepo('octo/rounds'), undefined);
+    // A project key and a personal project are both two segments, and both are valid there.
+    assert.equal(validateRepo('ROUNDS/rounds'), undefined);
+    assert.equal(validateRepo('~alex/rounds'), undefined);
     assert.match(validateRepo('rounds') ?? '', /owner and the repository/);
     assert.match(validateRepo('octo/rounds/extra') ?? '', /owner and the repository/);
   });

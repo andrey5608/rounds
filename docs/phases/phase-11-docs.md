@@ -8,7 +8,7 @@ CONTRIBUTING note on registering a new tool or connector.
 
 ## Steps
 
-### 11.1 README (`README.md`, English only) ✅
+### 11.1 README ✅
 Sections, in this order:
 
 1. **What it is** — one paragraph, the "making the rounds" idea, the vocabulary

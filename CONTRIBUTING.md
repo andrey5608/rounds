@@ -55,7 +55,7 @@ is allowed, and what it does — lives in that object, so adding one is a file p
    export function createThingTool(): RoundsTool<ThingInput> {
      return {
        name: 'doThing',
-       description: 'English. The model reads this, and so does the user in the wizard.',
+       description: 'The model reads this, and so does the user in the wizard.',
        inputSchema: { type: 'object', properties: { … }, required: […], additionalProperties: false },
        parseInput(raw) { /* throw ToolInputError with a message the model can act on */ },
        checkPermission(input, context) { /* { allowed: true } or { allowed: false, reason } */ },
@@ -95,6 +95,15 @@ property the deny list and the path resolution exist to guarantee.
    with one that throws, so a test that forgets to inject one fails.
 7. Register it in [`src/connectors/factory.ts`](./src/connectors/factory.ts) and offer it in the
    wizard's source step.
+8. For a repository host, add a value to `GitProvider`, resolve its API root in `resolveApiRoot`,
+   accept the new value in `src/state/validate.ts`, and add it to the wizard's provider question. Ask
+   only when the address cannot say (`providerFromHost` returns `undefined`); recognise the hosted
+   service instead of making the user answer a question the URL already answered. Three connectors
+   already do this: GitHub, Bitbucket Cloud and self-hosted Bitbucket, which share a name with the
+   second and an API with neither.
+9. Normalise timestamps with `toIsoTimestamp`. The cursor is compared as a string, so a host that
+   reports epoch milliseconds or a non-`Z` offset silently breaks the ordering if it is passed
+   through as it arrived.
 
 ## Rules that will fail your build
 

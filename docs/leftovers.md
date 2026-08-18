@@ -18,7 +18,7 @@ decision, or a working installation.
 | Tag `v1.0.0` | Version and changelog say 1.0.0; no tag exists. Nothing blocks it any more | Tag the release commit, then `vsce publish` |
 
 Closed since this list was written: the icon and the activity bar glyph, from the brand assets in
-[`media/`](../media), and the publisher id, which is now `rounds`. What remains is the screenshots and
+[`docs/media/`](../media), and the publisher id, which is now `rounds`. What remains is the screenshots and
 the release act itself.
 
 ## 2. Needs a real environment
@@ -66,8 +66,37 @@ Kept here because the next person deserves to know it was wrong once:
   whether the language model API is present, and which installed extensions look like providers and
   whether they activated. See [phase 2](./phases/phase-02-state.md).
 
+- **A run against github.com always failed with a 404.** The API root was built by appending the
+  GitHub Enterprise Server path to whatever base URL was configured, which is wrong for github.com:
+  its API lives on `api.github.com`. The resulting message blamed the repository name, which is the
+  worst thing to tell somebody who typed it correctly. Resolution is now per host, and a 404 names the
+  path that was missing.
+- **An empty model answer was recorded as a successful run** whose summary read "the model returned no
+  text" — neither a result nor an explanation. An answer with no text and no tool calls is now a failed
+  run with its own code, and every round logs how long it took, how much text came back and how many
+  tools were asked for.
+- **"Another window holds the scheduling lock" repeated forever with one window open.** A compromised
+  lock was forgotten without being released, so the process could hold a lock it no longer knew about
+  and refuse itself every fifteen seconds. The handle is released before it is dropped, and the refusal
+  is reported once per change with whether the holder is alive or the lock is waiting to go stale.
+- **Bitbucket was refused rather than supported.** Naming the host in the error was an improvement
+  over a 404, but "not supported yet" is still a dead end for somebody whose pull requests live there.
+  Both Bitbucket APIs now have a connector — the hosted service and the self-hosted product, which
+  share a name and almost nothing else — chosen by a `provider` field on the connection. The wizard
+  asks which API a host speaks only when the address does not say, which is exactly the self-hosted
+  case. See [phase 5](./phases/phase-05-connectors.md).
+- **The wizard asked eleven questions in a row, several of them optional.** Creation now asks only what
+  an agent cannot work without; the rest keeps its default and is reachable from the confirmation and
+  from Edit Agent. The token is asked for together with the host it belongs to, and the confirmation is
+  a modal message rather than a quick pick, whose filter box read as a field to fill in.
+
 ## 5. Worth adding, not required
 
+- **Support for the remaining repository hosts.** Rounds speaks the GitHub REST API and both Bitbucket
+  APIs, so github.com, GitHub Enterprise Server, bitbucket.org and a self-hosted Bitbucket installation
+  work. GitLab, Azure DevOps and Gitea have different API shapes and are refused by name rather than
+  failing later with a 404. Adding one means adding a connector next to the three that exist; the
+  recipe is in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - **A dedicated daylight-saving transition test.** Time zone handling is proven across zones on the
   same instant, and every next run is recomputed when the zone setting changes, but no test pins a
   real DST date. Noted in [phase 9](./phases/phase-09-scheduler.md). Pick a transition date in a zone

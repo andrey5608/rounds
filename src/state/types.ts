@@ -180,6 +180,19 @@ export interface RunClaim {
 export type AuthScheme = 'basic' | 'bearer';
 
 /**
+ * Which API a repository host speaks.
+ *
+ * Not a cosmetic label: these are different APIs with different paths, payloads and pagination, so
+ * the connector is chosen by this value. Inferred from the host when it is recognisable, stored so a
+ * self-hosted installation can say what it is.
+ *
+ * `bitbucketCloud` is the hosted service; `bitbucketServer` is the self-hosted product, which shares the
+ * name and almost nothing else — a different REST version, different paths, epoch timestamps and a
+ * project key where the hosted service has a workspace.
+ */
+export type GitProvider = 'github' | 'bitbucketCloud' | 'bitbucketServer';
+
+/**
  * A configured base URL an agent can point at.
  *
  * Agents reference an endpoint by name so several agents can share one host without
@@ -193,6 +206,8 @@ export interface EndpointConfig {
   authScheme: AuthScheme;
   /** Needed by basic authentication, where the token is the password. */
   username?: string;
+  /** Repository hosts only. Absent means it is inferred from the base URL. */
+  provider?: GitProvider;
 }
 
 /** A model as the editor reported it. Ids and labels only; no credentials involved. */

@@ -71,6 +71,52 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
 - Keep the implementation provider-agnostic: one `GitProvider` interface, one concrete
   REST implementation for v1, selected by a `provider` field on the source so a second
   provider is an added file, not a rewrite.
+- **Corrected after a real setup:** the API root is resolved per host rather than by appending one
+  fixed path. github.com serves its API from `api.github.com`, while an enterprise installation serves
+  it from `/api/v3/` under its own host; appending the enterprise path to github.com produced a 404
+  whose message blamed the repository name. Hosts with a different API shape — GitLab, Azure DevOps,
+  Gitea — are refused by name, because "not supported yet" is a fact somebody can act on and a 404 is
+  not.
+
+### 5.5a `BitbucketCloudConnector` (`src/connectors/bitbucketCloud.ts`) ✅
+- Reported from a real setup: Bitbucket was refused by name, which is better than a 404 but still a
+  dead end for somebody whose pull requests live there. It now has its own implementation of the same
+  port, which is what "a second provider is an added file, not a rewrite" was for.
+- A second implementation rather than a special case inside the first: the two APIs share almost
+  nothing — `repositories/{workspace}/{repo}/pullrequests` against `/repos/{owner}/{repo}/pulls`,
+  `values` against a bare array, `summary.raw` against `body`, states expressed as a repeated `state`
+  query parameter, `-updated_on`/`-created_on` sorting instead of `sort` plus `direction`. What they do
+  share is `SourceItem`, which is exactly what the port describes.
+- Every state is requested (`OPEN`, `MERGED`, `DECLINED`, `SUPERSEDED`): an agent watching a repository
+  usually cares about work that landed as much as about work still open, and the default is open only.
+- `getDiff` returns a note instead of failing the run when the diff cannot be fetched. Bitbucket
+  answers that endpoint with a redirect to wherever the diff is stored, and the client refuses
+  redirects on purpose — following one is how a request to an allowed host ends up somewhere else
+  carrying the token. Losing one diff is worth a line in the result; losing the whole run is not.
+
+### 5.5b `BitbucketServerConnector` (`src/connectors/bitbucketServer.ts`) ✅
+- The self-hosted product shares the name with the hosted service and almost nothing else, so it is a
+  third implementation of the port rather than a flag on the second: REST `1.0` instead of `2.0`, a
+  project key instead of a workspace, `description` instead of `summary.raw`, epoch milliseconds
+  instead of timestamps, `isLastPage` instead of a link to the next page.
+- It offers no sort by change time at all — `order` is `NEWEST` or `OLDEST`, both by creation. So the
+  connector asks for a page deliberately larger than `maxResults` and orders by change time itself.
+- Timestamps are normalised to ISO-8601 UTC by `toIsoTimestamp` in `items.ts`, shared with the hosted
+  connector. Cursor comparison is a string comparison, which only holds while every timestamp from a
+  source has the same shape: one host sends `Z`, one sends six fractional digits with an explicit
+  `+00:00`, one sends epoch milliseconds.
+- A personal repository is addressed as `~user/repo` by the API and browsed under `/users/user/...`,
+  so the API path and the link are built separately.
+- The base URL is the host root, context path included (`https://tools.example/bitbucket`), and
+  `/rest/api/1.0` is appended — but not twice, when somebody types it themselves.
+
+### 5.5c Choosing between them ✅
+- Which connector runs is a stored `provider` field on the connection, not a guess. github.com and
+  bitbucket.org announce themselves and are recognised; a self-hosted installation cannot be, so the
+  wizard asks once and stores the answer (`providerFromHost` returns `undefined` exactly when asking
+  is warranted, which is what the wizard branches on).
+- An unknown value read back from the state is dropped rather than kept: the connector is chosen by
+  this field, so a value nobody implements has to fall back to the default rather than pick nothing.
 
 ### 5.6 Connector factory and credential wiring (`src/connectors/factory.ts`) ✅
 - `createConnector(source, secrets, settings, logger)` resolves the base URL and the
@@ -83,6 +129,11 @@ Both connectors produce this shape; placeholders (phase 6) and the result front 
 - Unit with recorded fixtures for: cloud and self-hosted Jira search payloads, PR list
   and diff payloads, `401`, `429` with `Retry-After`, `5xx` retry then success, malformed
   JSON, redirect to a foreign host (must be rejected).
+- One fixture set per repository host, each asserting the URL that actually leaves the process,
+  because that is what the three of them disagree about.
+- The github.com route is covered end to end through the factory — connection, API root, connector,
+  payload, cursor, diff — rather than only against a self-hosted base URL. That whole route was
+  correct in the parts and wrong as a whole, which is precisely the failure a per-unit test misses.
 - No test performs a real network call, and that is enforced rather than trusted: the unit
   test runner replaces the global `fetch` with a stub that throws, so a test which forgets to
   inject one fails instead of quietly talking to a live host. Verified with a test that calls

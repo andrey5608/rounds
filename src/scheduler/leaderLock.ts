@@ -48,6 +48,8 @@ export class LeaderLock {
   private readonly heartbeatMs: number;
   private release: (() => Promise<void>) | undefined;
   private readonly lostEmitter = new Emitter<void>();
+  /** Last refusal reported, so the same line is not repeated every retry. */
+  private lastRefusal: string | undefined;
 
   constructor(options: LeaderLockOptions) {
     this.directory = options.directory;
@@ -92,15 +94,49 @@ export class LeaderLock {
         retries: 0,
         onCompromised: (error) => {
           this.logger.warn(`Lost the scheduling lock: ${error.message}`);
+          // Release before forgetting the handle. Dropping it while the lock file is still held
+          // leaves this process holding a lock it no longer knows about, and every later attempt
+          // then fails with "already being held" — by itself, forever.
+          const release = this.release;
           this.release = undefined;
+          void release?.().catch(() => undefined);
           this.lostEmitter.fire(undefined);
         },
       });
       this.logger.info('This window now schedules runs.');
+      this.lastRefusal = undefined;
       return true;
     } catch (error) {
-      this.logger.debug(`Another window holds the scheduling lock (${String(error)}).`);
+      await this.reportRefusal(error);
       return false;
+    }
+  }
+
+  /**
+   * Explains a refusal once, with who is holding the lock.
+   *
+   * Repeating the same line every fifteen seconds turns the log into noise and hides everything else,
+   * which is exactly what a user reported. The message also says whether the holder is alive or
+   * whether the lock is waiting to go stale, because "another window" is confusing advice when only
+   * one window is open.
+   */
+  private async reportRefusal(error: unknown): Promise<void> {
+    let detail = 'another window holds it';
+    try {
+      const held = await lockfile.check(this.filePath, { stale: this.staleMs });
+      detail = held
+        ? 'another window holds it and is keeping it alive'
+        : `the lock file exists but nobody is refreshing it; it is treated as abandoned after ${Math.round(this.staleMs / 1000)}s`;
+    } catch {
+      // Checking is best effort; the refusal itself is what matters.
+    }
+
+    const message = `This window does not schedule runs: ${detail}.`;
+    if (message !== this.lastRefusal) {
+      this.lastRefusal = message;
+      this.logger.info(`${message} (${String(error)})`);
+    } else {
+      this.logger.debug(message);
     }
   }
 

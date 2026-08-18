@@ -6,7 +6,22 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Bitbucket support**, both the hosted service and self-hosted installations. They share a name and
+  almost nothing else — different REST versions, paths, payloads, pagination and timestamp formats —
+  so each has its own connector. A repository host connection now records which API it speaks; the
+  setup flow asks only when the address does not say, which is the self-hosted case.
+
+### Fixed
+
+- Timestamps from a repository host are normalised to ISO-8601 UTC before they become a cursor. A
+  cursor is compared as a string, so a host reporting epoch milliseconds or a non-`Z` offset could
+  otherwise skip items or repeat them.
+- The extended log now records the full model request, every streamed response part and the collected
+  turn, formatted, so "the model returned no text" can be diagnosed from the log instead of guessed
+  at. A response part that the editor sends in a shape the API types do not cover is read
+  structurally rather than dropped.
 
 ## [1.0.0] - 2026-08-17
 
