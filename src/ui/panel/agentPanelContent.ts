@@ -129,6 +129,9 @@ function styles(): string {
     }
     .row-inline { display: flex; gap: 0.5rem; align-items: center; }
     .checks { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .tools { display: flex; flex-direction: column; gap: 0.5rem; }
+    .tools .tool .hint { margin-left: 1.4rem; }
+    .tools .tool.missing { color: var(--vscode-editorWarning-foreground); }
     label.check { display: flex; align-items: center; gap: 0.35rem; color: var(--vscode-foreground); }
     label.check input { width: auto; }
     details { margin: 1.5rem 0 0; }

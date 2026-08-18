@@ -135,6 +135,55 @@ describe('the agent form', () => {
     assert.match(html, /refuses every command/);
   });
 
+  it('keeps the tools from the workspace in a group of their own', () => {
+    // They are somebody else's code and they can disappear; a list that hides which is which
+    // makes the README's warning impossible to act on.
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [
+            { name: 'readFile', description: 'reads a file' },
+            { name: 'research', description: 'Looks something up', external: true, tags: ['search'] },
+          ],
+        }),
+      }),
+    );
+
+    assert.match(html, /From this workspace/);
+    assert.match(html, /Looks something up/);
+    assert.match(html, /search/);
+  });
+
+  it('says so when nothing else offers a tool', () => {
+    const html = renderAgentForm(
+      model({ context: context({ tools: [{ name: 'readFile', description: 'reads a file' }] }) }),
+    );
+    assert.match(html, /No other extension currently offers a tool\./);
+  });
+
+  it('keeps an enabled tool that has gone missing in view, marked', () => {
+    // The run will fail on it. A form that drops it turns that failure into a mystery.
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [
+            { name: 'readFile', description: 'reads a file' },
+            {
+              name: 'research',
+              description: 'No extension provides this tool right now, so a run would fail on it.',
+              external: true,
+              missing: true,
+            },
+          ],
+        }),
+        draft: { ...agentToDraft(agent()), tools: ['research'] },
+      }),
+    );
+
+    assert.match(html, /research — missing/);
+    assert.match(html, /id="tool:research"[^>]*checked/);
+  });
+
   it('says what to do when there is no model to choose', () => {
     const html = renderAgentForm(model({ context: context({ models: [] }) }));
     assert.match(html, /Run Check Setup/);

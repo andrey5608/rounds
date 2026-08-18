@@ -32,6 +32,17 @@ export type FormField =
   | 'window'
   | 'maxExecutionsPerDay';
 
+/** One tool as the form shows it: ours, the workspace's, or one that is enabled and gone. */
+export interface FormTool {
+  name: string;
+  description: string;
+  /** True for a tool another extension registered. */
+  external?: boolean;
+  tags?: readonly string[];
+  /** True when the agent enabled it and nothing registers it now. */
+  missing?: boolean;
+}
+
 export interface FormContext {
   /** Every agent, so a name can be checked against the ones that exist. */
   agents: readonly Agent[];
@@ -39,7 +50,7 @@ export interface FormContext {
   editing?: Agent;
   connections: readonly EndpointConfig[];
   models: readonly CachedModel[];
-  tools: readonly { name: string; description: string }[];
+  tools: readonly FormTool[];
   /** True while `runScript` would refuse everything anyway. */
   emptyScriptWhitelist: boolean;
   /** What the chosen connection speaks, for the project field's label. */

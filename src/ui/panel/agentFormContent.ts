@@ -3,7 +3,7 @@ import type { AgentDraft } from '../wizard/steps.js';
 
 import { escapeHtml } from './agentPanelContent.js';
 import type { RunPresentation } from './agentPanelContent.js';
-import type { FieldErrors, FormContext } from './agentFormModel.js';
+import type { FieldErrors, FormContext, FormTool } from './agentFormModel.js';
 
 export interface AgentFormViewModel {
   draft: AgentDraft;
@@ -290,16 +290,54 @@ function modelSection(model: AgentFormViewModel): string {
             })
           : `<p class="warning">No models are known yet. Run Check Setup to ask the editor for one.</p>`,
     })}
-    <div class="field">
-      <span class="label-text" id="tools-label">Tools</span>
-      <div class="checks" role="group" aria-labelledby="tools-label">
-        ${context.tools
-          .map((tool) => checkbox(`tool:${tool.name}`, tool.name, draft.tools.includes(tool.name)))
-          .join('')}
-      </div>
-      ${whitelistNote}
-    </div>
+    ${toolGroup('Tools', 'built-in', context.tools.filter((tool) => !tool.external), draft.tools)}
+    ${toolGroup(
+      'From this workspace',
+      'external',
+      context.tools.filter((tool) => tool.external),
+      draft.tools,
+    )}
+    ${whitelistNote}
   </section>`;
+}
+
+/**
+ * One group of tools, with what each one is under its name.
+ *
+ * The workspace's tools are a separate group rather than mixed in: they come from somebody else's
+ * extension, they can disappear, and the README asks people to think before enabling one. A list
+ * that hides which is which would make that impossible to act on.
+ */
+function toolGroup(
+  title: string,
+  id: string,
+  tools: readonly FormTool[],
+  enabled: readonly string[],
+): string {
+  if (tools.length === 0) {
+    return id === 'external'
+      ? `<div class="field">
+          <span class="label-text">From this workspace</span>
+          <p class="hint">No other extension currently offers a tool.</p>
+        </div>`
+      : '';
+  }
+
+  const entries = tools
+    .map((tool) => {
+      const label = tool.missing ? `${tool.name} — missing` : tool.name;
+      const tags = tool.tags && tool.tags.length > 0 ? ` · ${tool.tags.join(', ')}` : '';
+      return `<div class="tool${tool.missing ? ' missing' : ''}">
+        ${checkbox(`tool:${tool.name}`, label, enabled.includes(tool.name))}
+        <p class="hint">${escapeHtml(tool.description)}${escapeHtml(tags)}</p>
+      </div>`;
+    })
+    .join('');
+
+  return `<div class="field">
+    <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
+    <div class="tools" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+  </div>`;
 }
 
 function scheduleSection(model: AgentFormViewModel): string {

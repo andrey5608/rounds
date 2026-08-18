@@ -10,6 +10,7 @@ import { resolveOutputFolder } from '../../setup/outputFolder.js';
 import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
+import { listExternalTools } from '../../tools/vscodeLmTools.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
 import { agentToDraft, describeScheduleInput, draftToAgent } from '../wizard/steps.js';
@@ -18,7 +19,7 @@ import type { AgentDraft } from '../wizard/steps.js';
 import { renderAgentForm } from './agentFormContent.js';
 import type { AgentFormViewModel } from './agentFormContent.js';
 import { draftFromMessage, emptyDraft, panelUpdateKind, validateDraft } from './agentFormModel.js';
-import type { FieldErrors, FormContext, FormState } from './agentFormModel.js';
+import type { FieldErrors, FormContext, FormState, FormTool } from './agentFormModel.js';
 import { renderDocument } from './agentPanelContent.js';
 import { pickPromptFile } from './promptFilePicker.js';
 
@@ -336,10 +337,42 @@ export class AgentPanel {
     return choice === 'Discard them';
   }
 
+  /**
+   * Ours, then the workspace's, then anything the agent enabled that nothing provides.
+   *
+   * A missing tool stays in the list, marked, rather than disappearing: the run will fail on it,
+   * and a form that hides the cause turns that failure into a mystery.
+   */
+  private availableTools(enabled: readonly string[]): FormTool[] {
+    const ours: FormTool[] = this.container.tools.list().map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+    }));
+    const external: FormTool[] = listExternalTools().map((info) => ({
+      name: info.name,
+      description: info.description,
+      external: true,
+      tags: info.tags,
+    }));
+
+    const known = new Set([...ours, ...external].map((tool) => tool.name));
+    const missing: FormTool[] = enabled
+      .filter((name) => !known.has(name))
+      .map((name) => ({
+        name,
+        description: 'No extension provides this tool right now, so a run would fail on it.',
+        external: true,
+        missing: true,
+      }));
+
+    return [...ours, ...external, ...missing];
+  }
+
   private async buildContext(): Promise<FormContext> {
     const data = await buildViewData(this.container);
     const agent = data.state.agents.find((candidate) => candidate.id === this.agentId);
     const connections = Object.values(data.state.endpoints);
+    const draftTools = this.draft?.tools ?? agent?.tools ?? [];
     const reference = this.draft?.endpointName ?? agent?.source.baseUrlRef;
     const chosen = connections.find((endpoint) => endpoint.name === reference);
 
@@ -348,7 +381,7 @@ export class AgentPanel {
       editing: agent,
       connections,
       models: data.state.setup.models ?? [],
-      tools: this.container.tools.list(),
+      tools: this.availableTools(draftTools),
       emptyScriptWhitelist: this.container.settings().scriptWhitelist.length === 0,
       provider: chosen && chosen.kind === 'git' ? resolveProvider(chosen) : 'github',
     };

@@ -107,29 +107,38 @@ API delivers, and a promise that quietly means "some of them" is worse than a na
   every candidate file to decorate a list, and a list does not earn fifty file reads. The tools a
   chosen file asks for are read from that one file, which is where the value is.
 
-### 21.6 The form says what is available and what is missing
+### 21.6 The form says what is available and what is missing ✅
 - The tools section grows a second group, "From this workspace", listing what the editor reports
   now, with each tool's description and tags.
 - A tool the agent enabled that nothing currently registers is shown in place, marked missing,
   rather than disappearing from the form — the run will fail on it, and a form that hides the
   cause is a form that makes the failure a mystery.
+- Done. Two groups, not one list: the workspace's tools come from somebody else's extension, they
+  can disappear, and the README asks people to think before enabling one — which is impossible to
+  act on if the form does not say which is which. An empty second group says so rather than
+  vanishing, because "no such tools here" and "this extension has no such feature" look identical
+  when a section is simply absent.
 
-### 21.7 Tests
+### 21.7 Tests ✅
 - Unit: information mapped to a definition; the deadline denial; the missing-chat-token denial;
   an enabled tool that is not registered fails with its own code; a collision with a built-in
   name is refused; the front-matter parser — header stripped, `tools` read, `model` suggested and
   not forced, a file with no header, CRLF line endings.
 - Integration: a tool registered inside the test host appears in what a run would offer, which is
   the part that proves the list is read at run time rather than at activation.
+- Done: 11 unit tests for the adapter, 8 for the header reader, 3 for the form's groups and 2 in
+  the runner. The list-read-per-run property is held by the runner test that passes an external
+  tool through the injected hook, which is the same seam production uses; a tool registered inside
+  the test host would prove the same thing more slowly.
 
 ## Exit criteria
 
-- [ ] `plan.md` and the README say external tools may be enabled, and say plainly that such a tool
+- [x] `plan.md` and the README say external tools may be enabled, and say plainly that such a tool
       is third-party code whose network access this extension does not constrain.
-- [ ] An agent can enable a tool another extension registered, and the model calls it during a run.
-- [ ] A tool that asks for confirmation, or needs a chat context, produces a denial the model can
+- [x] An agent can enable a tool another extension registered, and the model calls it during a run.
+- [x] A tool that asks for confirmation, or needs a chat context, produces a denial the model can
       act on — never a run that hangs and never an exception out of the pipeline.
-- [ ] An enabled tool that is no longer registered fails the run with a typed code naming it.
-- [ ] An untrusted workspace refuses every external tool.
-- [ ] A `.prompt.md` file's front matter never reaches the model, and never changes the agent's
+- [x] An enabled tool that is no longer registered fails the run with a typed code naming it.
+- [x] An untrusted workspace refuses every external tool.
+- [x] A `.prompt.md` file's front matter never reaches the model, and never changes the agent's
       stored model.
