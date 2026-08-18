@@ -256,8 +256,8 @@ result passes through the same redaction as the log.
 
 ## Known limitations in v1
 
-- No chat participant and no Language Model Tools contribution: agents are managed from the panel and
-  the palette.
+- No chat participant, and no writing to agents from chat: `rounds_query` answers questions, and
+  creating or changing an agent happens in the panel and the palette.
 - No execution while the editor is closed.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.
