@@ -161,9 +161,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     host: createVscodeMessageHost(),
     commands: createNotifierCommands(() => output.show()),
     logger,
-    // Phase 13.3 replaces this with the `rounds.notifications` setting; until then the policy is
-    // exactly what it was before: quiet on success, one message per failing agent per day.
-    mode: () => 'failures',
+    mode: () => settings.notifications,
     timeZone: () => settings.timezone,
   });
 

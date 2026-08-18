@@ -141,6 +141,7 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | `rounds.executionHistoryLimit` | `50` | Runs kept per agent. Result files are never deleted. |
 | `rounds.promptFileFallback` | `snapshot` | What a run does when its prompt file cannot be read. |
 | `rounds.logLevel` | `info` | Verbosity of the Rounds output channel. |
+| `rounds.notifications` | `failures` | How much Rounds may interrupt you: `failures`, `all` or `silent`. A run you start yourself always reports its outcome, and `silent` leaves the output channel, the status bar and the run history untouched. |
 
 ## Commands
 

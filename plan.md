@@ -49,7 +49,10 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.maxExecutionsPerDay`, `rounds.minimumIntervalWarning`,
   `rounds.manualRunNextRunPolicy`, `rounds.defaultOutputFolder`,
   `rounds.scriptWhitelist`, `rounds.executionHistoryLimit`,
-  `rounds.promptFileFallback`, `rounds.logLevel`
+  `rounds.promptFileFallback`, `rounds.logLevel`, `rounds.notifications`
+- `rounds.notifications` (`failures` | `all` | `silent`, default `failures`) decides how much
+  the extension may interrupt. `silent` stops the toasts only: the log, the status bar and the
+  run record are unchanged, and a run the user started by hand always reports its outcome.
 - Settings UI title: "Rounds"
 
 ### Views

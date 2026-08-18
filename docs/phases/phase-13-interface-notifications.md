@@ -51,7 +51,7 @@ inline in `src/extension.ts`.
   message. A failure whose fix is in Check Setup must not arrive as "show the output".
 - The manual run goes through `notifier.requested`, the one path the mode never silences.
 
-### 13.3 The `rounds.notifications` setting
+### 13.3 The `rounds.notifications` setting ✅
 **Decided:** three values rather than a switch, because turning notifications off and
 turning them up are both real requests and a boolean answers only one of them.
 - Values: `failures` (default), `all`, `silent`. `silent` still writes the log line, the
@@ -68,6 +68,9 @@ turning them up are both real requests and a boolean answers only one of them.
 - Why `rounds.notifications` earns its place: an unattended tool that cannot be told to be
   quiet gets uninstalled instead of configured, and `all` is what somebody wants for the
   first week after setting an agent up.
+- Done, in `plan.md`, `package.json`, `SETTING_KEYS` and the README table. `NotificationMode`
+  itself lives in `src/state/settings.ts` rather than next to the policy: it is configuration,
+  and `state` is the layer `ui` reads from, never the other way round.
 
 ### 13.4 Live schedule preview in the wizard
 - `validateScheduleInput` only reports errors, so a valid cron expression produces no

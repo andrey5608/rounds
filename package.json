@@ -280,6 +280,21 @@
             "Log everything, including tool calls and scheduling decisions."
           ],
           "markdownDescription": "Verbosity of the Rounds output channel."
+        },
+        "rounds.notifications": {
+          "type": "string",
+          "default": "failures",
+          "enum": [
+            "failures",
+            "all",
+            "silent"
+          ],
+          "enumDescriptions": [
+            "Report failures only. Scheduled runs that succeed stay quiet.",
+            "Report every scheduled run, successful ones included.",
+            "Show no notifications. The output channel, the status bar and the run history are unchanged."
+          ],
+          "markdownDescription": "How much Rounds may interrupt you. A run you start yourself always reports its outcome."
         }
       }
     },

@@ -1,17 +1,9 @@
+import type { NotificationMode } from '../state/settings.js';
 import type { StoreLogger } from '../state/store.js';
 import { localDate, systemClock } from '../state/time.js';
 import type { Clock } from '../state/time.js';
 
-/**
- * How much the extension is allowed to interrupt.
- *
- * `failures` is the default and matches what an unattended tool should do: say nothing while
- * things work. `all` exists for the first week after an agent is set up, when the question is
- * whether it ran at all. `silent` stops the toasts and nothing else — the log, the status bar
- * and the run record are unchanged, because turning notifications down must not turn
- * information off.
- */
-export type NotificationMode = 'failures' | 'all' | 'silent';
+export type { NotificationMode };
 
 export type MessageLevel = 'info' | 'warning' | 'error';
 
