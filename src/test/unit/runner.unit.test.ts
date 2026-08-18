@@ -20,6 +20,7 @@ import { RoundsStore } from '../../state/store.js';
 import { FixedClock } from '../../state/time.js';
 import type { Agent, RunRecord } from '../../state/types.js';
 import { createToolRegistry } from '../../tools/index.js';
+import type { RoundsTool } from '../../tools/registry.js';
 
 const NOW = new Date('2026-08-17T09:00:00.000Z');
 
@@ -95,6 +96,8 @@ async function harness(options: {
   secrets?: ('jiraToken' | 'gitToken')[];
   gateway?: FakeGateway;
   resultWriter?: ResultWriter;
+  /** Tools another extension would report. */
+  externalTools?: RoundsTool<unknown>[];
 }): Promise<Harness> {
   const directory = await mkdtemp(join(tmpdir(), 'rounds-runner-'));
   const resultsFolder = join(directory, 'results');
@@ -157,6 +160,7 @@ async function harness(options: {
     models: new ModelCatalog({ gateway, store, clock }),
     gateway,
     registry: createToolRegistry(),
+    externalTools: () => options.externalTools ?? [],
     connectors,
     resultWriter: options.resultWriter,
     settings: () => settings,
@@ -334,6 +338,83 @@ describe('agent runner', () => {
     assert.match(content, /## ROUNDS-2 Leader lock heartbeat/);
   });
 
+  it('runs an agent that has no source at all', async () => {
+    // The point of the phase: a prompt on a schedule, in an installation that may have no
+    // connection configured anywhere.
+    const promptOnly = agent({
+      source: undefined,
+      prompt: { source: 'inline', inlineText: 'Report what changed in {{workspace}}.' },
+    });
+    const { runner, gateway, store } = await harness({ agent: promptOnly });
+
+    const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
+
+    assert.equal(record.status, 'succeeded');
+    assert.equal(record.sourceItemCount, 0);
+    assert.equal(gateway.requests.length, 1, 'one rendering, as written');
+    assert.equal((await store.reload()).counters.global, 1);
+  });
+
+  it('does not call the connector for an agent with no source', async () => {
+    const promptOnly = agent({
+      source: undefined,
+      prompt: { source: 'inline', inlineText: 'Report what changed.' },
+    });
+    const { runner } = await harness({
+      agent: promptOnly,
+      fetch: () => Promise.reject(new Error('a run with no source must not fetch')),
+    });
+
+    const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
+    assert.equal(record.status, 'succeeded');
+  });
+
+  it('does not call an empty result a skip when there was nothing to fetch', async () => {
+    // "The source returned nothing to work on" would be a lie about why nothing happened.
+    const promptOnly = agent({
+      source: undefined,
+      prompt: { source: 'inline', inlineText: 'Report what changed.' },
+    });
+    const { runner } = await harness({ agent: promptOnly });
+
+    const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
+    assert.notEqual(record.status, 'skipped');
+  });
+
+  it('fails a run whose tool no extension provides any more', async () => {
+    // The rule the specification already applies to a model that is gone: fail and name it. A
+    // tool quietly dropped from the request changes what the agent does without saying so.
+    const withTool = agent({ tools: ['research'] });
+    const { runner } = await harness({ agent: withTool });
+
+    const record = await runner.run({ agent: withTool, trigger: 'manual' });
+
+    assert.equal(record.status, 'failed');
+    assert.equal(record.error?.code, 'tool.missing');
+    assert.match(record.summary, /research/);
+  });
+
+  it('offers a tool another extension registered to the model', async () => {
+    const withTool = agent({ tools: ['research'] });
+    const { runner, gateway } = await harness({
+      agent: withTool,
+      externalTools: [
+        {
+          name: 'research',
+          description: 'Looks something up',
+          inputSchema: { type: 'object' },
+          parseInput: (raw: unknown) => raw,
+          checkPermission: () => ({ allowed: true }) as const,
+          execute: () => Promise.resolve({ content: 'found it', truncated: false }),
+        },
+      ],
+    });
+
+    await runner.run({ agent: withTool, trigger: 'manual' });
+
+    assert.deepEqual(gateway.requests[0]?.tools.map((tool) => tool.name), ['research']);
+  });
+
   it('hands a chat-mode agent to the chat view and records the limitation', async () => {
     const chatAgent = agent({ executionMode: 'chat' });
     const { runner, handedOff, gateway, store } = await harness({ agent: chatAgent });
@@ -364,7 +445,7 @@ describe('agent runner', () => {
     await runner.run({ agent: gitAgent, trigger: 'manual' });
     const stored = (await store.reload()).agents[0];
     assert.equal(
-      stored?.source.kind === 'git' ? stored.source.sinceCursor : undefined,
+      stored?.source?.kind === 'git' ? stored.source.sinceCursor : undefined,
       '2026-08-17T08:00:00.000Z',
     );
   });
@@ -380,7 +461,7 @@ describe('agent runner', () => {
     const record = await runner.run({ agent: gitAgent, trigger: 'schedule' });
     assert.equal(record.status, 'failed');
     const stored = (await store.reload()).agents[0];
-    assert.equal(stored?.source.kind === 'git' ? stored.source.sinceCursor : 'unset', undefined);
+    assert.equal(stored?.source?.kind === 'git' ? stored.source.sinceCursor : 'unset', undefined);
   });
 
   it('records the tool calls a run made', async () => {

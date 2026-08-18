@@ -75,6 +75,28 @@ describe('state validation', () => {
     assert.equal(outcome.quarantine[0]?.kind, 'agent');
   });
 
+  it('accepts an agent with no source and keeps it that way', () => {
+    const { source: _source, ...withoutSource } = validAgent() as Record<string, unknown>;
+    const outcome = normalizeState(
+      {
+        schemaVersion: 2,
+        revision: 1,
+        agents: [withoutSource],
+        history: {},
+        counters: { localDate: LOCAL_DATE, global: 0, perAgent: {} },
+      },
+      LOCAL_DATE,
+    );
+
+    assert.equal(outcome.quarantine.length, 0);
+    assert.equal(outcome.state.agents[0]?.source, undefined);
+  });
+
+  it('still rejects a source that is there and malformed', () => {
+    const result = validateAgent(validAgent({ source: { kind: 'git', baseUrlRef: 'repos' } as never }));
+    assert.equal(typeof result, 'string');
+  });
+
   it('quarantines malformed run records but keeps the good ones', () => {
     const outcome = normalizeState(
       {

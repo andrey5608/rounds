@@ -43,3 +43,5 @@ states what it does not do as clearly as what it does.
 | 18 | Connections managed from the view | [phase-18-connections.md](./phases/phase-18-connections.md) |
 | 19 | Sources as project and repository | [phase-19-structured-sources.md](./phases/phase-19-structured-sources.md) |
 | 20 | Agents created and edited in the panel | [phase-20-agent-editor.md](./phases/phase-20-agent-editor.md) |
+| 21 | Tools the workspace already has | [phase-21-workspace-tools.md](./phases/phase-21-workspace-tools.md) |
+| 22 | Agents with no source | [phase-22-sourceless-agents.md](./phases/phase-22-sourceless-agents.md) |

@@ -87,6 +87,12 @@ bypass any of them for convenience.
   explaining why when it is not obvious.
 - **DO** work on a feature branch. **DON'T** commit directly to `main`.
 - **DON'T** commit or push unless the user asks for it.
+- **DO** run `npm run make` as the last step before committing, and commit the VSIX it produces
+  together with the change. The packaged extension is tracked here, so a commit that changes the
+  source and leaves the VSIX behind ships a build of something else.
+- **DO** run the checks first, in this order: `npm run check`, `npm run lint`, `npm run typecheck`,
+  `npm run test:unit`, `npm run test:integration`. `npm run make` bundles for production and is
+  not a substitute for any of them.
 
 ## Documentation
 

@@ -3,7 +3,7 @@ import type { AgentDraft } from '../wizard/steps.js';
 
 import { escapeHtml } from './agentPanelContent.js';
 import type { RunPresentation } from './agentPanelContent.js';
-import type { FieldErrors, FormContext } from './agentFormModel.js';
+import type { FieldErrors, FormContext, FormTool } from './agentFormModel.js';
 
 export interface AgentFormViewModel {
   draft: AgentDraft;
@@ -37,7 +37,7 @@ function field(options: {
   errorKey?: keyof FieldErrors;
 }): string {
   const key = options.errorKey ?? (options.id as keyof FieldErrors);
-  return `<div class="field${options.errors[key] ? ' invalid' : ''}">
+  return `<div class="field${options.errors[key] ? ' invalid' : ''}" data-error-key="${key}">
     <label for="${options.id}">${escapeHtml(options.label)}</label>
     ${options.control}
     ${options.hint ? `<p class="hint">${escapeHtml(options.hint)}</p>` : ''}
@@ -116,10 +116,34 @@ function identitySection(model: AgentFormViewModel): string {
   </section>`;
 }
 
+/** What an agent may read from, with "nothing" first because it is the simplest thing to be. */
+const SOURCE_KINDS = [
+  { value: 'none', label: 'Nothing — just the prompt' },
+  { value: 'jira', label: 'An issue tracker' },
+  { value: 'git', label: 'A repository host' },
+];
+
 function sourceSection(model: AgentFormViewModel): string {
   const { draft, errors, context } = model;
   const vocabulary = sourceVocabulary(context.provider);
   const connections = context.connections.filter((endpoint) => endpoint.kind === draft.sourceKind);
+
+  if (draft.sourceKind === 'none') {
+    return `<section>
+      <h2>Source</h2>
+      <div class="field">
+        <label for="sourceKind">Reads from</label>
+        ${select({
+          id: 'sourceKind',
+          value: draft.sourceKind,
+          entries: SOURCE_KINDS,
+          errors,
+        })}
+        <p class="hint">This agent fetches nothing. Its prompt runs as written, with whatever its
+        tools find. {{items}}, {{issueKey}}, {{summary}} and {{diff}} are not available.</p>
+      </div>
+    </section>`;
+  }
 
   const perKind =
     draft.sourceKind === 'jira'
@@ -185,15 +209,7 @@ function sourceSection(model: AgentFormViewModel): string {
     <h2>Source</h2>
     <div class="field">
       <label for="sourceKind">Reads from</label>
-      ${select({
-        id: 'sourceKind',
-        value: draft.sourceKind,
-        entries: [
-          { value: 'jira', label: 'An issue tracker' },
-          { value: 'git', label: 'A repository host' },
-        ],
-        errors,
-      })}
+      ${select({ id: 'sourceKind', value: draft.sourceKind, entries: SOURCE_KINDS, errors })}
     </div>
     ${field({
       id: 'endpointName',
@@ -241,7 +257,9 @@ function promptSection(model: AgentFormViewModel): string {
             id: 'promptText',
             label: 'Prompt',
             errorKey: 'prompt',
-            hint: `Placeholders: ${['items', 'issueKey', 'summary', 'diff', 'date', 'datetime', 'workspace']
+            hint: `Placeholders: ${(draft.sourceKind === 'none'
+              ? ['date', 'datetime', 'workspace']
+              : ['items', 'issueKey', 'summary', 'diff', 'date', 'datetime', 'workspace'])
               .map((name) => `{{${name}}}`)
               .join(', ')}`,
             errors,
@@ -264,10 +282,23 @@ function promptSection(model: AgentFormViewModel): string {
 
 function modelSection(model: AgentFormViewModel): string {
   const { draft, errors, context } = model;
-  const whitelistNote =
-    draft.tools.includes('runScript') && context.emptyScriptWhitelist
-      ? `<p class="warning">runScript is on, but the script whitelist is empty, so it refuses every command.</p>`
-      : '';
+  const whitelistNote = draft.tools.includes('runScript')
+    ? `<div class="field">
+        <span class="label-text">Commands runScript may run</span>
+        ${
+          context.scriptWhitelist.length === 0
+            ? `<p class="warning">The whitelist is empty, so runScript refuses every command.</p>`
+            : `<ul class="allowed">${context.scriptWhitelist
+                .map((entry) => `<li><code>${escapeHtml(entry)}</code></li>`)
+                .join('')}</ul>`
+        }
+        <p class="hint">Each entry allows exactly that command line. Arguments are matched one for
+        one, and a pattern may end with * to accept any suffix.</p>
+        <div class="row-inline">
+          <button type="button" data-command="allowCommand">Allow a command…</button>
+        </div>
+      </div>`
+    : '';
 
   return `<section>
     <h2>Model and tools</h2>
@@ -290,16 +321,87 @@ function modelSection(model: AgentFormViewModel): string {
             })
           : `<p class="warning">No models are known yet. Run Check Setup to ask the editor for one.</p>`,
     })}
-    <div class="field">
-      <span class="label-text" id="tools-label">Tools</span>
-      <div class="checks" role="group" aria-labelledby="tools-label">
-        ${context.tools
-          .map((tool) => checkbox(`tool:${tool.name}`, tool.name, draft.tools.includes(tool.name)))
-          .join('')}
-      </div>
-      ${whitelistNote}
-    </div>
+    ${toolGroup('Tools', 'built-in', context.tools.filter((tool) => !tool.external), draft.tools)}
+    ${toolGroup(
+      'From this workspace',
+      'external',
+      context.tools.filter((tool) => tool.external),
+      draft.tools,
+    )}
+    ${whitelistNote}
   </section>`;
+}
+
+/**
+ * One group of tools, with what each one is under its name.
+ *
+ * The workspace's tools are a separate group rather than mixed in: they come from somebody else's
+ * extension, they can disappear, and the README asks people to think before enabling one. A list
+ * that hides which is which would make that impossible to act on.
+ */
+function toolGroup(
+  title: string,
+  id: string,
+  tools: readonly FormTool[],
+  enabled: readonly string[],
+): string {
+  if (tools.length === 0) {
+    return id === 'external'
+      ? `<div class="field">
+          <span class="label-text">From this workspace</span>
+          <p class="hint">No other extension currently offers a tool.</p>
+        </div>`
+      : '';
+  }
+
+  const entries = tools
+    .map((tool) => {
+      const label = tool.missing ? `${tool.name} — missing` : tool.name;
+      const tags = tool.tags && tool.tags.length > 0 ? ` · ${tool.tags.join(', ')}` : '';
+      const full = `${tool.description}${tags}`;
+      return `<div class="tool${tool.missing ? ' missing' : ''}">
+        ${checkbox(`tool:${tool.name}`, label, enabled.includes(tool.name))}
+        <p class="hint" title="${escapeHtml(full)}">${escapeHtml(shorten(full))}</p>
+      </div>`;
+    })
+    .join('');
+
+  const ticked = tools.filter((tool) => enabled.includes(tool.name)).length;
+  const selectAll = `<label class="check select-all">
+    <input type="checkbox" id="select-all-${id}" data-group="${id}"${ticked === tools.length ? ' checked' : ''} />
+    Select all
+  </label>`;
+
+  return `<div class="field">
+    <div class="group-head">
+      <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
+      ${tools.length > 1 ? selectAll : ''}
+    </div>
+    <div class="tools" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+  </div>`;
+}
+
+/** How much of a tool's description a list row shows before it stops being a list. */
+export const TOOL_DESCRIPTION_LIMIT = 110;
+
+/**
+ * Shortens a description to one readable line.
+ *
+ * A tool from another extension may describe itself in a paragraph, and a column of paragraphs is
+ * no longer a list of tools. The full text stays in the `title`, so nothing is lost — it is one
+ * hover away rather than in the way.
+ */
+export function shorten(text: string, limit = TOOL_DESCRIPTION_LIMIT): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim();
+  if (collapsed.length <= limit) {
+    return collapsed;
+  }
+  // Cut at a word boundary when there is one nearby, so the tail is not half a word. `-1` means
+  // there is no boundary at all — one long token — and then the cut is where the limit says.
+  const cut = collapsed.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(' ');
+  const atWord = lastSpace > 0 && lastSpace > limit - 20;
+  return `${(atWord ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
 function scheduleSection(model: AgentFormViewModel): string {
@@ -318,7 +420,7 @@ function scheduleSection(model: AgentFormViewModel): string {
         errors,
       }),
     })}
-    ${model.schedulePreview ? `<p class="preview">${escapeHtml(model.schedulePreview)}</p>` : ''}
+    <p class="preview" id="schedule-preview">${escapeHtml(model.schedulePreview ?? '')}</p>
   </section>`;
 }
 
@@ -406,11 +508,13 @@ export function renderAgentForm(model: AgentFormViewModel): string {
   const editing = model.context.editing;
   const title = editing ? escapeHtml(editing.name) : 'New agent';
   let summary = '';
-  if (editing) {
+  if (editing?.source) {
     summary =
       editing.source.kind === 'git'
         ? formatRepository(editing.source.project, editing.source.repo)
         : editing.source.jql;
+  } else if (editing) {
+    summary = 'prompt only';
   }
 
   return `<h1>${title}</h1>

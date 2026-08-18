@@ -80,6 +80,21 @@ describe('rounds_query', () => {
     }
   });
 
+  it('says outright that an agent has no source', () => {
+    // A model that finds no `source` key cannot tell "there is none" from "not included here",
+    // and answers that are true is the whole point of this tool.
+    const promptOnly = context({
+      state: { ...context().state, agents: [agent({ source: undefined })] },
+    });
+
+    const result = runQuery({ kind: 'get', id: 'agent-1' }, promptOnly);
+    const source = (result as unknown as { agent: { source: { kind: string; note?: string } } }).agent
+      .source;
+
+    assert.equal(source.kind, 'none');
+    assert.match(source.note ?? '', /runs as written/);
+  });
+
   it('rejects an unknown kind by listing the ones that exist', () => {
     const result = runQuery({ kind: 'delete_everything' }, context());
 

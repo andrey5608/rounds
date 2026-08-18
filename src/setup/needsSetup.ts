@@ -61,12 +61,17 @@ export function evaluateReadiness(input: ReadinessInput): AgentReadiness {
     problems.push('unknownModel');
   }
 
-  const endpoint = input.endpoints[input.agent.source.baseUrlRef];
-  if (!endpoint || endpoint.kind !== input.agent.source.kind) {
-    problems.push('missingEndpoint');
-  }
-  if (!input.storedSecrets.includes(SECRET_BY_KIND[input.agent.source.kind])) {
-    problems.push('missingToken');
+  // An agent with no source visits nothing, so there is no connection to configure and no token
+  // to store. This is what makes an installation with no connections at all a valid one.
+  const source = input.agent.source;
+  if (source) {
+    const endpoint = input.endpoints[source.baseUrlRef];
+    if (!endpoint || endpoint.kind !== source.kind) {
+      problems.push('missingEndpoint');
+    }
+    if (!input.storedSecrets.includes(SECRET_BY_KIND[source.kind])) {
+      problems.push('missingToken');
+    }
   }
   if (input.outputFolderWritable === false) {
     problems.push('outputFolderUnwritable');

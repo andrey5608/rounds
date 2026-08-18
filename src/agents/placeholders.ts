@@ -86,12 +86,23 @@ export function scanPlaceholders(text: string): PlaceholderScan {
  * rendered once and once per item at the same time. Catching that in the wizard is far kinder
  * than catching it at three in the morning when the agent runs.
  */
-export function validatePrompt(text: string): PlaceholderScan {
+export function validatePrompt(text: string, options: { hasSource?: boolean } = {}): PlaceholderScan {
   const scan = scanPlaceholders(text);
   if (scan.perItem && scan.batch) {
     throw new PromptValidationError(
       `This prompt mixes placeholders about a single item (${ITEM_PLACEHOLDERS.map((name) => `{{${name}}}`).join(', ')}) with {{items}}, which covers the whole batch. Use one style or the other.`,
     );
+  }
+  // An agent with no source fetches nothing, so there is nothing for these to describe. Rendering
+  // them empty would be worse than refusing: the model would write confidently about nothing, and
+  // nobody reads the prompt again afterwards.
+  if (options.hasSource === false) {
+    const aboutItems = scan.used.filter((name) => name !== 'date' && name !== 'datetime' && name !== 'workspace');
+    if (aboutItems.length > 0) {
+      throw new PromptValidationError(
+        `This agent has no source, so ${aboutItems.map((name) => `{{${name}}}`).join(', ')} ${aboutItems.length === 1 ? 'has' : 'have'} nothing to describe. Available here: {{date}}, {{datetime}}, {{workspace}}.`,
+      );
+    }
   }
   return scan;
 }

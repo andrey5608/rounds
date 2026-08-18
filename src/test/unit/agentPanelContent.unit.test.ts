@@ -1,9 +1,14 @@
 import * as assert from 'node:assert/strict';
 
 import type { Agent } from '../../state/types.js';
-import { renderAgentForm } from '../../ui/panel/agentFormContent.js';
+import { renderAgentForm, shorten } from '../../ui/panel/agentFormContent.js';
 import type { AgentFormViewModel } from '../../ui/panel/agentFormContent.js';
-import { draftFromMessage, emptyDraft, validateDraft } from '../../ui/panel/agentFormModel.js';
+import {
+  draftFromMessage,
+  emptyDraft,
+  panelUpdateKind,
+  validateDraft,
+} from '../../ui/panel/agentFormModel.js';
 import type { FormContext } from '../../ui/panel/agentFormModel.js';
 import { escapeHtml, renderDocument } from '../../ui/panel/agentPanelContent.js';
 import { agentToDraft } from '../../ui/wizard/steps.js';
@@ -46,6 +51,7 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
       { name: 'runScript', description: 'runs a command' },
     ],
     emptyScriptWhitelist: false,
+    scriptWhitelist: ['npm test'],
     provider: 'github',
     ...overrides,
   };
@@ -121,13 +127,159 @@ describe('the agent form', () => {
     assert.match(html, /does not capture the answer/);
   });
 
-  it('warns that runScript is inert while the whitelist is empty', () => {
+  it('warns that runScript is inert while the whitelist is empty, and offers a way out', () => {
+    // The warning used to name the problem and leave somebody to find a JSON array in the
+    // settings, which is a long way to travel from the place that says what is wrong.
     const withScript = agent({ tools: ['runScript'] });
     const html = renderAgentForm(
-      model({ context: context({ editing: withScript, emptyScriptWhitelist: true }) }),
+      model({
+        context: context({ editing: withScript, emptyScriptWhitelist: true, scriptWhitelist: [] }),
+        draft: { ...agentToDraft(withScript), tools: ['runScript'] },
+      }),
     );
 
     assert.match(html, /refuses every command/);
+    assert.match(html, /data-command="allowCommand"/);
+  });
+
+  it('lists what runScript is already allowed to run', () => {
+    const withScript = agent({ tools: ['runScript'] });
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: withScript, scriptWhitelist: ['npm test', 'git status --short'] }),
+        draft: { ...agentToDraft(withScript), tools: ['runScript'] },
+      }),
+    );
+
+    assert.match(html, /<code>npm test<\/code>/);
+    assert.match(html, /<code>git status --short<\/code>/);
+    assert.ok(!html.includes('refuses every command'));
+  });
+
+  it('says nothing about the whitelist for an agent that cannot run commands', () => {
+    const html = renderAgentForm(model({ context: context({ scriptWhitelist: [] }) }));
+    assert.ok(!html.includes('data-command="allowCommand"'));
+  });
+
+  it('keeps the tools from the workspace in a group of their own', () => {
+    // They are somebody else's code and they can disappear; a list that hides which is which
+    // makes the README's warning impossible to act on.
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [
+            { name: 'readFile', description: 'reads a file' },
+            { name: 'research', description: 'Looks something up', external: true, tags: ['search'] },
+          ],
+        }),
+      }),
+    );
+
+    assert.match(html, /From this workspace/);
+    assert.match(html, /Looks something up/);
+    assert.match(html, /search/);
+  });
+
+  it('says so when nothing else offers a tool', () => {
+    const html = renderAgentForm(
+      model({ context: context({ tools: [{ name: 'readFile', description: 'reads a file' }] }) }),
+    );
+    assert.match(html, /No other extension currently offers a tool\./);
+  });
+
+  it('keeps an enabled tool that has gone missing in view, marked', () => {
+    // The run will fail on it. A form that drops it turns that failure into a mystery.
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [
+            { name: 'readFile', description: 'reads a file' },
+            {
+              name: 'research',
+              description: 'No extension provides this tool right now, so a run would fail on it.',
+              external: true,
+              missing: true,
+            },
+          ],
+        }),
+        draft: { ...agentToDraft(agent()), tools: ['research'] },
+      }),
+    );
+
+    assert.match(html, /research — missing/);
+    assert.match(html, /id="tool:research"[^>]*checked/);
+  });
+
+  it('offers an agent that reads nothing, and hides the fields that would mean nothing', () => {
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: undefined }),
+        draft: { ...agentToDraft(agent()), sourceKind: 'none' },
+      }),
+    );
+
+    assert.match(html, /Nothing — just the prompt/);
+    assert.match(html, /fetches nothing/);
+    // Hidden rather than disabled: a hidden field cannot be half-filled.
+    assert.ok(!html.includes('id="endpointName"'));
+    assert.ok(!html.includes('id="jql"'));
+    assert.ok(!html.includes('id="repo"'));
+  });
+
+  it('lists only the placeholders such an agent can use', () => {
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: undefined }),
+        draft: { ...agentToDraft(agent()), sourceKind: 'none', promptSource: 'inline' },
+      }),
+    );
+
+    // The prompt hint offers only what works here; the source section names the rest to say
+    // plainly that they are not available, which is a different job.
+    assert.match(html, /Placeholders: \{\{date\}\}, \{\{datetime\}\}, \{\{workspace\}\}/);
+    assert.match(html, /\{\{issueKey\}\}[^<]*are not available/);
+  });
+
+  it('offers to tick a whole group at once', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /id="select-all-built-in"/);
+    assert.match(html, /Select all/);
+  });
+
+  it('shows the group as ticked only when every tool in it is', () => {
+    const all = renderAgentForm(
+      model({ draft: { ...agentToDraft(agent()), tools: ['readFile', 'runScript'] } }),
+    );
+    assert.match(all, /id="select-all-built-in" data-group="built-in" checked/);
+
+    const some = renderAgentForm(
+      model({ draft: { ...agentToDraft(agent()), tools: ['readFile'] } }),
+    );
+    assert.ok(!/id="select-all-built-in"[^>]*checked/.test(some));
+  });
+
+  it('does not offer to select all of a single tool', () => {
+    const html = renderAgentForm(
+      model({ context: context({ tools: [{ name: 'readFile', description: 'reads a file' }] }) }),
+    );
+    assert.ok(!html.includes('id="select-all-built-in"'));
+  });
+
+  it('shortens a long description and keeps the whole of it one hover away', () => {
+    // A tool from another extension may describe itself in a paragraph, and a column of
+    // paragraphs stops being a list of tools.
+    const long = 'Looks something up in the workspace index and returns the passages that match, ranked by how well they match the query.';
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [{ name: 'research', description: long, external: true }],
+        }),
+      }),
+    );
+
+    assert.match(html, /title="Looks something up in the workspace index and returns the passages that match, ranked/);
+    assert.match(html, /…<\/p>/);
   });
 
   it('says what to do when there is no model to choose', () => {
@@ -156,6 +308,61 @@ describe('the agent form', () => {
   it('shows the schedule preview beside the expression', () => {
     const html = renderAgentForm(model({ schedulePreview: 'At 09:00. Next: tomorrow.' }));
     assert.match(html, /At 09:00\. Next: tomorrow\./);
+  });
+
+  it('gives every field and the preview a fixed place, so an update needs no repaint', () => {
+    const html = renderAgentForm(model({ errors: { name: 'A name is required.' } }));
+
+    // The script finds a field by the error it carries; without this it would have to rebuild
+    // the form to show one, which is what cost the focus.
+    assert.match(html, /data-error-key="name"/);
+    assert.match(html, /data-error-key="schedule"/);
+    assert.match(html, /<p class="preview" id="schedule-preview">/);
+  });
+});
+
+describe('shortening a description', () => {
+  it('leaves a short one alone', () => {
+    assert.equal(shorten('reads a file'), 'reads a file');
+  });
+
+  it('collapses the whitespace a paragraph brings with it', () => {
+    assert.equal(shorten('reads   a\n  file'), 'reads a file');
+  });
+
+  it('cuts at a word rather than mid-word', () => {
+    const text = 'alpha beta gamma delta epsilon zeta eta theta';
+    const cut = shorten(text, 20);
+
+    assert.ok(cut.endsWith('…'));
+    assert.ok(cut.length <= 21, cut);
+    assert.ok(!cut.includes('epsi…'), cut);
+  });
+
+  it('still cuts when there is no word boundary to cut at', () => {
+    assert.equal(shorten('x'.repeat(40), 10), `${'x'.repeat(10)}…`);
+  });
+});
+
+describe('what a message from the form does to the document', () => {
+  it('never repaints on a keystroke', () => {
+    // The bug this pins: every keystroke rebuilt the whole document, which replaces the element
+    // being typed into, so the field lost focus after one character and the rest went nowhere.
+    assert.equal(panelUpdateKind('change'), 'patch');
+    assert.equal(panelUpdateKind('touched'), 'patch');
+  });
+
+  it('repaints only when which fields exist has changed', () => {
+    assert.equal(panelUpdateKind('reshape'), 'repaint');
+    assert.equal(panelUpdateKind('pickPromptFile'), 'repaint');
+  });
+
+  it('treats the buttons as actions and anything else as unknown', () => {
+    for (const type of ['save', 'run', 'openFolder', 'delete', 'open']) {
+      assert.equal(panelUpdateKind(type), 'action', type);
+    }
+    assert.equal(panelUpdateKind('nonsense'), 'unknown');
+    assert.equal(panelUpdateKind(undefined), 'unknown');
   });
 });
 

@@ -8,6 +8,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- **Agents without a source** — a prompt on a schedule is an agent too. It fetches nothing, needs
+  no connection and no token, runs its prompt once as written and works through its tools, so an
+  installation with no connections configured at all is a valid one.
+- **Tools from other extensions** — an agent may enable anything the editor reports, so a prompt
+  can research something before it writes about it. Such a tool is third-party code: enabling is
+  explicit and per agent, an untrusted workspace refuses all of them, and one that is no longer
+  registered fails the run by name.
 - **The agent panel** — one surface beside the editor where an agent is read, created, changed and
   deleted, with the schedule's next three runs, the source, the prompt and the recent runs on it.
   The quick-pick wizard is gone: keeping both would have meant two implementations of every
@@ -37,6 +44,16 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- The scheduling lock left two things in the storage folder — a marker file and a
+  `rounds.lock.lock` directory beside it — where the specification names one. There is now exactly
+  one, named `rounds.lock`, and an upgrade clears what the old layout left behind.
+- A window that does not schedule runs said so once in the output channel and then repeated it
+  into the extended log every fifteen seconds, because that log records every line whatever the
+  configured level is. It is now said once, when it changes.
+- The agent form warned that the script whitelist was empty and left you to find a JSON array in
+  the settings. It now lists what `runScript` may run and offers to add a command line to it.
+- A `.prompt.md` file's YAML header was sent to the model as prompt text. It is removed before the
+  prompt is used, and what maps — the tools it names — is offered instead.
 - Four agents with fast schedules produced four identical warnings on every window start; they are
   now one message.
 - Timestamps from a repository host are normalised to ISO-8601 UTC before they become a cursor. A

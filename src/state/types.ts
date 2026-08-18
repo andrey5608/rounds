@@ -106,7 +106,15 @@ export interface Agent {
   enabled: boolean;
   executionMode: ExecutionMode;
   schedule: AgentSchedule;
-  source: AgentSource;
+  /**
+   * What the agent visits, when it visits anything.
+   *
+   * Optional rather than a `{ kind: 'none' }` member of the union, because of what the compiler
+   * does with each. Sources are read through ternaries here — `source.kind === 'jira' ? … : …` —
+   * and a new union member leaves every one of them compiling while silently taking the git
+   * branch. An absent field turns each into an error until somebody decides what it means there.
+   */
+  source?: AgentSource;
   prompt: PromptConfig;
   /** Exact model identifier. A run fails rather than substituting a different model. */
   modelId: string;

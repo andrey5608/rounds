@@ -117,6 +117,23 @@ describe('agent readiness', () => {
     assert.equal(readiness.ready, true);
   });
 
+  it('asks nothing of an agent that visits nothing', () => {
+    // No connection, no token: an installation with none of either is a valid installation.
+    const readiness = evaluateReadiness(
+      input({ agent: agent({ source: undefined }), endpoints: {}, storedSecrets: [] }),
+    );
+
+    assert.equal(readiness.ready, true);
+    assert.deepEqual(readiness.problems, []);
+  });
+
+  it('still asks such an agent for consent and a model that exists', () => {
+    const readiness = evaluateReadiness(
+      input({ agent: agent({ source: undefined }), hasConsent: false }),
+    );
+    assert.deepEqual(readiness.problems, ['noConsent']);
+  });
+
   it('lists several problems in one readable sentence', () => {
     const readiness = evaluateReadiness(
       input({ hasConsent: false, endpoints: {}, storedSecrets: [] }),

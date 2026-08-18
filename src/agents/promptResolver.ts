@@ -7,6 +7,8 @@ import { systemClock } from '../state/time.js';
 import type { Clock } from '../state/time.js';
 import type { Agent, PromptFileFallback, PromptResolutionRecord } from '../state/types.js';
 
+import { parsePromptFile } from './promptFrontMatter.js';
+
 /** A prompt file larger than this is treated as unreadable rather than sent to a model. */
 export const MAX_PROMPT_FILE_BYTES = 200_000;
 
@@ -163,11 +165,20 @@ export class PromptResolver {
         return undefined;
       }
       const content = await this.readFileImpl(path);
-      if (content.trim().length === 0) {
+      // A `.prompt.md` file opens with a YAML header addressed to the editor. Sending it to the
+      // model asks it to read somebody else's instructions, so it is removed here — before the
+      // snapshot is taken, so a stored snapshot is the prompt rather than the file.
+      const parsed = parsePromptFile(content);
+      if (parsed.frontMatter) {
+        this.options.logger?.debug(
+          `The prompt file ${path} carries a header; it was removed from the prompt.`,
+        );
+      }
+      if (parsed.text.trim().length === 0) {
         this.options.logger?.warn(`The prompt file ${path} is empty.`);
         return undefined;
       }
-      return content;
+      return parsed.text;
     } catch (error) {
       this.options.logger?.debug(`Could not read the prompt file ${path}: ${String(error)}`);
       return undefined;

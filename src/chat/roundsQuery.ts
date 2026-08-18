@@ -230,22 +230,7 @@ function summarize(agent: Agent, context: QueryContext): Record<string, unknown>
       runOnStartup: agent.schedule.runOnStartup,
       missedRunPolicy: agent.schedule.missedRunPolicy,
     },
-    source:
-      agent.source.kind === 'jira'
-        ? {
-            kind: 'jira',
-            connection: agent.source.baseUrlRef,
-            project: agent.source.project,
-            jql: agent.source.jql,
-            maxResults: agent.source.maxResults,
-          }
-        : {
-            kind: 'git',
-            connection: agent.source.baseUrlRef,
-            project: agent.source.project,
-            repo: agent.source.repo,
-            mode: agent.source.mode,
-          },
+    source: describeSource(agent),
     modelId: agent.modelId,
     tools: agent.tools,
     // Under its own key on purpose: a truncated preview must never be mistaken for the prompt,
@@ -258,6 +243,35 @@ function summarize(agent: Agent, context: QueryContext): Record<string, unknown>
     lastRunAt: agent.lastRunAt,
     nextRunAt: agent.nextRunAt,
   };
+}
+
+/**
+ * What an agent reads, including when it reads nothing.
+ *
+ * `{ kind: 'none' }` rather than an omitted key: a model that finds no `source` field cannot tell
+ * "this agent has no source" from "this view does not include it", and answers that are true is
+ * the whole point of this tool.
+ */
+function describeSource(agent: Agent): Record<string, unknown> {
+  const source = agent.source;
+  if (!source) {
+    return { kind: 'none', note: 'This agent has no source; its prompt runs as written.' };
+  }
+  return source.kind === 'jira'
+    ? {
+        kind: 'jira',
+        connection: source.baseUrlRef,
+        project: source.project,
+        jql: source.jql,
+        maxResults: source.maxResults,
+      }
+    : {
+        kind: 'git',
+        connection: source.baseUrlRef,
+        project: source.project,
+        repo: source.repo,
+        mode: source.mode,
+      };
 }
 
 function describeRunRecord(run: RunRecord): Record<string, unknown> {

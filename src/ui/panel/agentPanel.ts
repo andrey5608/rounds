@@ -9,6 +9,9 @@ import { evaluateReadiness } from '../../setup/needsSetup.js';
 import { resolveOutputFolder } from '../../setup/outputFolder.js';
 import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
+import { parsePromptFile } from '../../agents/promptFrontMatter.js';
+import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
+import { listExternalTools } from '../../tools/vscodeLmTools.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
 import { agentToDraft, describeScheduleInput, draftToAgent } from '../wizard/steps.js';
@@ -16,8 +19,8 @@ import type { AgentDraft } from '../wizard/steps.js';
 
 import { renderAgentForm } from './agentFormContent.js';
 import type { AgentFormViewModel } from './agentFormContent.js';
-import { draftFromMessage, emptyDraft, validateDraft } from './agentFormModel.js';
-import type { FieldErrors, FormContext } from './agentFormModel.js';
+import { draftFromMessage, emptyDraft, panelUpdateKind, validateDraft } from './agentFormModel.js';
+import type { FieldErrors, FormContext, FormState, FormTool } from './agentFormModel.js';
 import { renderDocument } from './agentPanelContent.js';
 import { pickPromptFile } from './promptFilePicker.js';
 
@@ -120,23 +123,33 @@ export class AgentPanel {
 
   private async handle(message: PanelMessage): Promise<void> {
     switch (message.type) {
+      case 'touched':
+        // Sent on the first keystroke, before the debounced draft arrives, so a store change from
+        // another window cannot repaint over what is being typed in that window.
+        this.dirty = true;
+        return;
       case 'change':
+      case 'reshape': {
         this.draft = draftFromMessage(message.draft);
         this.dirty = true;
-        await this.render();
+        // `change` deliberately does not repaint: rebuilding the document replaces the element
+        // being typed into, and the field then loses focus after one character. `reshape` does,
+        // because a select changed which fields exist. `panelUpdateKind` owns that distinction so
+        // a test can hold it.
+        await (panelUpdateKind(message.type) === 'repaint' ? this.render() : this.postState());
         return;
-      case 'reshape':
-        // A select changed which fields exist, so the form is redrawn from the draft it sent.
-        this.draft = draftFromMessage(message.draft);
-        this.dirty = true;
-        await this.render();
-        return;
+      }
       case 'save':
         this.draft = draftFromMessage(message.draft);
         await this.save();
         return;
       case 'pickPromptFile':
         await this.pickPromptFile(draftFromMessage(message.draft));
+        return;
+      case 'allowCommand':
+        this.draft = draftFromMessage(message.draft);
+        this.dirty = true;
+        await this.allowCommand();
         return;
       case 'run':
         await this.withAgent((agent) => vscode.commands.executeCommand('rounds.runNow', agent));
@@ -164,6 +177,26 @@ export class AgentPanel {
           `The agent panel sent an unknown message: ${String(message.type)}`,
         );
     }
+  }
+
+  /** Sends the rules' verdict on the current draft, for the form to draw where it stands. */
+  private async postState(): Promise<void> {
+    const draft = this.draft;
+    if (!draft) {
+      return;
+    }
+    const context = await this.buildContext();
+    this.errors = validateDraft(draft, context);
+    const feedback = describeScheduleInput((draft.schedule ?? []).join('; '), {
+      timeZone: draft.timezone,
+    });
+
+    const state: FormState = {
+      errors: this.errors,
+      schedulePreview: feedback.kind === 'preview' ? feedback.message : undefined,
+      canSave: this.dirty,
+    };
+    await this.panel.webview.postMessage({ type: 'state', state });
   }
 
   /** Runs an action that needs a saved agent, and says so when there is not one yet. */
@@ -249,8 +282,98 @@ export class AgentPanel {
     if (!file) {
       return;
     }
-    this.draft = { ...draft, promptSource: 'file', promptFile: file };
+    const next: AgentDraft = { ...draft, promptSource: 'file', promptFile: file };
+    Object.assign(next, await this.readPromptFileHeader(file, next));
+
+    this.draft = next;
     this.dirty = true;
+    await this.render();
+  }
+
+  /**
+   * What a chosen prompt file's header contributes to the draft.
+   *
+   * Tools it names are preselected — only the ones that exist, so a file cannot enable something
+   * nobody has — and its model is used only when the agent has none. A file quietly changing
+   * which model runs would be the substitution the specification refuses everywhere else, by
+   * another route.
+   */
+  private async readPromptFileHeader(
+    file: string,
+    draft: AgentDraft,
+  ): Promise<Partial<AgentDraft>> {
+    let content: string;
+    try {
+      content = Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(file))).toString('utf8');
+    } catch (error) {
+      this.container.logger.debug(`Could not read ${file} for its header: ${String(error)}`);
+      return {};
+    }
+
+    const header = parsePromptFile(content).frontMatter;
+    if (!header) {
+      return {};
+    }
+
+    const available = new Set(this.container.tools.names());
+    const asked = header.tools.filter((name) => available.has(name));
+    const ignored = header.tools.filter((name) => !available.has(name));
+    if (ignored.length > 0) {
+      this.container.logger.info(
+        `The prompt file asks for ${ignored.join(', ')}, which nothing registers; left off the agent.`,
+      );
+    }
+
+    return {
+      tools: [...new Set([...draft.tools, ...asked])],
+      modelId: draft.modelId || (header.model ?? ''),
+    };
+  }
+
+  /**
+   * Adds one command line to `rounds.scriptWhitelist`.
+   *
+   * The warning used to name the problem and leave somebody to find a JSON array in the settings,
+   * which is a long way to travel from the place that says what is wrong. Written to the user
+   * settings rather than the workspace: agents are global here, and the setting is restricted in
+   * an untrusted workspace, so a workspace value would be the one that does not apply.
+   */
+  private async allowCommand(): Promise<void> {
+    const typed = await vscode.window.showInputBox({
+      title: 'Allow a command for runScript',
+      prompt: 'Exactly what may run, arguments included. A pattern may end with * to accept any suffix.',
+      placeHolder: 'npm test',
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        const parsed = parseCommandLine(value);
+        return parsed.ok ? undefined : parsed.message;
+      },
+    });
+    if (!typed) {
+      return;
+    }
+    const parsed = parseCommandLine(typed);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const current = this.container.settings().scriptWhitelist;
+    const { whitelist, added } = addToWhitelist(current, parsed.entry);
+    if (!added) {
+      await this.container.notifier.requested(
+        'info',
+        `"${describeEntry(parsed.entry)}" is already allowed.`,
+      );
+      return;
+    }
+
+    await vscode.workspace
+      .getConfiguration()
+      .update('rounds.scriptWhitelist', whitelist, vscode.ConfigurationTarget.Global);
+    await this.container.notifier.requested(
+      'info',
+      `runScript may now run "${describeEntry(parsed.entry)}".`,
+    );
     await this.render();
   }
 
@@ -267,11 +390,43 @@ export class AgentPanel {
     return choice === 'Discard them';
   }
 
+  /**
+   * Ours, then the workspace's, then anything the agent enabled that nothing provides.
+   *
+   * A missing tool stays in the list, marked, rather than disappearing: the run will fail on it,
+   * and a form that hides the cause turns that failure into a mystery.
+   */
+  private availableTools(enabled: readonly string[]): FormTool[] {
+    const ours: FormTool[] = this.container.tools.list().map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+    }));
+    const external: FormTool[] = listExternalTools().map((info) => ({
+      name: info.name,
+      description: info.description,
+      external: true,
+      tags: info.tags,
+    }));
+
+    const known = new Set([...ours, ...external].map((tool) => tool.name));
+    const missing: FormTool[] = enabled
+      .filter((name) => !known.has(name))
+      .map((name) => ({
+        name,
+        description: 'No extension provides this tool right now, so a run would fail on it.',
+        external: true,
+        missing: true,
+      }));
+
+    return [...ours, ...external, ...missing];
+  }
+
   private async buildContext(): Promise<FormContext> {
     const data = await buildViewData(this.container);
     const agent = data.state.agents.find((candidate) => candidate.id === this.agentId);
     const connections = Object.values(data.state.endpoints);
-    const reference = this.draft?.endpointName ?? agent?.source.baseUrlRef;
+    const draftTools = this.draft?.tools ?? agent?.tools ?? [];
+    const reference = this.draft?.endpointName ?? agent?.source?.baseUrlRef;
     const chosen = connections.find((endpoint) => endpoint.name === reference);
 
     return {
@@ -279,8 +434,9 @@ export class AgentPanel {
       editing: agent,
       connections,
       models: data.state.setup.models ?? [],
-      tools: this.container.tools.list(),
+      tools: this.availableTools(draftTools),
       emptyScriptWhitelist: this.container.settings().scriptWhitelist.length === 0,
+      scriptWhitelist: this.container.settings().scriptWhitelist.map(describeEntry),
       provider: chosen && chosen.kind === 'git' ? resolveProvider(chosen) : 'github',
     };
   }

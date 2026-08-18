@@ -321,9 +321,15 @@ export function validateAgent(value: unknown): Agent | string {
   if (isString(schedule)) {
     return schedule;
   }
-  const source = validateSource(value.source);
-  if (isString(source)) {
-    return source;
+  // An agent with no source is a prompt on a schedule. The rules for a source still apply to
+  // one that is there; absence is not a malformed source.
+  let source: AgentSource | undefined;
+  if (value.source !== undefined) {
+    const parsed = validateSource(value.source);
+    if (isString(parsed)) {
+      return parsed;
+    }
+    source = parsed;
   }
   const prompt = validatePrompt(value.prompt);
   if (isString(prompt)) {

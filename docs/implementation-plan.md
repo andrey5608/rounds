@@ -81,6 +81,8 @@ pure logic stays unit-testable outside the extension host.
 | 18 | [Connections](./phases/phase-18-connections.md) | Connections listed, edited and deleted from a view, each with its own token | 13 |
 | 19 | [Structured sources](./phases/phase-19-structured-sources.md) | Project and repository stored and picked separately, schema version 2 | 5, 18 |
 | 20 | [Agent editor](./phases/phase-20-agent-editor.md) | The panel becomes the one place an agent is created and changed | 14, 18, 19 |
+| 21 | [Workspace tools](./phases/phase-21-workspace-tools.md) | Tools other extensions registered, usable by an agent; prompt-file front matter | 7, 15, 20 |
+| 22 | [Sourceless agents](./phases/phase-22-sourceless-agents.md) | A source becomes optional: a prompt on a schedule is an agent too | 19, 20 |
 
 ## Milestones
 
@@ -119,6 +121,15 @@ taken out of order, phase 20 would build a form for fields phase 19 has not defi
 All of phases 13–20 are complete. Phase 20 removed the quick-pick wizard rather than leaving it
 beside the form, so `src/ui/wizard/` now holds the rules (`steps.ts`) and the prompt-file discovery
 (`promptFiles.ts`) and no flow of its own.
+
+Phase 21 stands on its own and needs none of the interface work: it opens the agentic loop to the
+tools other extensions register, which is what makes "research the issue, then write about it"
+something an agent can do rather than something the chat can do. Like the others it starts by
+editing `plan.md`, which fixes the tool list at three.
+
+Phase 22 removes the assumption underneath all of them: that an agent visits something. A prompt
+on a schedule is an agent too, and the two phases meet — an agent with no source has the tools and
+nothing else, so phase 21 is what makes phase 22 worth having.
 
 ## Cross-cutting conventions
 

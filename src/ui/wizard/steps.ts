@@ -77,12 +77,12 @@ export function validateJql(value: string): string | undefined {
   return value.trim().length === 0 ? 'Enter a search query.' : undefined;
 }
 
-export function validatePromptText(value: string): string | undefined {
+export function validatePromptText(value: string, options: { hasSource?: boolean } = {}): string | undefined {
   if (value.trim().length === 0) {
     return 'Write a prompt.';
   }
   try {
-    validatePrompt(value);
+    validatePrompt(value, options);
     return undefined;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
@@ -175,7 +175,7 @@ export interface AgentDraft {
   /** Whether scheduled runs are on. Absent keeps what an edited agent already had. */
   enabled?: boolean;
   executionMode: Agent['executionMode'];
-  sourceKind: 'jira' | 'git';
+  sourceKind: 'none' | 'jira' | 'git';
   endpointName: string;
   jql?: string;
   maxResults?: number;
@@ -198,6 +198,14 @@ export interface AgentDraft {
   maxExecutionsPerDay?: number;
 }
 
+/** A source for a copied agent, or none when the original had none. */
+function copySource(source: Agent['source']): Agent['source'] {
+  if (!source) {
+    return undefined;
+  }
+  return source.kind === 'git' ? { ...source, sinceCursor: undefined } : { ...source };
+}
+
 /** Turns a draft into an agent, keeping the identity and history of an edited one. */
 export function draftToAgent(draft: AgentDraft, now: Date, existing?: Agent): Agent {
   const base: Agent = {
@@ -211,30 +219,7 @@ export function draftToAgent(draft: AgentDraft, now: Date, existing?: Agent): Ag
       runOnStartup: draft.runOnStartup,
       missedRunPolicy: draft.missedRunPolicy,
     },
-    source:
-      draft.sourceKind === 'jira'
-        ? {
-            kind: 'jira',
-            baseUrlRef: draft.endpointName,
-            project: draft.project?.trim() || undefined,
-            jql: draft.jql ?? '',
-            maxResults: draft.maxResults ?? 20,
-          }
-        : {
-            kind: 'git',
-            baseUrlRef: draft.endpointName,
-            project: draft.project?.trim() ?? '',
-            repo: draft.repo?.trim() ?? '',
-            mode: draft.gitMode ?? 'newPullRequests',
-            // A source that changed kind, project or repository starts over rather than
-            // inheriting a cursor that covers items the new source never showed.
-            sinceCursor:
-              existing?.source.kind === 'git' &&
-              existing.source.project === draft.project?.trim() &&
-              existing.source.repo === draft.repo?.trim()
-                ? existing.source.sinceCursor
-                : undefined,
-          },
+    source: draftSource(draft, existing),
     prompt:
       draft.promptSource === 'inline'
         ? { source: 'inline', inlineText: draft.promptText }
@@ -261,19 +246,55 @@ export function draftToAgent(draft: AgentDraft, now: Date, existing?: Agent): Ag
   return base;
 }
 
+/**
+ * The source a draft describes, or none at all.
+ *
+ * An agent with no source is a prompt on a schedule: it fetches nothing, needs no connection and
+ * no token, and renders its prompt once.
+ */
+function draftSource(draft: AgentDraft, existing?: Agent): Agent['source'] {
+  if (draft.sourceKind === 'none') {
+    return undefined;
+  }
+  if (draft.sourceKind === 'jira') {
+    return {
+      kind: 'jira',
+      baseUrlRef: draft.endpointName,
+      project: draft.project?.trim() || undefined,
+      jql: draft.jql ?? '',
+      maxResults: draft.maxResults ?? 20,
+    };
+  }
+  return {
+    kind: 'git',
+    baseUrlRef: draft.endpointName,
+    project: draft.project?.trim() ?? '',
+    repo: draft.repo?.trim() ?? '',
+    mode: draft.gitMode ?? 'newPullRequests',
+    // A source that changed kind, project or repository starts over rather than inheriting a
+    // cursor that covers items the new source never showed.
+    sinceCursor:
+      existing?.source?.kind === 'git' &&
+      existing.source.project === draft.project?.trim() &&
+      existing.source.repo === draft.repo?.trim()
+        ? existing.source.sinceCursor
+        : undefined,
+  };
+}
+
 /** Fills a draft from an existing agent so the edit flow starts from what is stored. */
 export function agentToDraft(agent: Agent): AgentDraft {
   return {
     name: agent.name,
     executionMode: agent.executionMode,
-    sourceKind: agent.source.kind,
-    endpointName: agent.source.baseUrlRef,
-    jql: agent.source.kind === 'jira' ? agent.source.jql : undefined,
-    maxResults: agent.source.kind === 'jira' ? agent.source.maxResults : undefined,
+    sourceKind: agent.source?.kind ?? 'none',
+    endpointName: agent.source?.baseUrlRef ?? '',
+    jql: agent.source?.kind === 'jira' ? agent.source.jql : undefined,
+    maxResults: agent.source?.kind === 'jira' ? agent.source.maxResults : undefined,
     enabled: agent.enabled,
-    project: agent.source.kind === 'git' ? agent.source.project : agent.source.project,
-    repo: agent.source.kind === 'git' ? agent.source.repo : undefined,
-    gitMode: agent.source.kind === 'git' ? agent.source.mode : undefined,
+    project: agent.source?.project,
+    repo: agent.source?.kind === 'git' ? agent.source.repo : undefined,
+    gitMode: agent.source?.kind === 'git' ? agent.source.mode : undefined,
     promptSource: agent.prompt.source,
     promptText: agent.prompt.inlineText,
     promptFile: agent.prompt.filePath,
@@ -307,10 +328,9 @@ export function duplicateAgent(agent: Agent, existing: readonly Agent[], now: Da
     enabled: false,
     lastRunAt: undefined,
     nextRunAt: undefined,
-    source:
-      agent.source.kind === 'git'
-        ? { ...agent.source, sinceCursor: undefined }
-        : { ...agent.source },
+    // A copy of a git source starts at the beginning: inheriting the cursor would make the copy
+    // skip everything the original has already seen.
+    source: copySource(agent.source),
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };

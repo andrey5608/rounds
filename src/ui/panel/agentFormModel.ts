@@ -32,6 +32,17 @@ export type FormField =
   | 'window'
   | 'maxExecutionsPerDay';
 
+/** One tool as the form shows it: ours, the workspace's, or one that is enabled and gone. */
+export interface FormTool {
+  name: string;
+  description: string;
+  /** True for a tool another extension registered. */
+  external?: boolean;
+  tags?: readonly string[];
+  /** True when the agent enabled it and nothing registers it now. */
+  missing?: boolean;
+}
+
 export interface FormContext {
   /** Every agent, so a name can be checked against the ones that exist. */
   agents: readonly Agent[];
@@ -39,9 +50,11 @@ export interface FormContext {
   editing?: Agent;
   connections: readonly EndpointConfig[];
   models: readonly CachedModel[];
-  tools: readonly { name: string; description: string }[];
+  tools: readonly FormTool[];
   /** True while `runScript` would refuse everything anyway. */
   emptyScriptWhitelist: boolean;
+  /** What `runScript` is allowed to run, as command lines, so the form can show it. */
+  scriptWhitelist: readonly string[];
   /** What the chosen connection speaks, for the project field's label. */
   provider: GitProvider;
 }
@@ -61,11 +74,13 @@ export function validateDraft(draft: AgentDraft, context: FormContext): FieldErr
   if (name) {
     errors.name = name;
   }
-  if (!draft.endpointName) {
+  if (draft.sourceKind !== 'none' && !draft.endpointName) {
     errors.connection = 'Choose the connection this agent reads from.';
   }
 
-  if (draft.sourceKind === 'jira') {
+  if (draft.sourceKind === 'none') {
+    // Nothing to validate: no connection, no project, no query.
+  } else if (draft.sourceKind === 'jira') {
     const jql = validateJql(draft.jql ?? '');
     if (jql) {
       errors.jql = jql;
@@ -86,7 +101,9 @@ export function validateDraft(draft: AgentDraft, context: FormContext): FieldErr
   }
 
   if (draft.promptSource === 'inline') {
-    const prompt = validatePromptText(draft.promptText ?? '');
+    const prompt = validatePromptText(draft.promptText ?? '', {
+      hasSource: draft.sourceKind !== 'none',
+    });
     if (prompt) {
       errors.prompt = prompt;
     }
@@ -126,7 +143,9 @@ export function emptyDraft(context: FormContext): AgentDraft {
     name: '',
     enabled: true,
     executionMode: 'api',
-    sourceKind: context.connections[0]?.kind ?? 'jira',
+    // With no connection configured, the only agent somebody can create is a prompt on a
+    // schedule — so that is what an empty form offers rather than a dead source section.
+    sourceKind: context.connections[0]?.kind ?? 'none',
     endpointName: context.connections[0]?.name ?? '',
     jql: '',
     maxResults: 20,
@@ -160,7 +179,7 @@ export function draftFromMessage(value: unknown): AgentDraft {
     name: text('name') ?? '',
     enabled: raw.enabled === true || raw.enabled === 'true',
     executionMode: raw.executionMode === 'chat' ? 'chat' : 'api',
-    sourceKind: raw.sourceKind === 'git' ? 'git' : 'jira',
+    sourceKind: raw.sourceKind === 'git' ? 'git' : raw.sourceKind === 'none' ? 'none' : 'jira',
     endpointName: text('endpointName') ?? '',
     jql: text('jql'),
     maxResults: number('maxResults'),
@@ -188,6 +207,40 @@ function splitSchedule(value: string): string[] {
     .split(';')
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+/**
+ * What a message from the form does to the document.
+ *
+ * `patch` exists because of a bug worth remembering: every keystroke used to rebuild the whole
+ * document, which replaces the element being typed into, so the field lost focus after one
+ * character. Only a change that alters *which fields exist* may repaint; everything else sends
+ * the errors back to be applied in place.
+ */
+export function panelUpdateKind(type: string | undefined): 'patch' | 'repaint' | 'action' | 'unknown' {
+  switch (type) {
+    case 'change':
+    case 'touched':
+      return 'patch';
+    case 'reshape':
+    case 'pickPromptFile':
+      return 'repaint';
+    case 'save':
+    case 'run':
+    case 'openFolder':
+    case 'delete':
+    case 'open':
+      return 'action';
+    default:
+      return 'unknown';
+  }
+}
+
+/** What the form needs back after a keystroke: the errors, the preview, and whether Save may fire. */
+export interface FormState {
+  errors: FieldErrors;
+  schedulePreview?: string;
+  canSave: boolean;
 }
 
 /** The label the project field carries, which is the host's own word for it. */

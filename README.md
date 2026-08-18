@@ -33,7 +33,7 @@ and report back.
 | --- | --- |
 | agent | a configured recurring task |
 | run | one execution of an agent |
-| source | issue tracker or repository host configuration: a connection, and a project plus a repository — owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket |
+| source | optional. Issue tracker or repository host configuration: a connection, and a project plus a repository — owner on GitHub, workspace on Bitbucket Cloud, project key on a self-hosted Bitbucket. An agent without one is a prompt on a schedule |
 | tool | a function the model may call during a run |
 
 ## Requirements
@@ -83,6 +83,11 @@ A prompt may use these placeholders:
 | `{{diff}}` | the diff of the current pull request |
 | `{{date}}`, `{{datetime}}` | the local date and time in the agent's time zone |
 | `{{workspace}}` | the name of the first workspace folder |
+
+An agent with no source has nothing to fetch, so `{{items}}`, `{{issueKey}}`, `{{summary}}` and
+`{{diff}}` are refused when it is saved; `{{date}}`, `{{datetime}}` and `{{workspace}}` still work.
+Such an agent runs its prompt once, with whatever its tools find — which is how "every morning,
+summarize what changed here" works without a connection to anything.
 
 `{{items}}` describes the whole batch, so the prompt runs once. `{{issueKey}}`, `{{summary}}` and
 `{{diff}}` describe one item, so the prompt runs once per item — at most ten per run, so a query
@@ -168,8 +173,10 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 
 ### Allowing a command to run
 
-The `runScript` tool refuses everything until you list what it may run. Each entry names one command
-and the arguments it may be given:
+The `runScript` tool refuses everything until you list what it may run. The quickest way is the
+**Allow a command…** button in the agent form, next to the tools — it asks for one command line and
+adds it to your user settings. The setting itself takes the same thing as JSON, one entry per
+command with the arguments it may be given:
 
 ```json
 "rounds.scriptWhitelist": [
@@ -186,6 +193,22 @@ and the arguments it may be given:
 - Omit `args` to allow the command with no arguments at all.
 - Commands run directly, never through a shell, and only inside the workspace. `;`, `&&` and pipes are
   ordinary text that matches no pattern, so they cannot be used to chain anything.
+
+### Tools from other extensions
+
+Besides `readFile`, `listFiles` and `runScript`, an agent may enable a tool another extension
+registered — whatever the editor reports, listed in the agent form under **From this workspace**. A
+prompt can then research something before it writes about it.
+
+Read this part before you enable one. Such a tool is somebody else's code: the promise that Rounds
+only contacts the base URLs you configured covers the requests Rounds makes, and cannot cover what a
+tool does when the model asks it to. So enabling is per agent and explicit, an untrusted workspace
+refuses all of them, and a tool that is no longer registered fails the run by name instead of
+disappearing from it.
+
+Custom chat modes, `/slash` commands and `@participant` mentions are not available this way: they
+belong to the chat view rather than to the language model API. An agent in chat mode reaches them —
+and, as ever in that mode, does not see the answer.
 
 ## Where results are stored
 
@@ -235,20 +258,11 @@ result passes through the same redaction as the log.
 
 ## Known limitations in v1
 
-- No chat participant and no Language Model Tools contribution: agents are managed from the panel and
-  the palette.
+- No chat participant, and no writing to agents from chat: `rounds_query` answers questions, and
+  creating or changing an agent happens in the panel and the palette.
 - No execution while the editor is closed.
 - No sharing of agent configuration between machines or people.
 - No model parameters beyond what the editor's language model API accepts.
-
-## Brand assets
-
-The logo lives in [`docs/media/`](./docs/media): [`rounds-lockup.svg`](./docs/media/rounds-lockup.svg) is the vector
-lockup shown above, with [`rounds-lockup.png`](./docs/media/rounds-lockup.png) rendered from it because a
-marketplace README may not embed an SVG. Also there:
-[`rounds-icon.svg`](./docs/media/rounds-icon.svg) with its 128 and 512 pixel renders,
-[`rounds-activitybar.svg`](./docs/media/rounds-activitybar.svg) for the activity bar, and
-[`rounds-wordmark.svg`](./docs/media/rounds-wordmark.svg).
 
 ## Documentation
 

@@ -77,7 +77,9 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   migrated from, and stay readable as a fallback, because a token that disappears cannot be
   recovered. One key per source kind stopped being enough once a second repository host API
   was supported — two connections would share one token.
-- Leader lock file: `rounds.lock` in the extension's global storage path
+- Leader lock: `rounds.lock` in the extension's global storage path. It is a directory, because
+  that is how the lock library claims a resource atomically, and it is the only artifact the lock
+  leaves there.
 - Result files: `<outputFolder>/<agent-name-slug>-<YYYYMMDD-HHmmss>.md`
 
 ### Source layout
@@ -141,14 +143,19 @@ Stored in `ExtensionContext.globalState` (global, not workspace). Fields:
 - `id`, `name`, `enabled`, `executionMode` (`api` | `chat`)
 - `schedule`: cron expression(s), `timezone`, `runOnStartup`,
   `missedRunPolicy` (`skip` | `runOnce`) for when VS Code was closed at the due time
-- `source`: `jira` (base URL ref, JQL, max results) or
-  `git` (base URL ref, repo, mode `newPullRequests` | `updatedPullRequests`, since-cursor)
+- `source`: **optional**. `jira` (base URL ref, project, JQL, max results) or
+  `git` (base URL ref, project, repo, mode `newPullRequests` | `updatedPullRequests`,
+  since-cursor). An agent without one is a prompt on a schedule: nothing is fetched, no
+  connection or token is required, the prompt is rendered once as written, and the item
+  placeholders are refused because there are no items to render them from. Such an agent works
+  through its tools, and an installation with no connections at all is a valid installation.
 - `promptSource`: `inline` | `file`. For `file`, store the path AND a snapshot of the
   content. Re-sync the snapshot on startup and when the file changes. Add
   `promptFileFallback`: `snapshot` | `blockWhenResolvable` | `blockAlways` for when the
   file is unreadable at run time.
 - Placeholders: `{{issueKey}}`, `{{summary}}`, `{{diff}}`, `{{items}}`, `{{date}}`,
-  `{{datetime}}`, `{{workspace}}`
+  `{{datetime}}`, `{{workspace}}`. The first four describe fetched items and are refused when the
+  agent has no source; the last three always apply.
 - `modelId`, `tools` (enabled tool names), `outputFolder`
 Secrets (Jira token, Git token) go in `context.secrets` only — never in globalState,
 settings, or the agent config.
@@ -182,6 +189,12 @@ settings, or the agent config.
   - `runScript(command, args, cwd)` — user-configured whitelist; nothing unlisted runs
   - `listFiles(globPattern)`
   Adding a tool must mean registering one object in a tool registry.
+- Since phase 21, an agent may also enable a tool another extension registered, as reported by
+  `vscode.lm.tools`, and the loop invokes it through `vscode.lm.invokeTool`. Such a tool is
+  third-party code: the guarantee that network access is limited to the configured base URLs
+  covers this extension's own requests and cannot cover what a tool does when the model asks it
+  to. Enabling one is therefore per agent and explicit, an untrusted workspace refuses all of
+  them, and a tool that is no longer registered fails the run rather than being dropped.
 - Handle `LanguageModelError` cases (no consent, quota, model unavailable) distinctly
   and actionably.
 
