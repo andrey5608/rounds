@@ -172,6 +172,22 @@ describe('bitbucket connector', () => {
     assert.match(urls[0] ?? '', /repositories\/my%20space\/a%2Fb\/pullrequests/);
   });
 
+  it('lists workspaces and the repositories of one', async () => {
+    const { connector: bitbucket, urls } = connector([
+      json({ values: [{ slug: 'octo', name: 'Octo Ltd' }] }),
+    ]);
+
+    const workspaces = await bitbucket.listProjects();
+    assert.deepEqual(workspaces, [{ id: 'octo', name: 'Octo Ltd' }]);
+    assert.match(urls[0] ?? '', /\/workspaces\?/);
+
+    const { connector: second, urls: repoUrls } = connector([
+      json({ values: [{ slug: 'rounds', name: 'Rounds' }] }),
+    ]);
+    assert.deepEqual(await second.listRepositories('octo'), [{ id: 'rounds', name: 'Rounds' }]);
+    assert.match(repoUrls[0] ?? '', /\/repositories\/octo\?/);
+  });
+
   it('returns the diff when the host serves it directly', async () => {
     const diff = 'diff --git a/file b/file\n+added line\n';
     const { connector: bitbucket, urls } = connector([body(diff)]);

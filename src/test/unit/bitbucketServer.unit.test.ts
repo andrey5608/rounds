@@ -193,6 +193,22 @@ describe('self-hosted bitbucket connector', () => {
     );
   });
 
+  it('lists projects and the repositories of one', async () => {
+    const { connector: bitbucket, urls } = connector([
+      json({ values: [{ key: 'ROUNDS', name: 'Rounds' }, { key: '~alex', name: 'Alex' }] }),
+    ]);
+
+    const projects = await bitbucket.listProjects();
+    assert.deepEqual(projects.map((entry) => entry.id), ['ROUNDS', '~alex']);
+    assert.match(urls[0] ?? '', /\/rest\/api\/1\.0\/projects\?/);
+
+    const { connector: second, urls: repoUrls } = connector([
+      json({ values: [{ slug: 'rounds', name: 'Rounds' }] }),
+    ]);
+    assert.deepEqual(await second.listRepositories('ROUNDS'), [{ id: 'rounds', name: 'Rounds' }]);
+    assert.match(repoUrls[0] ?? '', /\/projects\/ROUNDS\/repos\?/);
+  });
+
   it('returns the raw diff', async () => {
     const diff = 'diff --git a/file b/file\n+added line\n';
     const { connector: bitbucket, urls } = connector([body(diff)]);

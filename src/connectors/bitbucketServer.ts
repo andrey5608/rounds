@@ -1,5 +1,11 @@
 import { ConfigError } from './errors.js';
-import type { DiffResult, GitMode, ListPullRequestsRequest, RepositoryHostConnector } from './git.js';
+import type {
+  DiffResult,
+  GitMode,
+  ListPullRequestsRequest,
+  NamedEntry,
+  RepositoryHostConnector,
+} from './git.js';
 import type { HttpClient } from './http.js';
 import { byUpdatedAtDescending, itemsAfterCursor, newestCursor, toIsoTimestamp } from './items.js';
 import type { FetchResult, SourceItem } from './items.js';
@@ -140,6 +146,27 @@ export class BitbucketServerConnector implements RepositoryHostConnector {
       truncated: fresh.length > items.length || page.isLastPage === false,
       cursor: newestCursor(items, request.cursor),
     };
+  }
+
+  /** Projects this account can see. Personal ones come back with their `~name` key. */
+  async listProjects(): Promise<NamedEntry[]> {
+    const page = await this.options.http.requestJson<{ values?: { key?: string; name?: string }[] }>({
+      path: 'projects',
+      query: { limit: 100 },
+    });
+    return (page?.values ?? [])
+      .filter((entry) => typeof entry.key === 'string')
+      .map((entry) => ({ id: entry.key as string, name: entry.name }));
+  }
+
+  async listRepositories(project: string): Promise<NamedEntry[]> {
+    const page = await this.options.http.requestJson<{ values?: { slug?: string; name?: string }[] }>({
+      path: `${this.repositoryPath(project, '').replace(/\/repos\/$/, '/repos')}`,
+      query: { limit: 100 },
+    });
+    return (page?.values ?? [])
+      .filter((entry) => typeof entry.slug === 'string')
+      .map((entry) => ({ id: entry.slug as string, name: entry.name }));
   }
 
   async getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult> {

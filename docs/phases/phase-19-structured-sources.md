@@ -50,7 +50,7 @@ and nothing knows which project it reads.
   value containing a slash cannot become two path segments — a test pins that, replacing the
   three that used to assert `parseRepo` rejected a one-part string.
 
-### 19.4 Choosing from a list
+### 19.4 Choosing from a list ✅
 - New port methods: `listProjects()` and `listRepositories(project)` on the repository host
   connector, `listProjects()` on the issue tracker.
   - GitHub: the viewer's own repositories and organizations.
@@ -62,22 +62,28 @@ and nothing knows which project it reads.
   19.2, and says why the list is empty. On a locked-down self-hosted installation that is
   the normal path, not the exception.
 - Listing is only ever triggered by a person opening the picker — never during a run, and
-  never on activation.
+  never on activation. The fake connectors in the runner tests reject both calls, so a run that
+  started listing would fail loudly rather than quietly costing requests.
+- Done. GitHub falls back from `/orgs/<name>/repos` to the viewer's own repositories, because
+  that path is a 404 for a personal account and that is not an error worth showing somebody who
+  is picking from a list.
 
-### 19.5 The tracker's project does not rewrite anybody's query
+### 19.5 The tracker's project does not rewrite anybody's query ✅
 - `jql` stays authoritative. `project` is used to offer a starting query when the field is
   empty (`project = KEY ORDER BY updated DESC`) and to show which project an agent reads.
 - Rewriting a query somebody wrote, to keep it consistent with a dropdown, is how an agent
   silently starts reading something else.
+- Done: picking a project seeds an empty query with `project = KEY ORDER BY updated DESC` and
+  touches nothing that is already there. The field itself is optional.
 
-### 19.6 What has to move with the model
+### 19.6 What has to move with the model ✅
 - `validateSource`, the draft conversion in `src/ui/wizard/steps.ts`, the wizard's repo
   step, the tree tooltip, the run picker detail line and `runner.ts` all read
   `source.repo` today; each of them takes the pair.
 - The cursor rule from phase 6 still applies: changing the project or the repository drops
   `sinceCursor`, because the new source never showed the items the old cursor covers.
 
-### 19.7 Tests
+### 19.7 Tests ✅
 - Unit: the migration over a real v1 state, including the value that cannot be split; the
   vocabulary function for all three providers; each connector's listing against recorded
   fixtures, including a second page and a `403`; the cursor is dropped when either half of

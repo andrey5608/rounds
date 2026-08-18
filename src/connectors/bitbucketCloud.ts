@@ -1,5 +1,11 @@
 import { ConfigError } from './errors.js';
-import type { DiffResult, GitMode, ListPullRequestsRequest, RepositoryHostConnector } from './git.js';
+import type {
+  DiffResult,
+  GitMode,
+  ListPullRequestsRequest,
+  NamedEntry,
+  RepositoryHostConnector,
+} from './git.js';
 import type { HttpClient } from './http.js';
 import { byUpdatedAtDescending, itemsAfterCursor, newestCursor, toIsoTimestamp } from './items.js';
 import type { FetchResult, SourceItem } from './items.js';
@@ -125,6 +131,26 @@ export class BitbucketCloudConnector implements RepositoryHostConnector {
       truncated: fresh.length > items.length || page.next !== undefined,
       cursor: newestCursor(items, request.cursor),
     };
+  }
+
+  /** The workspaces this account belongs to. */
+  async listProjects(): Promise<NamedEntry[]> {
+    const page = await this.options.http.requestJson<{
+      values?: { slug?: string; name?: string }[];
+    }>({ path: 'workspaces', query: { pagelen: 100 } });
+    return (page?.values ?? [])
+      .filter((entry) => typeof entry.slug === 'string')
+      .map((entry) => ({ id: entry.slug as string, name: entry.name }));
+  }
+
+  async listRepositories(project: string): Promise<NamedEntry[]> {
+    const page = await this.options.http.requestJson<{ values?: { slug?: string; name?: string }[] }>({
+      path: `repositories/${encodeURIComponent(project)}`,
+      query: { pagelen: 100, sort: '-updated_on' },
+    });
+    return (page?.values ?? [])
+      .filter((entry) => typeof entry.slug === 'string')
+      .map((entry) => ({ id: entry.slug as string, name: entry.name }));
   }
 
   async getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult> {

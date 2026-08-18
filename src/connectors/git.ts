@@ -28,10 +28,26 @@ export interface DiffResult {
  * Kept deliberately small and free of provider vocabulary: adding a second host means adding
  * a file that implements this, not touching the runner, the scheduler or the wizard.
  */
+/** One thing a picker can offer: an id to store and a name to show. */
+export interface NamedEntry {
+  id: string;
+  name?: string;
+}
+
 export interface RepositoryHostConnector {
   ping(): Promise<void>;
   listPullRequests(request: ListPullRequestsRequest): Promise<FetchResult>;
   getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult>;
+  /**
+   * What this account can see, for the pickers in the agent wizard.
+   *
+   * Called only when somebody opens a picker — never during a run and never on activation. A host
+   * may refuse either of these on permissions alone, and that is a normal answer rather than an
+   * error: the caller falls back to a text field, which on a locked-down self-hosted installation
+   * is the usual path.
+   */
+  listProjects(): Promise<NamedEntry[]>;
+  listRepositories(project: string): Promise<NamedEntry[]>;
 }
 
 interface PullRequestResponse {
@@ -170,6 +186,42 @@ export class RestGitConnector implements RepositoryHostConnector {
       // a failure would skip exactly the items it never looked at.
       cursor: newestCursor(items, request.cursor),
     };
+  }
+
+  /** The viewer's own account and the organizations it belongs to. */
+  async listProjects(): Promise<NamedEntry[]> {
+    const [user, organizations] = await Promise.all([
+      this.options.http.requestJson<{ login?: string }>({ path: 'user' }),
+      this.options.http.requestJson<{ login?: string }[]>({
+        path: 'user/orgs',
+        query: { per_page: 100 },
+      }),
+    ]);
+    const entries: NamedEntry[] = user?.login ? [{ id: user.login, name: 'your account' }] : [];
+    for (const organization of Array.isArray(organizations) ? organizations : []) {
+      if (organization.login) {
+        entries.push({ id: organization.login });
+      }
+    }
+    return entries;
+  }
+
+  async listRepositories(project: string): Promise<NamedEntry[]> {
+    // Repositories of an organization, falling back to the viewer's own list when `project` is
+    // the account itself: `/orgs/<user>/repos` is a 404 for a user, and that is not an error
+    // worth showing anybody.
+    const path = `orgs/${encodeURIComponent(project)}/repos`;
+    const response = await this.options.http
+      .requestJson<{ name?: string }[]>({ path, query: { per_page: 100, sort: 'updated' } })
+      .catch(() =>
+        this.options.http.requestJson<{ name?: string }[]>({
+          path: 'user/repos',
+          query: { per_page: 100, sort: 'updated', affiliation: 'owner,collaborator' },
+        }),
+      );
+    return (Array.isArray(response) ? response : [])
+      .filter((entry) => typeof entry.name === 'string')
+      .map((entry) => ({ id: entry.name as string }));
   }
 
   async getDiff(project: string, repo: string, id: string, maxChars?: number): Promise<DiffResult> {

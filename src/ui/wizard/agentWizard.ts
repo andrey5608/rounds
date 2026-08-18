@@ -6,7 +6,7 @@ import { describeModel } from '../../model/gateway.js';
 import { describeCron, minIntervalMinutes } from '../../scheduler/cron.js';
 import { userAction } from '../../setup/consentGate.js';
 import { addConnection } from '../../setup/endpointEditor.js';
-import type { Agent, PersistedState } from '../../state/types.js';
+import type { Agent, EndpointConfig, PersistedState } from '../../state/types.js';
 
 import {
   agentToDraft,
@@ -23,7 +23,9 @@ import {
   validateTimeWindow,
   validateTimeZoneInput,
 } from './steps.js';
-import { resolveProvider, tokenFor } from '../../connectors/factory.js';
+import { ConnectorFactory, resolveProvider, tokenFor } from '../../connectors/factory.js';
+import type { NamedEntry, RepositoryHostConnector } from '../../connectors/git.js';
+import type { IssueTrackerConnector } from '../../connectors/jira.js';
 import { formatRepository, sourceVocabulary } from '../../agents/sourceLabels.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 
@@ -340,10 +342,29 @@ async function askSource(container: ServiceContainer, draft: AgentDraft): Promis
   }
 
   if (draft.sourceKind === 'jira') {
+    const tracker = chosen
+      ? await trackerFor(container, chosen).catch(() => undefined)
+      : undefined;
+    const project = await pickOrType({
+      title: 'Project',
+      prompt: 'Optional. Used to offer a starting query and to say which project this agent reads.',
+      placeHolder: 'ROUNDS',
+      current: draft.project,
+      load: tracker ? () => tracker.listProjects() : undefined,
+      validate: () => undefined,
+      allowEmpty: true,
+    });
+    if (project === undefined) {
+      return false;
+    }
+    draft.project = project;
+
     const jql = await ask(
       vscode.window.showInputBox({
         title: 'Search query for the issues to collect',
-        value: draft.jql ?? '',
+        // Seeded from the project, never rewritten from it: a query somebody wrote is the one
+        // that runs, and quietly editing it is how an agent starts reading something else.
+        value: draft.jql ?? (project ? `project = ${project} ORDER BY updated DESC` : ''),
         placeHolder: 'project = ROUNDS AND status != Done',
         ignoreFocusOut: true,
         validateInput: validateJql,
@@ -374,34 +395,35 @@ async function askSource(container: ServiceContainer, draft: AgentDraft): Promis
   const provider = connection ? resolveProvider(connection) : 'github';
   const vocabulary = sourceVocabulary(provider);
 
-  const project = await ask(
-    vscode.window.showInputBox({
-      title: vocabulary.project,
-      prompt: vocabulary.hint,
-      value: draft.project ?? '',
-      placeHolder: vocabulary.example,
-      ignoreFocusOut: true,
-      validateInput: (input) => validateProject(input, provider),
-    }),
-  );
-  if (cancelled(project)) {
-    return false;
-  }
-  draft.project = project.trim();
+  const host = connection
+    ? await connectorFor(container, connection).catch(() => undefined)
+    : undefined;
 
-  const repo = await ask(
-    vscode.window.showInputBox({
-      title: 'Repository',
-      value: draft.repo ?? '',
-      placeHolder: 'rounds',
-      ignoreFocusOut: true,
-      validateInput: validateRepo,
-    }),
-  );
-  if (cancelled(repo)) {
+  const project = await pickOrType({
+    title: vocabulary.project,
+    prompt: vocabulary.hint,
+    placeHolder: vocabulary.example,
+    current: draft.project,
+    load: host ? () => host.listProjects() : undefined,
+    validate: (input) => validateProject(input, provider),
+  });
+  if (project === undefined) {
     return false;
   }
-  draft.repo = repo.trim();
+  draft.project = project;
+
+  const repo = await pickOrType({
+    title: 'Repository',
+    prompt: `A repository in ${project}.`,
+    placeHolder: 'rounds',
+    current: draft.repo,
+    load: host ? () => host.listRepositories(project) : undefined,
+    validate: validateRepo,
+  });
+  if (repo === undefined) {
+    return false;
+  }
+  draft.repo = repo;
 
   const mode = await ask(
     vscode.window.showQuickPick(
@@ -452,6 +474,102 @@ async function askPrompt(draft: AgentDraft): Promise<boolean> {
   draft.promptSource = 'inline';
   draft.promptText = text;
   return true;
+}
+
+interface PickOrTypeOptions {
+  title: string;
+  prompt: string;
+  placeHolder: string;
+  current?: string;
+  /** Asks the host what exists. Absent, or failing, means the field is typed instead. */
+  load?: () => Promise<NamedEntry[]>;
+  validate: (value: string) => string | undefined;
+  allowEmpty?: boolean;
+}
+
+/** Builds a repository host connector for the connection this agent will use. */
+async function connectorFor(
+  container: ServiceContainer,
+  endpoint: EndpointConfig,
+): Promise<RepositoryHostConnector> {
+  const state = await container.store.read();
+  const factory = new ConnectorFactory({
+    secrets: container.secrets,
+    endpoints: state.endpoints,
+    logger: container.logger,
+  });
+  return factory.createRepositoryHost(endpoint);
+}
+
+/** The same for an issue tracker. */
+async function trackerFor(
+  container: ServiceContainer,
+  endpoint: EndpointConfig,
+): Promise<IssueTrackerConnector> {
+  const state = await container.store.read();
+  const factory = new ConnectorFactory({
+    secrets: container.secrets,
+    endpoints: state.endpoints,
+    logger: container.logger,
+  });
+  return factory.createIssueTracker(endpoint);
+}
+
+/**
+ * Offers what the host has, and falls back to typing.
+ *
+ * A locked-down installation refuses these listings on permissions alone, and on those the text
+ * field is the normal path rather than the exception — so a refusal is not an error, it is the
+ * other half of the design. Nothing here runs unless somebody opened this step.
+ */
+async function pickOrType(options: PickOrTypeOptions): Promise<string | undefined> {
+  let entries: NamedEntry[] | undefined;
+  if (options.load) {
+    try {
+      entries = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Rounds: reading ${options.title.toLowerCase()}s`,
+        },
+        async () => (options.load ? await options.load() : []),
+      );
+    } catch {
+      // Permissions, or a host that does not offer the endpoint. Typing still works.
+      entries = undefined;
+    }
+  }
+
+  if (entries && entries.length > 0) {
+    const typeIt = { label: '$(edit) Enter it manually', id: undefined };
+    const picked = await vscode.window.showQuickPick(
+      [
+        ...entries.map((entry) => ({
+          label: entry.id,
+          description: entry.name && entry.name !== entry.id ? entry.name : undefined,
+          id: entry.id,
+        })),
+        typeIt,
+      ],
+      { title: options.title, placeHolder: options.prompt, ignoreFocusOut: true, matchOnDescription: true },
+    );
+    if (!picked) {
+      return undefined;
+    }
+    if (picked.id !== undefined) {
+      return picked.id;
+    }
+  }
+
+  const typed = await vscode.window.showInputBox({
+    title: options.title,
+    prompt: entries === undefined ? `${options.prompt} (the host did not list any)` : options.prompt,
+    value: options.current ?? '',
+    placeHolder: options.placeHolder,
+    ignoreFocusOut: true,
+    validateInput: (value) =>
+      options.allowEmpty && value.trim().length === 0 ? undefined : options.validate(value),
+  });
+  return typed === undefined ? undefined : typed.trim();
 }
 
 /**

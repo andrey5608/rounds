@@ -128,6 +128,7 @@ async function harness(options: {
                 ping: () => Promise.resolve(),
                 search: options.fetch ?? (() => Promise.resolve(jiraItems)),
                 getIssue: () => Promise.reject(new Error('not used')),
+                listProjects: () => Promise.reject(new Error('not used during a run')),
               },
             }
           : {
@@ -135,6 +136,9 @@ async function harness(options: {
                 ping: () => Promise.resolve(),
                 listPullRequests: options.fetch ?? (() => Promise.resolve(jiraItems)),
                 getDiff: options.diff ?? (() => Promise.resolve({ text: 'diff --git a/f b/f', truncated: false })),
+                // The pickers only; a run never lists projects or repositories.
+                listProjects: () => Promise.reject(new Error('not used during a run')),
+                listRepositories: () => Promise.reject(new Error('not used during a run')),
               },
             },
       ),

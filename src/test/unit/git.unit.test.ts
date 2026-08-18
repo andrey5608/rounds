@@ -192,6 +192,33 @@ describe('repository host connector', () => {
     );
   });
 
+  it('lists the account and its organizations as places a repository can live', async () => {
+    const { connector: git, urls } = connector([
+      json({ login: 'alex' }),
+      json([{ login: 'octo' }, { login: 'acme' }]),
+    ]);
+
+    const projects = await git.listProjects();
+
+    assert.deepEqual(projects.map((entry) => entry.id), ['alex', 'octo', 'acme']);
+    assert.equal(projects[0]?.name, 'your account');
+    assert.ok(urls.some((url) => url.includes('/user/orgs')));
+  });
+
+  it('falls back to the viewer own repositories when the project is not an organization', async () => {
+    // `/orgs/<user>/repos` is a 404 for a personal account, and that is not an error worth
+    // showing anybody who is picking from a list.
+    const { connector: git, urls } = connector([
+      json({ message: 'Not Found' }, 404),
+      json([{ name: 'rounds' }, { name: 'notes' }]),
+    ]);
+
+    const repositories = await git.listRepositories('alex');
+
+    assert.deepEqual(repositories.map((entry) => entry.id), ['rounds', 'notes']);
+    assert.match(urls[1] ?? '', /\/user\/repos/);
+  });
+
   it('asks for the diff format and returns the diff as it is', async () => {
     const diff = 'diff --git a/file b/file\n+added line\n';
     const { connector: git, urls, headers } = connector([body(diff)]);
