@@ -22,7 +22,11 @@ import {
   validateTimeWindow,
   validateTimeZoneInput,
 } from './steps.js';
+import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
+
 import type { AgentDraft } from './steps.js';
+import { describeCandidate, discoverPromptFiles } from './promptFiles.js';
+import type { PromptFileCandidate } from './promptFiles.js';
 
 /** A step the user cancelled out of. */
 const CANCELLED = Symbol('cancelled');
@@ -392,35 +396,104 @@ async function askPrompt(draft: AgentDraft): Promise<boolean> {
   }
 
   if (source.value === 'file') {
-    const picked = await vscode.window.showOpenDialog({
-      title: 'Choose the prompt file',
-      canSelectMany: false,
-      filters: { Markdown: ['md', 'txt', 'prompt'] },
-    });
-    const file = picked?.[0];
+    const file = await pickPromptFile();
     if (!file) {
       return false;
     }
     draft.promptSource = 'file';
-    draft.promptFile = file.fsPath;
+    draft.promptFile = file;
     return true;
   }
 
-  const text = await ask(
-    vscode.window.showInputBox({
-      title: 'Prompt',
-      value: draft.promptText ?? 'Summarize {{items}} and list what needs attention.',
-      prompt: 'Placeholders: {{items}}, {{issueKey}}, {{summary}}, {{diff}}, {{date}}, {{datetime}}, {{workspace}}',
-      ignoreFocusOut: true,
-      validateInput: validatePromptText,
-    }),
+  const text = await editPromptText(
+    draft.promptText ?? 'Summarize {{items}} and list what needs attention.',
   );
-  if (cancelled(text)) {
+  if (text === undefined) {
     return false;
   }
   draft.promptSource = 'inline';
   draft.promptText = text;
   return true;
+}
+
+/**
+ * Offers the prompt files the workspace already has, with Browse… still available.
+ *
+ * Typing or hunting for a path was the whole interaction before; a repository that keeps its
+ * prompts in `.github/prompts` should not make somebody find them again by hand.
+ */
+async function pickPromptFile(): Promise<string | undefined> {
+  const candidates = await discoverPromptFiles(createVscodeFileFinder());
+  const browse = { label: '$(folder-opened) Browse…', detail: 'Choose any file on disk', browse: true };
+  const items: (vscode.QuickPickItem & { candidate?: PromptFileCandidate; browse?: boolean })[] = [
+    ...candidates.map((candidate) => {
+      const described = describeCandidate(candidate);
+      return { label: described.label, detail: described.detail, candidate };
+    }),
+    browse,
+  ];
+
+  const picked = await vscode.window.showQuickPick(items, {
+    title: candidates.length > 0 ? 'Prompt file' : 'No prompt files found in the workspace',
+    placeHolder: 'Files under .github/prompts come first',
+    ignoreFocusOut: true,
+    matchOnDetail: true,
+  });
+  if (!picked) {
+    return undefined;
+  }
+  if (picked.candidate) {
+    const [folder] = vscode.workspace.workspaceFolders ?? [];
+    return folder
+      ? vscode.Uri.joinPath(folder.uri, picked.candidate.path).fsPath
+      : picked.candidate.path;
+  }
+
+  const chosen = await vscode.window.showOpenDialog({
+    title: 'Choose the prompt file',
+    canSelectMany: false,
+    filters: { Markdown: ['md', 'txt', 'prompt'] },
+  });
+  return chosen?.[0]?.fsPath;
+}
+
+/**
+ * Writes a prompt in a real editor rather than in a one-line box.
+ *
+ * Phase 10 specified a scratch document and the implementation used `showInputBox`, which is
+ * where a fifteen-line prompt goes to die. The document is untitled and never saved; closing it
+ * takes the text, and a validation failure reopens it with the text intact rather than throwing
+ * the work away.
+ */
+async function editPromptText(initial: string): Promise<string | undefined> {
+  let text = initial;
+  for (;;) {
+    const document = await vscode.workspace.openTextDocument({
+      content: text,
+      language: 'markdown',
+    });
+    const editor = await vscode.window.showTextDocument(document, { preview: false });
+
+    const confirmed = await vscode.window.showInformationMessage(
+      'Write the prompt in the editor, then choose Use this prompt. Placeholders: {{items}}, {{issueKey}}, {{summary}}, {{diff}}, {{date}}, {{datetime}}, {{workspace}}',
+      { modal: true },
+      'Use this prompt',
+    );
+    text = editor.document.getText();
+    await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    if (confirmed !== 'Use this prompt') {
+      return undefined;
+    }
+
+    const problem = validatePromptText(text);
+    if (!problem) {
+      return text;
+    }
+    const retry = await vscode.window.showWarningMessage(problem, { modal: true }, 'Edit again');
+    if (retry !== 'Edit again') {
+      return undefined;
+    }
+  }
 }
 
 /**

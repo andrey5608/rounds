@@ -12,7 +12,7 @@ opens a chat still using whatever model was picked last.
 
 ## Steps
 
-### 16.1 Prompt files the workspace already has
+### 16.1 Prompt files the workspace already has ✅
 - Before the file dialog, offer what is there: `*.prompt.md` under `.github/prompts/` in
   every workspace folder, then Markdown files near the workspace root, each shown with its
   path relative to the folder and the first line of its content as the description.
@@ -21,8 +21,11 @@ opens a chat still using whatever model was picked last.
 - Discovery is a pure function over an injected file finder (`FileFinder` from phase 7
   already exists), so ordering, filtering and the relative paths are unit-tested without a
   workspace, on `node:path` joins rather than POSIX literals.
+- Done. Shallow paths sort before deep ones — a prompt at the root is likelier than one six
+  levels down — and the second search is skipped entirely when the prompt folder already filled
+  the list, which a test pins because it is the kind of thing that quietly regresses.
 
-### 16.2 Write a prompt in an editor, not in a text field
+### 16.2 Write a prompt in an editor, not in a text field ✅
 - Phase 10 specified a scratch editor document for inline prompts; the implementation is a
   one-line `showInputBox`, which is where a fifteen-line prompt goes to die.
 - Open an untitled Markdown document seeded with the current text and the placeholder list
@@ -30,8 +33,11 @@ opens a chat still using whatever model was picked last.
   on a keystroke.
 - Placeholder validation stays where it is; it runs on the captured text, and a rejection
   reopens the document with the text intact rather than discarding it.
+- Done. The document is untitled and reverted on the way out, so nothing asks to be saved and
+  no file is left behind. The confirmation is modal for the same reason the others are: it is a
+  decision, not a notice.
 
-### 16.3 Chat mode opens with the agent's model
+### 16.3 Chat mode opens with the agent's model ✅
 - `handOffToChat` passes the agent's `modelId` alongside `query` and `isPartialQuery`.
 - These extra options are **best-effort**: `workbench.action.chat.open` is a built-in
   command whose option shape is not part of the published API surface, so an editor build
@@ -42,8 +48,10 @@ opens a chat still using whatever model was picked last.
   sentence stays everywhere it already appears.
 - Custom chat modes are deliberately **not** taken: they would add an agent field, a picker,
   and a dependency on a shape that is not API. The model is the part people actually pin.
+- Done. The run summary now says the model was **requested**, which is the honest word: whether
+  the editor honoured the selector is not something this extension can observe.
 
-### 16.4 Tests
+### 16.4 Tests ✅
 - Unit: discovery ordering and relative paths against a fake finder, including a workspace
   with no prompt files and one with several folders; the retry logic of the handoff around
   an injected command runner that rejects the first shape.
@@ -52,10 +60,10 @@ opens a chat still using whatever model was picked last.
 
 ## Exit criteria
 
-- [ ] The prompt step lists the prompt files already in the workspace, and Browse… is still
+- [x] The prompt step lists the prompt files already in the workspace, and Browse… is still
       available.
-- [ ] An inline prompt is written in a real editor document, and a validation failure does not
+- [x] An inline prompt is written in a real editor document, and a validation failure does not
       lose the text.
-- [ ] Chat mode requests the agent's model, retries once without the extra options, and never
+- [x] Chat mode requests the agent's model, retries once without the extra options, and never
       turns an ignored option into a visible error.
-- [ ] Nothing in the UI or the history suggests Rounds saw a chat-mode answer.
+- [x] Nothing in the UI or the history suggests Rounds saw a chat-mode answer.

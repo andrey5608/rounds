@@ -89,7 +89,7 @@ export interface RunnerDependencies {
   connectors: ConnectorProvider;
   resultWriter?: ResultWriter;
   /** Chat mode handoff. Absent means chat mode cannot run in this window. */
-  handOffToChat?: (prompt: string) => Promise<void>;
+  handOffToChat?: (prompt: string, options: { modelId?: string }) => Promise<void>;
   settings: () => RoundsSettings;
   globalStorage: string;
   workspaceFolders: string[];
@@ -304,7 +304,10 @@ export class AgentRunner {
       });
     }
     const first = prompts[0];
-    await this.dependencies.handOffToChat(first?.text ?? '');
+    // The agent's model is passed along so the chat does not open with whatever was used last.
+    // Whether the editor honours it is out of our hands, which is why the summary below says the
+    // model was requested rather than used.
+    await this.dependencies.handOffToChat(first?.text ?? '', { modelId: record.modelId });
     const note =
       prompts.length > 1
         ? ` Only the first of ${prompts.length} rendered prompts was opened.`
@@ -312,7 +315,7 @@ export class AgentRunner {
     logger.info('Opened the prompt in the chat view for review.');
     return this.finish(record, {
       status: 'handedOff',
-      summary: `The prompt was opened in the chat view for review; Rounds does not see the answer.${note}`,
+      summary: `The prompt was opened in the chat view with ${record.modelId} requested; Rounds does not see the answer.${note}`,
       logger,
       resolution,
     });

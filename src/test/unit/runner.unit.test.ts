@@ -82,7 +82,7 @@ interface Harness {
   gateway: FakeGateway;
   sink: MemorySink;
   resultsFolder: string;
-  handedOff: string[];
+  handedOff: { prompt: string; modelId?: string }[];
   history: HistoryService;
 }
 
@@ -117,7 +117,7 @@ async function harness(options: {
   const sink = new MemorySink();
   const logger = new Logger({ sink, getLevel: () => 'debug', clock });
   const gateway = options.gateway ?? new FakeGateway();
-  const handedOff: string[] = [];
+  const handedOff: { prompt: string; modelId?: string }[] = [];
 
   const connectors: ConnectorProvider = {
     forSource: (source) =>
@@ -161,8 +161,8 @@ async function harness(options: {
     workspaceName: 'rounds',
     logger,
     clock,
-    handOffToChat: (prompt) => {
-      handedOff.push(prompt);
+    handOffToChat: (prompt, options) => {
+      handedOff.push({ prompt, modelId: options.modelId });
       return Promise.resolve();
     },
     secretNames: () => Promise.resolve(options.secrets ?? ['jiraToken', 'gitToken']),
@@ -340,7 +340,10 @@ describe('agent runner', () => {
     assert.equal(record.resultFilePath, undefined);
     assert.match(record.summary, /does not see the answer/);
     assert.equal(handedOff.length, 1);
-    assert.match(handedOff[0] ?? '', /ROUNDS-1/);
+    assert.match(handedOff[0]?.prompt ?? '', /ROUNDS-1/);
+    // The agent is pinned to a model; the chat should not open with whatever was used last.
+    assert.equal(handedOff[0]?.modelId, chatAgent.modelId);
+    assert.match(record.summary, /requested/);
     assert.equal(gateway.requests.length, 0, 'chat mode never calls the model directly');
     assert.equal((await store.reload()).counters.global, 1, 'a handoff still counts');
   });
