@@ -44,6 +44,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- The scheduling lock left two things in the storage folder — a marker file and a
+  `rounds.lock.lock` directory beside it — where the specification names one. There is now exactly
+  one, named `rounds.lock`, and an upgrade clears what the old layout left behind.
+- A window that does not schedule runs said so once in the output channel and then repeated it
+  into the extended log every fifteen seconds, because that log records every line whatever the
+  configured level is. It is now said once, when it changes.
 - The agent form warned that the script whitelist was empty and left you to find a JSON array in
   the settings. It now lists what `runScript` may run and offers to add a command line to it.
 - A `.prompt.md` file's YAML header was sent to the model as prompt text. It is removed before the

@@ -77,7 +77,9 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   migrated from, and stay readable as a fallback, because a token that disappears cannot be
   recovered. One key per source kind stopped being enough once a second repository host API
   was supported — two connections would share one token.
-- Leader lock file: `rounds.lock` in the extension's global storage path
+- Leader lock: `rounds.lock` in the extension's global storage path. It is a directory, because
+  that is how the lock library claims a resource atomically, and it is the only artifact the lock
+  leaves there.
 - Result files: `<outputFolder>/<agent-name-slug>-<YYYYMMDD-HHmmss>.md`
 
 ### Source layout

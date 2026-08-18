@@ -8,7 +8,16 @@ and a manual run works from any window without ever double-running an agent.
 ## Steps
 
 ### 3.1 Leader lock (`src/scheduler/leaderLock.ts`) ✅
-- Lock file `rounds.lock` in `context.globalStorageUri` (the path from `plan.md`).
+- Lock `rounds.lock` in `context.globalStorageUri` (the path from `plan.md`). It is a directory:
+  `proper-lockfile` claims a resource by creating one, which is its atomic operation.
+- **Corrected after a real installation.** The lock was first taken on a marker file this
+  extension wrote itself, so the folder held `rounds.lock` (a file) *and* `rounds.lock.lock` (the
+  library's directory beside it) — two artifacts where the specification names one, and the second
+  looked like debris. The lock is now taken with `realpath: false` on a path that is never
+  created, and `lockfilePath` names the directory, so exactly one thing appears and it is the one
+  `plan.md` names. A window upgrading from the old layout removes the leftovers, unless another
+  window still holds the old lock, in which case both are left alone: taking the new lock as well
+  would mean two windows scheduling at once.
 - Use `proper-lockfile` with: `stale: 30_000`, `update: 10_000` (heartbeat),
   `retries: 0` on the acquire attempt, and an `onCompromised` handler.
 - Expose `acquire(): Promise<boolean>`, `release()`, `isHeld`, `onLost` event.
