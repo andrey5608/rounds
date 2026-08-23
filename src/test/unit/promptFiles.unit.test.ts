@@ -60,12 +60,45 @@ describe('finding the prompt files a workspace already has', () => {
     assert.equal((await discoverPromptFiles(find, 5)).length, 5);
   });
 
-  it('does not ask for more files once the prompt folder filled the list', async () => {
+  it('does not search the whole workspace once the named folders filled the list', async () => {
     const conventional = Array.from({ length: 5 }, (_, index) => `.github/prompts/p${index}.md`);
     const { find, calls } = finder({ '**/.github/prompts/**/*.md': conventional });
 
     await discoverPromptFiles(find, 5);
-    assert.deepEqual(calls, ['**/.github/prompts/**/*.md'], 'the second search would be wasted');
+    assert.deepEqual(
+      calls,
+      ['**/.github/prompts/**/*.md', '**/skills/**/*.md'],
+      'the broad search over every Markdown file would be wasted',
+    );
+  });
+
+  it('offers the skills a workspace has, named after their folder', async () => {
+    // A run cannot invoke a skill: they are addressed with a slash in the chat view, and nothing
+    // the editor lists as a tool answers to a slash. A skill is instructions, though, so an agent
+    // uses one by making it the prompt.
+    const { find } = finder({
+      '**/.github/prompts/**/*.md': [],
+      '**/skills/**/*.md': ['.github/skills/feature-research/SKILL.md'],
+      '**/*.md': ['README.md'],
+    });
+
+    const found = await discoverPromptFiles(find);
+
+    assert.equal(found[0]?.path, '.github/skills/feature-research/SKILL.md');
+    assert.equal(found[0]?.skill, true);
+    assert.ok(found[0]);
+    assert.deepEqual(describeCandidate(found[0]), {
+      label: 'feature-research (skill)',
+      detail: '.github/skills/feature-research/SKILL.md · skill',
+    });
+  });
+
+  it('names a skill that is a file rather than a folder by its file name', async () => {
+    const { find } = finder({ '**/skills/**/*.md': ['skills/triage.md'] });
+    const found = await discoverPromptFiles(find);
+
+    assert.ok(found[0]);
+    assert.equal(describeCandidate(found[0]).label, 'triage (skill)');
   });
 
   it('names a file by its file name and says where it lives', () => {

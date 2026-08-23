@@ -210,6 +210,19 @@ Custom chat modes, `/slash` commands and `@participant` mentions are not availab
 belong to the chat view rather than to the language model API. An agent in chat mode reaches them —
 and, as ever in that mode, does not see the answer.
 
+### Using a skill
+
+A skill is the same story with a better ending. `/feature-research` cannot be called during a run,
+because nothing the editor lists as a tool answers to a slash — a run that is told to use one gets
+an answer saying it was not available. But a skill is a Markdown file describing a procedure, so an
+agent uses it by **making it the prompt**: choose *A file in the workspace* for the prompt, and the
+picker lists the skills it found under **(skill)**, named after their folder. The agent then follows
+those instructions on the items it fetched, with the tools you enabled.
+
+To see exactly what a run can call, open the agent and look under **From this workspace**: that list
+is what the editor reports, and it is what the model is offered. Every run also writes the names it
+was given into the log: `Offering 4 tool(s) to the model: …`.
+
 ## Where results are stored
 
 The folder is the agent's own, then `rounds.defaultOutputFolder`, then a `results` folder inside the

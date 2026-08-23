@@ -82,6 +82,14 @@ export async function runAgenticLoop(options: AgenticLoopOptions): Promise<Agent
   const messages: ModelMessage[] = [{ role: 'user', text: options.prompt }];
   const toolCalls: ToolCallRecord[] = [];
 
+  // The names, at info level, once per run. A count at debug level was what this said before, and
+  // it left "the model claims it has no tool X" impossible to answer without guessing.
+  options.logger.info(
+    tools.length > 0
+      ? `Offering ${tools.length} tool(s) to the model: ${tools.map((tool) => tool.name).join(', ')}.`
+      : 'Offering no tools to the model; this agent has none enabled.',
+  );
+
   for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
     if (options.isCancelled?.()) {
       throw new RunCancelledError();

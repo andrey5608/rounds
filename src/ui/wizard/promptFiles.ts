@@ -8,6 +8,15 @@ export interface PromptFileCandidate {
   path: string;
   /** True for files under `.github/prompts`, which are prompts on purpose rather than by accident. */
   conventional: boolean;
+  /**
+   * A skill: a Markdown file describing a procedure, which the chat view loads by name.
+   *
+   * A run cannot invoke one — skills are addressed with a slash in the chat view, and nothing in
+   * `vscode.lm.tools` answers to a slash. But a skill *is* instructions, so an agent can use it by
+   * making it the prompt, which is what this flag is for: the picker offers them and says what
+   * they are.
+   */
+  skill?: boolean;
 }
 
 /**
@@ -26,8 +35,10 @@ export async function discoverPromptFiles(
   limit = PROMPT_FILE_LIMIT,
 ): Promise<PromptFileCandidate[]> {
   const conventional = await findFiles('**/.github/prompts/**/*.md', limit);
-  const remaining = Math.max(0, limit - conventional.length);
-  const others = remaining > 0 ? await findFiles('**/*.md', remaining + conventional.length) : [];
+  const skills = await findFiles('**/skills/**/*.md', limit);
+  const used = conventional.length + skills.length;
+  const remaining = Math.max(0, limit - used);
+  const others = remaining > 0 ? await findFiles('**/*.md', remaining + used) : [];
 
   const seen = new Set<string>();
   const candidates: PromptFileCandidate[] = [];
@@ -36,6 +47,15 @@ export async function discoverPromptFiles(
     if (!seen.has(path)) {
       seen.add(path);
       candidates.push({ path, conventional: true });
+    }
+  }
+  for (const path of [...skills].sort(comparePaths)) {
+    if (candidates.length >= limit) {
+      break;
+    }
+    if (!seen.has(path)) {
+      seen.add(path);
+      candidates.push({ path, conventional: true, skill: true });
     }
   }
   for (const path of [...others].sort(comparePaths)) {
@@ -61,6 +81,21 @@ function segments(path: string): number {
 }
 
 /**
+ * The name a skill goes by.
+ *
+ * A skill lives in a folder named after it, so `SKILL.md` on its own says nothing and the folder
+ * says everything. Anything else keeps its file name.
+ */
+function describeSkill(path: string): string {
+  const parts = path.split(/[\\/]/);
+  const name = parts[parts.length - 1] ?? path;
+  if (!/^skill\.md$/i.test(name)) {
+    return name.replace(/\.md$/i, '');
+  }
+  return parts[parts.length - 2] ?? name;
+}
+
+/**
  * The name a picker shows for a prompt file.
  *
  * The file name alone is ambiguous — every folder has a `README.md` — and the full path is noise,
@@ -69,8 +104,9 @@ function segments(path: string): number {
 export function describeCandidate(candidate: PromptFileCandidate): { label: string; detail: string } {
   const parts = candidate.path.split(/[\\/]/);
   const name = parts[parts.length - 1] ?? candidate.path;
+  const note = candidate.skill ? 'skill' : candidate.conventional ? 'prompt folder' : undefined;
   return {
-    label: name,
-    detail: candidate.conventional ? `${candidate.path} · prompt folder` : candidate.path,
+    label: candidate.skill ? `${describeSkill(candidate.path)} (skill)` : name,
+    detail: note ? `${candidate.path} · ${note}` : candidate.path,
   };
 }

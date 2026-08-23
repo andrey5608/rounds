@@ -44,6 +44,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- A workspace skill could not be used at all. It still cannot be *called* during a run — skills are
+  addressed with a slash in the chat view, and nothing the language model API lists as a tool
+  answers to a slash — but the prompt picker now finds them, so an agent can use one by making it
+  its prompt. Every run also logs the tool names it offered the model, which is what makes "the
+  model says it has no such tool" answerable.
 - The scheduling lock left two things in the storage folder — a marker file and a
   `rounds.lock.lock` directory beside it — where the specification names one. There is now exactly
   one, named `rounds.lock`, and an upgrade clears what the old layout left behind.
