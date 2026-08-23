@@ -7,6 +7,8 @@
  * addressed to somebody else.
  */
 export interface PromptFrontMatter {
+  /** What the file calls itself. A skill names itself here; the folder is the fallback. */
+  name?: string;
   description?: string;
   /** Tool names the file asks for. Used to preselect, never to enable behind somebody's back. */
   tools: string[];
@@ -77,6 +79,9 @@ function readFrontMatter(lines: string[]): PromptFrontMatter {
     listKey = value.length === 0 ? key : undefined;
 
     switch (key) {
+      case 'name':
+        result.name = value || undefined;
+        break;
       case 'description':
         result.description = value || undefined;
         break;

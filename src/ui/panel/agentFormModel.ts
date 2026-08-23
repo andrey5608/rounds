@@ -1,4 +1,5 @@
 import { PLACEHOLDERS } from '../../agents/placeholders.js';
+import type { SkillSummary } from '../../agents/skills.js';
 import { sourceVocabulary } from '../../agents/sourceLabels.js';
 import type { AgentDraft } from '../wizard/steps.js';
 import {
@@ -55,8 +56,8 @@ export interface FormContext {
   emptyScriptWhitelist: boolean;
   /** What `runScript` is allowed to run, as command lines, so the form can show it. */
   scriptWhitelist: readonly string[];
-  /** Skills the workspace has, for the list an agent picks from. */
-  availableSkills: readonly { path: string; name: string }[];
+  /** Skills the workspace has, as they describe themselves, for the list an agent picks from. */
+  availableSkills: readonly SkillSummary[];
   /** What the chosen connection speaks, for the project field's label. */
   provider: GitProvider;
 }

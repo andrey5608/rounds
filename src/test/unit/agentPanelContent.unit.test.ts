@@ -52,7 +52,13 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
     ],
     emptyScriptWhitelist: false,
     scriptWhitelist: ['npm test'],
-    availableSkills: [{ path: '.github/skills/research/SKILL.md', name: 'research' }],
+    availableSkills: [
+      {
+        path: '.github/skills/research/SKILL.md',
+        name: 'research',
+        description: 'Reads the ticket and the code before answering.',
+      },
+    ],
     provider: 'github',
     ...overrides,
   };
@@ -289,6 +295,13 @@ describe('the agent form', () => {
     assert.match(html, /id="skills-label"/);
     assert.match(html, /id="skill:\.github\/skills\/research\/SKILL\.md"/);
     assert.match(html, /put in front of the prompt/);
+  });
+
+  it('shows what a skill is for, not only where its file is', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /Reads the ticket and the code before answering\./);
+    assert.match(html, /title="Reads the ticket and the code before answering\. · \.github/);
   });
 
   it('ticks the skills an agent already uses', () => {

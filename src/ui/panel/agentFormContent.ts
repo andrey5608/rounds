@@ -293,8 +293,16 @@ function skillsField(model: AgentFormViewModel): string {
   const available = model.context.availableSkills;
   const missing = chosen
     .filter((path) => !available.some((skill) => skill.path === path))
-    .map((path) => ({ path, name: path, missing: true }));
-  const entries = [...available.map((skill) => ({ ...skill, missing: false })), ...missing];
+    .map((path) => ({
+      path,
+      name: path,
+      description: 'This file is gone, so a run would fail on it.',
+      missing: true,
+    }));
+  const entries = [
+    ...available.map((skill) => ({ ...skill, missing: false })),
+    ...missing,
+  ] as { path: string; name: string; description?: string; missing: boolean }[];
 
   if (entries.length === 0) {
     return `<div class="field">
@@ -317,12 +325,15 @@ function skillsField(model: AgentFormViewModel): string {
     </div>
     <div class="tools" data-group="skills" role="group" aria-labelledby="skills-label">
       ${entries
-        .map(
-          (skill) => `<div class="tool${skill.missing ? ' missing' : ''}">
+        .map((skill) => {
+          // What it is, then where it lives: a skill introduces itself in its header, and the
+          // path is the answer to "which file is that" rather than to "what is this".
+          const detail = skill.description ? `${skill.description} · ${skill.path}` : skill.path;
+          return `<div class="tool${skill.missing ? ' missing' : ''}">
             ${checkbox(`skill:${skill.path}`, skill.missing ? `${skill.name} — missing` : skill.name, chosen.includes(skill.path))}
-            <p class="hint" title="${escapeHtml(skill.path)}">${escapeHtml(shorten(skill.path))}</p>
-          </div>`,
-        )
+            <p class="hint" title="${escapeHtml(detail)}">${escapeHtml(shorten(detail))}</p>
+          </div>`;
+        })
         .join('')}
     </div>
     <p class="hint">Their instructions are put in front of the prompt, so the run follows them.

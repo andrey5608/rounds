@@ -66,6 +66,29 @@ export function composePrompt(prompt: string, skills: readonly LoadedSkill[]): s
   return `${sections.join('\n\n')}\n\n---\n\n${prompt}`;
 }
 
+/**
+ * A skill as a list shows it: what it is called and what it is for.
+ *
+ * Read from the file's own header, because that is where a skill introduces itself. Picking a
+ * skill should be picking a skill, not picking the file it happens to live in.
+ */
+export interface SkillSummary {
+  path: string;
+  name: string;
+  description?: string;
+}
+
+/** Describes one skill file without loading it into a prompt. */
+export function describeSkillFile(path: string, content: string): SkillSummary {
+  const header = parsePromptFile(content).frontMatter;
+  const summary: SkillSummary = { path, name: header?.name?.trim() || skillName(path) };
+  const description = header?.description?.trim();
+  if (description) {
+    summary.description = description;
+  }
+  return summary;
+}
+
 /** A `SKILL.md` is named by its folder; anything else by its file name. */
 export function skillName(path: string): string {
   const parts = path.split(/[\\/]/).filter((part) => part.length > 0);

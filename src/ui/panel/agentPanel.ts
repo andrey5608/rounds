@@ -11,7 +11,8 @@ import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
 import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
-import { skillName } from '../../agents/skills.js';
+import { describeSkillFile, skillName } from '../../agents/skills.js';
+import type { SkillSummary } from '../../agents/skills.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
 import { discoverPromptFiles } from '../wizard/promptFiles.js';
@@ -29,6 +30,14 @@ import { pickPromptFile } from './promptFilePicker.js';
 
 /** How many runs the panel lists. The same ten the tree shows. */
 const RECENT_RUNS = 10;
+
+/**
+ * How many skill files the panel opens to read their headers.
+ *
+ * A workspace has a handful of skills, not hundreds; a cap keeps a pathological repository from
+ * turning "open the agent" into a file-reading exercise.
+ */
+const MAX_DESCRIBED_SKILLS = 30;
 
 interface PanelMessage {
   type?: string;
@@ -434,13 +443,30 @@ export class AgentPanel {
    * keystroke. A skill added while the panel is open appears the next time it is opened, which is
    * the same bargain the prompt picker makes.
    */
-  private skills: { path: string; name: string }[] = [];
+  private skills: SkillSummary[] = [];
 
   private async loadSkills(): Promise<void> {
     const found = await discoverPromptFiles(createVscodeFileFinder());
-    this.skills = found
+    const paths = found
       .filter((candidate) => candidate.skill)
-      .map((candidate) => ({ path: candidate.path, name: skillName(candidate.path) }));
+      .slice(0, MAX_DESCRIBED_SKILLS)
+      .map((candidate) => candidate.path);
+
+    const [folder] = vscode.workspace.workspaceFolders ?? [];
+    const summaries: SkillSummary[] = [];
+    for (const path of paths) {
+      // Its own header is where a skill introduces itself, so the list can offer skills rather
+      // than file paths. A file that cannot be read still appears, under the name of its folder.
+      try {
+        const uri = folder ? vscode.Uri.joinPath(folder.uri, path) : vscode.Uri.file(path);
+        const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+        summaries.push(describeSkillFile(path, content));
+      } catch (error) {
+        this.container.logger.debug(`Could not read the skill ${path}: ${String(error)}`);
+        summaries.push({ path, name: skillName(path) });
+      }
+    }
+    this.skills = summaries;
   }
 
   private async buildContext(): Promise<FormContext> {

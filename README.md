@@ -228,9 +228,17 @@ A skill is a Markdown file describing a procedure, so a run does not need to cal
 agent, and under **Skills** next to the prompt tick the ones you want. Their instructions are put in
 front of the prompt, so the run follows them on whatever it fetched, with the tools you enabled.
 
-Skills are found in any `skills` folder in the workspace and named after the folder they live in.
+Skills are found in any `skills` folder in the workspace, `.github/skills/<name>/SKILL.md`
+included. Each one is listed by what it calls itself: Rounds reads the `name` and `description`
+from the file's own header, and falls back to the folder name when it has none. So the list offers
+skills rather than file paths, and you pick a skill by what it does.
+
 A skill that is ticked and then deleted fails the run by name rather than running without it,
 because running without it would answer a different question than the one you set up.
+
+`.github/copilot-instructions.md` is not read for this. It is prose written for the chat view, and
+guessing a list of skills out of somebody's prose would be a list that is wrong in ways nobody can
+see. The skill files themselves say what they are.
 
 To see exactly what a run can call, open the agent and look under **From this workspace**: that list
 is what the editor reports, and it is what the model is offered. Every run also writes the names it

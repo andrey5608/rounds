@@ -3,6 +3,7 @@ import * as assert from 'node:assert/strict';
 import {
   SkillUnavailableError,
   composePrompt,
+  describeSkillFile,
   loadSkills,
   skillName,
 } from '../../agents/skills.js';
@@ -19,6 +20,32 @@ describe('skills attached to an agent', () => {
     assert.equal(skillName('.github/skills/deep-research/SKILL.md'), 'deep-research');
     assert.equal(skillName('skills/triage.md'), 'triage');
     assert.equal(skillName('.claude\\\\skills\\\\review\\\\SKILL.md'), 'review');
+  });
+
+  it('introduces itself from its own header, so a list can offer skills rather than files', () => {
+    const summary = describeSkillFile(
+      '.github/skills/deep-research/SKILL.md',
+      [
+        '---',
+        'name: Deep research',
+        'description: Reads the ticket, the linked issues and the code before answering.',
+        '---',
+        'Ask three questions.',
+      ].join('\n'),
+    );
+
+    assert.deepEqual(summary, {
+      path: '.github/skills/deep-research/SKILL.md',
+      name: 'Deep research',
+      description: 'Reads the ticket, the linked issues and the code before answering.',
+    });
+  });
+
+  it('falls back to the folder when a skill does not name itself', () => {
+    const summary = describeSkillFile('.github/skills/triage/SKILL.md', 'Just instructions.');
+
+    assert.equal(summary.name, 'triage');
+    assert.equal(summary.description, undefined);
   });
 
   it('is read with its header removed, like any other prompt file', async () => {
