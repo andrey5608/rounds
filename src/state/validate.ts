@@ -335,6 +335,9 @@ export function validateAgent(value: unknown): Agent | string {
   if (isString(prompt)) {
     return prompt;
   }
+  if (value.skills !== undefined && !isStringArray(value.skills)) {
+    return 'agent.skills must be an array of file paths';
+  }
   if (!isString(value.modelId)) {
     return 'agent.modelId must be a string';
   }
@@ -350,6 +353,7 @@ export function validateAgent(value: unknown): Agent | string {
     schedule,
     source,
     prompt,
+    skills: isStringArray(value.skills) && value.skills.length > 0 ? value.skills : undefined,
     modelId: value.modelId,
     tools: value.tools,
     createdAt: isString(value.createdAt) ? value.createdAt : new Date(0).toISOString(),

@@ -55,6 +55,8 @@ export interface FormContext {
   emptyScriptWhitelist: boolean;
   /** What `runScript` is allowed to run, as command lines, so the form can show it. */
   scriptWhitelist: readonly string[];
+  /** Skills the workspace has, for the list an agent picks from. */
+  availableSkills: readonly { path: string; name: string }[];
   /** What the chosen connection speaks, for the project field's label. */
   provider: GitProvider;
 }
@@ -154,6 +156,7 @@ export function emptyDraft(context: FormContext): AgentDraft {
     gitMode: 'newPullRequests',
     promptSource: 'inline',
     promptText: 'Summarize {{items}} and list what needs attention.',
+    skills: [],
     modelId: context.models[0]?.id ?? '',
     tools: [],
     schedule: ['0 9 * * *'],
@@ -189,6 +192,9 @@ export function draftFromMessage(value: unknown): AgentDraft {
     promptSource: raw.promptSource === 'file' ? 'file' : 'inline',
     promptText: typeof raw.promptText === 'string' ? raw.promptText : undefined,
     promptFile: text('promptFile'),
+    skills: Array.isArray(raw.skills)
+      ? raw.skills.filter((skill): skill is string => typeof skill === 'string')
+      : [],
     modelId: text('modelId') ?? '',
     tools: Array.isArray(raw.tools) ? raw.tools.filter((tool): tool is string => typeof tool === 'string') : [],
     schedule: typeof raw.schedule === 'string' ? splitSchedule(raw.schedule) : [],

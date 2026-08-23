@@ -93,7 +93,7 @@ describe('tools the editor reports', () => {
   });
 
   it('names what a skill is not: a slash command is not among them', () => {
-    // The report this test was written for: an agent asked for `/feature-research` and the model
+    // The report this test was written for: an agent asked for `/a-command` and the model
     // answered that it was not available. Skills and slash commands belong to the chat view; what
     // reaches a run is what the editor lists here, and nothing in that list is addressed with a
     // slash. Keeping the assertion makes the day this changes visible.

@@ -277,7 +277,57 @@ function promptSection(model: AgentFormViewModel): string {
             </div>`,
           })
     }
+    ${skillsField(model)}
   </section>`;
+}
+
+/**
+ * The skills whose instructions go in front of the prompt.
+ *
+ * A skill cannot be called during a run: it is addressed with a slash in the chat view, and
+ * nothing the language model API offers answers to a slash. It can be *followed*, though, which is
+ * what this list does — the chosen files are put in front of the prompt, verbatim.
+ */
+function skillsField(model: AgentFormViewModel): string {
+  const chosen = model.draft.skills ?? [];
+  const available = model.context.availableSkills;
+  const missing = chosen
+    .filter((path) => !available.some((skill) => skill.path === path))
+    .map((path) => ({ path, name: path, missing: true }));
+  const entries = [...available.map((skill) => ({ ...skill, missing: false })), ...missing];
+
+  if (entries.length === 0) {
+    return `<div class="field">
+      <span class="label-text">Skills</span>
+      <p class="hint">No skill files found in the workspace. A skill is a Markdown file under a
+      <code>skills</code> folder; its instructions are put in front of the prompt.</p>
+    </div>`;
+  }
+
+  return `<div class="field">
+    <div class="group-head">
+      <span class="label-text" id="skills-label">Skills</span>
+      ${
+        entries.length > 1
+          ? `<label class="check select-all"><input type="checkbox" id="select-all-skills" data-group="skills"${
+              chosen.length === entries.length ? ' checked' : ''
+            } /> Select all</label>`
+          : ''
+      }
+    </div>
+    <div class="tools" data-group="skills" role="group" aria-labelledby="skills-label">
+      ${entries
+        .map(
+          (skill) => `<div class="tool${skill.missing ? ' missing' : ''}">
+            ${checkbox(`skill:${skill.path}`, skill.missing ? `${skill.name} — missing` : skill.name, chosen.includes(skill.path))}
+            <p class="hint" title="${escapeHtml(skill.path)}">${escapeHtml(shorten(skill.path))}</p>
+          </div>`,
+        )
+        .join('')}
+    </div>
+    <p class="hint">Their instructions are put in front of the prompt, so the run follows them.
+    A skill cannot be called with a slash during a run.</p>
+  </div>`;
 }
 
 function modelSection(model: AgentFormViewModel): string {

@@ -78,18 +78,18 @@ describe('finding the prompt files a workspace already has', () => {
     // uses one by making it the prompt.
     const { find } = finder({
       '**/.github/prompts/**/*.md': [],
-      '**/skills/**/*.md': ['.github/skills/feature-research/SKILL.md'],
+      '**/skills/**/*.md': ['.github/skills/deep-research/SKILL.md'],
       '**/*.md': ['README.md'],
     });
 
     const found = await discoverPromptFiles(find);
 
-    assert.equal(found[0]?.path, '.github/skills/feature-research/SKILL.md');
+    assert.equal(found[0]?.path, '.github/skills/deep-research/SKILL.md');
     assert.equal(found[0]?.skill, true);
     assert.ok(found[0]);
     assert.deepEqual(describeCandidate(found[0]), {
-      label: 'feature-research (skill)',
-      detail: '.github/skills/feature-research/SKILL.md · skill',
+      label: 'deep-research (skill)',
+      detail: '.github/skills/deep-research/SKILL.md · skill',
     });
   });
 

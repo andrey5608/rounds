@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 import { ConnectorError } from '../connectors/errors.js';
 import type { RepositoryHostConnector } from '../connectors/git.js';
@@ -37,6 +38,7 @@ import type {
 
 import { PromptValidationError, renderPrompt, validatePrompt } from './placeholders.js';
 import { PromptUnavailableError, PromptResolver } from './promptResolver.js';
+import { SkillUnavailableError, composePrompt, loadSkills } from './skills.js';
 import type { PromptResolution } from './promptResolver.js';
 import { ResultWriter, summarize } from './resultWriter.js';
 
@@ -60,6 +62,7 @@ export const MAX_ITEM_PROMPTS = 10;
 export function describeFailure(error: unknown): { code: string; message: string } {
   if (
     error instanceof PromptUnavailableError ||
+    error instanceof SkillUnavailableError ||
     error instanceof PromptValidationError ||
     error instanceof ConnectorError ||
     error instanceof ModelNotFoundError ||
@@ -109,6 +112,8 @@ export interface RunnerDependencies {
   workspaceFolders: string[];
   /** Whether the user trusts this workspace. Injected so the runner stays free of `vscode`. */
   workspaceTrusted?: () => boolean;
+  /** Reads a skill file. Injected so the run pipeline is testable without a disk. */
+  readFileImpl?: (path: string) => Promise<string>;
   workspaceName?: string;
   findFiles?: FileFinder;
   runProcess?: ProcessRunner;
@@ -235,6 +240,14 @@ export class AgentRunner {
 
     const resolution = await this.resolvePrompt(agent, settings);
     record.promptResolution = resolution.record;
+    // Skills go in front of the prompt: they say how this kind of work is done, the prompt says
+    // what to do now. Read before anything else happens, because a run missing one would follow
+    // different instructions than the agent was given.
+    const skills = await loadSkills(agent.skills ?? [], this.readSkillFile);
+    if (skills.length > 0) {
+      logger.info(`Using ${skills.length} skill(s): ${skills.map((skill) => skill.name).join(', ')}.`);
+    }
+    const promptText = composePrompt(resolution.text, skills);
     const scan = validatePrompt(resolution.text, { hasSource: agent.source !== undefined });
 
     const source = await this.fetchSource(agent, {
@@ -248,7 +261,7 @@ export class AgentRunner {
       logger.info('This agent has no source; the prompt runs as written.');
     }
 
-    const prompts = this.renderPrompts(resolution.text, source, scan.perItem, timeZone);
+    const prompts = this.renderPrompts(promptText, source, scan.perItem, timeZone);
     // An agent with no source always has exactly one prompt, so an empty list can only mean a
     // source that returned nothing. Saying "the source returned nothing" about an agent that has
     // none would be a lie about why nothing happened.
@@ -360,6 +373,11 @@ export class AgentRunner {
       logger,
       resolution,
     });
+  }
+
+  /** Reads a skill file. Injectable so the run pipeline stays testable without a disk. */
+  private get readSkillFile(): (path: string) => Promise<string> {
+    return this.dependencies.readFileImpl ?? ((path) => readFile(path, 'utf8'));
   }
 
   private async resolvePrompt(agent: Agent, settings: RoundsSettings): Promise<PromptResolution> {

@@ -52,6 +52,7 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
     ],
     emptyScriptWhitelist: false,
     scriptWhitelist: ['npm test'],
+    availableSkills: [{ path: '.github/skills/research/SKILL.md', name: 'research' }],
     provider: 'github',
     ...overrides,
   };
@@ -280,6 +281,38 @@ describe('the agent form', () => {
 
     assert.match(html, /title="Looks something up in the workspace index and returns the passages that match, ranked/);
     assert.match(html, /…<\/p>/);
+  });
+
+  it('offers the skills the workspace has, next to the prompt', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /id="skills-label"/);
+    assert.match(html, /id="skill:\.github\/skills\/research\/SKILL\.md"/);
+    assert.match(html, /put in front of the prompt/);
+  });
+
+  it('ticks the skills an agent already uses', () => {
+    const html = renderAgentForm(
+      model({
+        draft: { ...agentToDraft(agent()), skills: ['.github/skills/research/SKILL.md'] },
+      }),
+    );
+
+    assert.match(html, /id="skill:\.github\/skills\/research\/SKILL\.md"[^>]*checked/);
+  });
+
+  it('keeps a skill that has gone missing in view, marked', () => {
+    const html = renderAgentForm(
+      model({ draft: { ...agentToDraft(agent()), skills: ['skills/gone/SKILL.md'] } }),
+    );
+
+    assert.match(html, /skills\/gone\/SKILL\.md — missing/);
+    assert.match(html, /id="skill:skills\/gone\/SKILL\.md"[^>]*checked/);
+  });
+
+  it('says where skills come from when the workspace has none', () => {
+    const html = renderAgentForm(model({ context: context({ availableSkills: [] }) }));
+    assert.match(html, /No skill files found in the workspace/);
   });
 
   it('says what to do when there is no model to choose', () => {

@@ -206,18 +206,31 @@ tool does when the model asks it to. So enabling is per agent and explicit, an u
 refuses all of them, and a tool that is no longer registered fails the run by name instead of
 disappearing from it.
 
-Custom chat modes, `/slash` commands and `@participant` mentions are not available this way: they
-belong to the chat view rather than to the language model API. An agent in chat mode reaches them —
-and, as ever in that mode, does not see the answer.
+### Skills, slash commands and chat modes
 
-### Using a skill
+These belong to the chat view, not to the language model API, so which mode an agent runs in
+decides whether it can reach them:
 
-A skill is the same story with a better ending. `/feature-research` cannot be called during a run,
-because nothing the editor lists as a tool answers to a slash — a run that is told to use one gets
-an answer saying it was not available. But a skill is a Markdown file describing a procedure, so an
-agent uses it by **making it the prompt**: choose *A file in the workspace* for the prompt, and the
-picker lists the skills it found under **(skill)**, named after their folder. The agent then follows
-those instructions on the items it fetched, with the tools you enabled.
+| What you want to use | Run and store the result | Open the prompt in chat |
+| --- | --- | --- |
+| Tools the editor lists (the group above) | yes | yes |
+| A skill's instructions | yes, by attaching the skill (below) | yes |
+| `/a-command`, `@a-participant`, a custom chat mode | no | yes |
+
+A run in the first mode talks to the model directly. There is no chat view in that conversation, so
+there is nothing for a slash to address: an agent told to use `/a-command` gets an answer saying it
+was not available, and that answer is correct. The second mode goes through the chat view and
+reaches all of it, at the price that mode always charges: Rounds never sees the answer.
+
+### Attaching a skill
+
+A skill is a Markdown file describing a procedure, so a run does not need to call it. Open the
+agent, and under **Skills** next to the prompt tick the ones you want. Their instructions are put in
+front of the prompt, so the run follows them on whatever it fetched, with the tools you enabled.
+
+Skills are found in any `skills` folder in the workspace and named after the folder they live in.
+A skill that is ticked and then deleted fails the run by name rather than running without it,
+because running without it would answer a different question than the one you set up.
 
 To see exactly what a run can call, open the agent and look under **From this workspace**: that list
 is what the editor reports, and it is what the model is offered. Every run also writes the names it

@@ -186,6 +186,8 @@ export interface AgentDraft {
   promptSource: 'inline' | 'file';
   promptText?: string;
   promptFile?: string;
+  /** Workspace files whose instructions go in front of the prompt. Usually skills. */
+  skills?: string[];
   modelId: string;
   tools: string[];
   schedule: string[];
@@ -232,6 +234,7 @@ export function draftToAgent(draft: AgentDraft, now: Date, existing?: Agent): Ag
                 ? existing.prompt.snapshot
                 : undefined,
           },
+    skills: draft.skills && draft.skills.length > 0 ? [...draft.skills] : undefined,
     modelId: draft.modelId,
     tools: draft.tools,
     outputFolder: draft.outputFolder,
@@ -298,6 +301,7 @@ export function agentToDraft(agent: Agent): AgentDraft {
     promptSource: agent.prompt.source,
     promptText: agent.prompt.inlineText,
     promptFile: agent.prompt.filePath,
+    skills: [...(agent.skills ?? [])],
     modelId: agent.modelId,
     tools: [...agent.tools],
     schedule: [...agent.schedule.cronExpressions],

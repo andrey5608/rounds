@@ -11,7 +11,10 @@ import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
 import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
+import { skillName } from '../../agents/skills.js';
+import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
+import { discoverPromptFiles } from '../wizard/promptFiles.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
 import { agentToDraft, describeScheduleInput, draftToAgent } from '../wizard/steps.js';
@@ -86,7 +89,7 @@ export class AgentPanel {
       panel.draft = undefined;
       panel.dirty = false;
       panel.errors = {};
-      panel.panel.reveal(vscode.ViewColumn.Beside, true);
+      panel.panel.reveal(vscode.ViewColumn.Active);
       await panel.render();
       return panel;
     }
@@ -94,7 +97,9 @@ export class AgentPanel {
     const created = vscode.window.createWebviewPanel(
       'rounds.agentPanel',
       agent?.name ?? 'New agent',
-      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+      // A plain tab in the group the user is already in, not a split beside it: this is a form
+      // somebody came to fill in, and splitting the editor makes it half as wide for no reason.
+      { viewColumn: vscode.ViewColumn.Active, preserveFocus: false },
       {
         enableScripts: true,
         // The panel needs no network at all and the CSP says so; this is what it may load from
@@ -103,6 +108,7 @@ export class AgentPanel {
       },
     );
     AgentPanel.current = new AgentPanel(created, container, agent?.id);
+    await AgentPanel.current.loadSkills();
     await AgentPanel.current.render();
     return AgentPanel.current;
   }
@@ -421,6 +427,22 @@ export class AgentPanel {
     return [...ours, ...external, ...missing];
   }
 
+  /**
+   * The skills the workspace has, read once when the panel opens.
+   *
+   * Discovery is a file search; doing it on every repaint would search the workspace on every
+   * keystroke. A skill added while the panel is open appears the next time it is opened, which is
+   * the same bargain the prompt picker makes.
+   */
+  private skills: { path: string; name: string }[] = [];
+
+  private async loadSkills(): Promise<void> {
+    const found = await discoverPromptFiles(createVscodeFileFinder());
+    this.skills = found
+      .filter((candidate) => candidate.skill)
+      .map((candidate) => ({ path: candidate.path, name: skillName(candidate.path) }));
+  }
+
   private async buildContext(): Promise<FormContext> {
     const data = await buildViewData(this.container);
     const agent = data.state.agents.find((candidate) => candidate.id === this.agentId);
@@ -437,6 +459,7 @@ export class AgentPanel {
       tools: this.availableTools(draftTools),
       emptyScriptWhitelist: this.container.settings().scriptWhitelist.length === 0,
       scriptWhitelist: this.container.settings().scriptWhitelist.map(describeEntry),
+      availableSkills: this.skills,
       provider: chosen && chosen.kind === 'git' ? resolveProvider(chosen) : 'github',
     };
   }

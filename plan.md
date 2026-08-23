@@ -156,6 +156,9 @@ Stored in `ExtensionContext.globalState` (global, not workspace). Fields:
 - Placeholders: `{{issueKey}}`, `{{summary}}`, `{{diff}}`, `{{items}}`, `{{date}}`,
   `{{datetime}}`, `{{workspace}}`. The first four describe fetched items and are refused when the
   agent has no source; the last three always apply.
+- `skills`: optional list of workspace files whose instructions are put in front of the prompt.
+  A skill cannot be invoked during a run — slash commands belong to the chat view — so it is
+  followed instead. A skill that cannot be read fails the run rather than being skipped.
 - `modelId`, `tools` (enabled tool names), `outputFolder`
 Secrets (Jira token, Git token) go in `context.secrets` only — never in globalState,
 settings, or the agent config.

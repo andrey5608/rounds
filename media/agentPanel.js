@@ -28,6 +28,13 @@
       }
     }
 
+    const skills = [];
+    for (const box of form.querySelectorAll('input[type="checkbox"][id^="skill:"]')) {
+      if (box.checked) {
+        skills.push(box.id.slice('skill:'.length));
+      }
+    }
+
     return {
       name: value('name'),
       enabled: checked('enabled'),
@@ -44,6 +51,7 @@
       promptFile: value('promptFile'),
       modelId: value('modelId'),
       tools: tools,
+      skills: skills,
       schedule: value('schedule'),
       timezone: value('timezone'),
       runOnStartup: checked('runOnStartup'),
@@ -143,7 +151,7 @@
   function syncSelectAll(group) {
     const box = document.getElementById('select-all-' + group);
     const tools = document.querySelectorAll(
-      '.tools[data-group="' + group + '"] input[type="checkbox"][id^="tool:"]',
+      '.tools[data-group="' + group + '"] input[type="checkbox"]',
     );
     if (!box || tools.length === 0) {
       return;
@@ -168,7 +176,7 @@
     const group = target.getAttribute('data-group');
     if (group) {
       for (const tool of document.querySelectorAll(
-        '.tools[data-group="' + group + '"] input[type="checkbox"][id^="tool:"]',
+        '.tools[data-group="' + group + '"] input[type="checkbox"]',
       )) {
         tool.checked = target.checked;
       }
@@ -177,7 +185,7 @@
       return;
     }
 
-    if (target.id && target.id.indexOf('tool:') === 0) {
+    if (target.id && (target.id.indexOf('tool:') === 0 || target.id.indexOf('skill:') === 0)) {
       const owner = target.closest('.tools');
       if (owner) {
         syncSelectAll(owner.getAttribute('data-group'));
