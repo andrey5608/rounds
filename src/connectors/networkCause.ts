@@ -24,6 +24,8 @@ export interface ProxyEnvironment {
   HTTPS_PROXY?: string;
   http_proxy?: string;
   https_proxy?: string;
+  NO_PROXY?: string;
+  no_proxy?: string;
 }
 
 const ADVICE: { match: RegExp; advice: string }[] = [
@@ -85,11 +87,11 @@ export function diagnoseNetworkError(
 }
 
 /**
- * The proxy sentence, when a proxy is configured and the failure looks like one.
+ * The proxy sentence, when a proxy is in play and the failure looks like the proxy's.
  *
- * Worth saying out loud: requests from this extension use Node's own client, which does not read
- * the proxy the editor is configured with, nor the usual environment variables. On a machine that
- * needs a proxy the request simply does not arrive, while the same URL opens in a browser.
+ * Requests do go through it now, which changes what is worth saying: the address that could not be
+ * reached may be the proxy's rather than the host's, and somebody reading "the host could not be
+ * reached" would otherwise check the wrong machine.
  */
 function proxyNote(environment: ProxyEnvironment, haystack: string): string | undefined {
   const configured =
@@ -100,7 +102,7 @@ function proxyNote(environment: ProxyEnvironment, haystack: string): string | un
   if (!/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|UND_ERR|EHOSTUNREACH|ENETUNREACH/.test(haystack)) {
     return undefined;
   }
-  return `This machine has a proxy configured (${configured}), and requests from Rounds do not go through it: they use the editor's own network client, which reads neither the proxy setting nor the proxy environment variables. A host that is only reachable through the proxy cannot be reached from here.`;
+  return `Requests go through the proxy this machine is configured with (${configured}), so this may be the proxy refusing or timing out rather than the host itself. NO_PROXY exempts a host from it.`;
 }
 
 /**

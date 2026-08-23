@@ -60,17 +60,17 @@ describe('what "fetch failed" was hiding', () => {
     assert.match(diagnosis.advice ?? '', /timed out/);
   });
 
-  it('says the proxy is not used, when there is one and the failure looks like it', () => {
-    // Requests use Node's own client, which reads neither the editor's proxy setting nor these
-    // variables. On such a machine the request simply never arrives, while the URL opens fine in
-    // a browser — which is the most confusing way for this to fail.
+  it('says the proxy is in the path, so the wrong machine is not blamed', () => {
+    // Requests go through it, so "the host could not be reached" may be about the proxy. Without
+    // this sentence somebody checks the host they typed and finds nothing wrong with it.
     const diagnosis = diagnoseNetworkError(
       fetchFailure({ message: 'getaddrinfo ENOTFOUND tracker.internal', code: 'ENOTFOUND' }),
       { HTTPS_PROXY: 'http://proxy.example:3128' },
     );
 
-    assert.match(diagnosis.advice ?? '', /do not go through it/);
+    assert.match(diagnosis.advice ?? '', /go through the proxy/);
     assert.match(diagnosis.advice ?? '', /http:\/\/proxy\.example:3128/);
+    assert.match(diagnosis.advice ?? '', /NO_PROXY/);
   });
 
   it('leaves the proxy out of a failure that has nothing to do with one', () => {

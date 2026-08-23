@@ -122,8 +122,13 @@ tree's context values must match the menu `when` clauses.
 
 ## Runtime dependencies
 
-Currently `cron-parser`, `cronstrue` and `proper-lockfile`. Adding another needs a reason recorded
-here, because every dependency ends up inside the shipped bundle.
+Currently `cron-parser`, `cronstrue`, `proper-lockfile` and `undici`. Adding another needs a reason
+recorded here, because every dependency ends up inside the shipped bundle.
+
+`undici` is there for one export, `ProxyAgent`. Node's global `fetch` reads no proxy configuration
+at all, so on a machine that reaches its tracker through a proxy every request failed while the same
+URL opened in a browser. `undici` is the implementation behind that global `fetch` already, so this
+adds a supported way to hand it a proxy rather than a second HTTP client.
 
 ## Tests
 

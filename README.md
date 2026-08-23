@@ -285,7 +285,7 @@ Deleting an agent never deletes files it already wrote.
 | "This agent cannot run because …" | Run **Check Setup**; the reason names exactly what is missing. |
 | "The model … is not available any more" | The provider no longer offers that model. Edit the agent and pick one from the current list; Rounds never substitutes silently. |
 | "The host … could not be reached" | The message says which of the usual reasons it was: a name that did not resolve, a refused port, a timeout, or a certificate this machine does not trust. The output channel carries the full chain underneath it. |
-| Requests fail while the same URL opens in a browser | Rounds uses the editor's own network client, which does not go through the proxy the editor is configured with. A host reachable only through a proxy cannot be reached from a run; the failure says so when a proxy is configured. |
+| Requests fail while the same URL opens in a browser | Runs go through the proxy in `HTTPS_PROXY`, `HTTP_PROXY` or their lower-case spellings, and `NO_PROXY` exempts a host from it, the same way `curl` and `git` read them. The editor must be started with those variables set, so on macOS launch it from a terminal rather than from Finder if they come from your shell profile. A failure behind a proxy names the proxy, because the address that could not be reached may be its own. |
 | A run failed with a usage limit | The provider is rate limiting. Run agents less often, or lower the daily limit. |
 | "The prompt file … could not be read" | The file moved or was deleted. Restore it, point the agent at the new path, or choose a different `rounds.promptFileFallback`. |
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |

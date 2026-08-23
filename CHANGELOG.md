@@ -47,7 +47,12 @@ All notable changes to this project are documented in this file. The format foll
 - A failed request reported `TypeError: fetch failed` and nothing else, which is the same sentence
   for a typo in a base URL, a closed port and an untrusted certificate. The real reason lives in
   the error's cause chain: it is now read, said in one actionable sentence, and kept in full in the
-  log. Where a proxy is configured, the failure also says that requests do not go through it.
+  log. Where a proxy is configured, the failure names it too, because the address that could not be
+  reached may be the proxy's own.
+- Requests now go through the proxy this machine is configured with. Node's `fetch` reads neither
+  the editor's proxy setting nor `HTTPS_PROXY`, so behind a company proxy every run failed to reach
+  a host that opened fine in a browser. `HTTPS_PROXY`, `HTTP_PROXY`, either spelling, and `NO_PROXY`
+  are read the way `curl` and `git` read them.
 - Every attached skill failed its run with `prompt.skillUnreadable`. The picker stores a
   workspace-relative path and the run read it relative to the extension host's working directory,
   which is somewhere else entirely. It is resolved against the workspace now, and a failure says
