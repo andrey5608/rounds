@@ -197,6 +197,10 @@ command with the arguments it may be given:
 
 ### Writing files
 
+A new agent starts with `readFile`, `listFiles` and `writeFile` ticked, since an agent that can
+neither look at the workspace nor put anything in it can only ever answer in one message. Untick
+what a particular agent has no business doing. `runScript` is never ticked for you.
+
 `writeFile` lets a run produce files instead of putting everything into one answer. It writes UTF-8
 text inside the open workspace, creates the folders on the way, and refuses the rest:
 

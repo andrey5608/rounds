@@ -1,6 +1,7 @@
 import { PLACEHOLDERS } from '../../agents/placeholders.js';
 import type { SkillSummary } from '../../agents/skills.js';
 import { sourceVocabulary } from '../../agents/sourceLabels.js';
+import { DEFAULT_TOOLS } from '../../tools/index.js';
 import type { AgentDraft } from '../wizard/steps.js';
 import {
   validateAgentName,
@@ -159,7 +160,8 @@ export function emptyDraft(context: FormContext): AgentDraft {
     promptText: 'Summarize {{items}} and list what needs attention.',
     skills: [],
     modelId: context.models[0]?.id ?? '',
-    tools: [],
+    // Only the ones this window actually offers, so a default cannot name a tool that is not there.
+    tools: DEFAULT_TOOLS.filter((tool) => context.tools.some((offered) => offered.name === tool)),
     schedule: ['0 9 * * *'],
     runOnStartup: false,
     missedRunPolicy: 'skip',

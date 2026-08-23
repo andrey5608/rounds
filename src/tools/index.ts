@@ -6,6 +6,19 @@ import { createRunScriptTool } from './runScript.js';
 import { createWriteFileTool } from './writeFile.js';
 
 /**
+ * The tools a new agent starts with.
+ *
+ * Reading, listing and writing: what it takes to look at the workspace and put the result
+ * somewhere. A new agent with nothing ticked could only ever answer in one message, and the way
+ * that shows up is a model saying it has no way to write a file — which is a worse first
+ * experience than a checkbox somebody may untick.
+ *
+ * `runScript` is not here. It executes commands, it is gated by a whitelist the user fills in by
+ * hand, and a default is not consent to that.
+ */
+export const DEFAULT_TOOLS = ['readFile', 'listFiles', 'writeFile'];
+
+/**
  * Builds the registry.
  *
  * This is the one line a new tool has to be added to: write the tool, register it here, and it
