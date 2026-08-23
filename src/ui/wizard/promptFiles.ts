@@ -1,7 +1,51 @@
 import type { FileFinder } from '../../tools/registry.js';
 
 /** How many files the picker offers before it stops looking. */
-export const PROMPT_FILE_LIMIT = 50;
+export const PROMPT_FILE_LIMIT = 100;
+
+/**
+ * How many files the skill search may return before it is filtered.
+ *
+ * Generous on purpose, and separate from the picker's limit. A skill folder holds a `SKILL.md` and
+ * whatever else it needs — a README, instructions, notes — and asking for fifty Markdown files
+ * under every `skills` folder meant one busy folder could use the whole allowance and hide the
+ * skills in the next one. The filter below is what makes the list short again.
+ */
+export const SKILL_SEARCH_LIMIT = 400;
+
+/** How many skills the picker offers. */
+export const SKILL_LIMIT = 50;
+
+/**
+ * Files that live beside skills without being one.
+ *
+ * A skill folder is a folder of documents, and all but one of them are support: the README that
+ * explains the set, the instructions written for a chat agent, the notes. Offering them as skills
+ * makes the list longer and every entry less trustworthy.
+ */
+const SUPPORT_FILE = /^(readme|contributing|license|licence|changelog|notes|index|agents|claude|copilot[-_ ]?instructions)$/i;
+
+/**
+ * Whether a Markdown file under a `skills` folder is a skill.
+ *
+ * Two layouts are real: `skills/<name>/SKILL.md`, which is what the tools that read skills expect,
+ * and a flat `skills/<name>.md`. Anything else in those folders is support material.
+ */
+export function isSkillFile(path: string): boolean {
+  const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
+  const file = parts[parts.length - 1] ?? '';
+  const base = file.replace(/\.md$/i, '');
+
+  if (/^skill$/i.test(base)) {
+    return true;
+  }
+  if (SUPPORT_FILE.test(base)) {
+    return false;
+  }
+  // A flat layout: the file sits directly in a folder called `skills`.
+  const parent = parts[parts.length - 2] ?? '';
+  return /^skills$/i.test(parent);
+}
 
 export interface PromptFileCandidate {
   /** Workspace-relative path, as the picker shows it. */
@@ -35,7 +79,9 @@ export async function discoverPromptFiles(
   limit = PROMPT_FILE_LIMIT,
 ): Promise<PromptFileCandidate[]> {
   const conventional = await findFiles('**/.github/prompts/**/*.md', limit);
-  const skills = await findFiles('**/skills/**/*.md', limit);
+  const skills = (await findFiles('**/skills/**/*.md', SKILL_SEARCH_LIMIT))
+    .filter(isSkillFile)
+    .slice(0, SKILL_LIMIT);
   const used = conventional.length + skills.length;
   const remaining = Math.max(0, limit - used);
   const others = remaining > 0 ? await findFiles('**/*.md', remaining + used) : [];

@@ -1,7 +1,12 @@
 import * as assert from 'node:assert/strict';
 
 import type { FileFinder } from '../../tools/registry.js';
-import { describeCandidate, discoverPromptFiles } from '../../ui/wizard/promptFiles.js';
+import {
+  SKILL_SEARCH_LIMIT,
+  describeCandidate,
+  discoverPromptFiles,
+  isSkillFile,
+} from '../../ui/wizard/promptFiles.js';
 
 /** A finder that answers each glob with what a workspace would contain. */
 function finder(byGlob: Record<string, string[]>): { find: FileFinder; calls: string[] } {
@@ -91,6 +96,49 @@ describe('finding the prompt files a workspace already has', () => {
       label: 'deep-research (skill)',
       detail: '.github/skills/deep-research/SKILL.md · skill',
     });
+  });
+
+  it('keeps the support files out of the skill list', async () => {
+    // Reported: a skill folder's README and instructions were offered as skills, and the skills in
+    // another folder were missing — the same cause, because the search allowance went on files
+    // that are not skills.
+    const { find } = finder({
+      '**/skills/**/*.md': [
+        '.agents/skills/README.md',
+        '.agents/skills/COPILOT_INSTRUCTIONS.MD',
+        '.agents/skills/triage/SKILL.md',
+        '.agents/skills/triage/notes.md',
+        '.github/skills/deep-research/SKILL.md',
+      ],
+    });
+
+    const found = await discoverPromptFiles(find);
+
+    assert.deepEqual(
+      found.map((candidate) => candidate.path).sort(),
+      ['.agents/skills/triage/SKILL.md', '.github/skills/deep-research/SKILL.md'],
+    );
+  });
+
+  it('asks for skills with an allowance of their own, so one folder cannot use it all', async () => {
+    const { find, calls } = finder({ '**/skills/**/*.md': [] });
+    await discoverPromptFiles(find, 5);
+
+    assert.ok(calls.includes('**/skills/**/*.md'));
+    // The picker's own limit is small; the skill search is not, because most of what it returns
+    // is filtered out again.
+    assert.ok(SKILL_SEARCH_LIMIT >= 100);
+  });
+
+  it('knows what is a skill and what merely lives beside one', () => {
+    assert.equal(isSkillFile('.github/skills/deep-research/SKILL.md'), true);
+    assert.equal(isSkillFile('.agents/skills/triage/skill.md'), true, 'case does not decide');
+    assert.equal(isSkillFile('skills/triage.md'), true, 'a flat layout is a layout');
+
+    assert.equal(isSkillFile('.agents/skills/README.md'), false);
+    assert.equal(isSkillFile('.agents/skills/COPILOT_INSTRUCTIONS.MD'), false);
+    assert.equal(isSkillFile('.agents/skills/triage/notes.md'), false);
+    assert.equal(isSkillFile('.agents/skills/triage/reference/details.md'), false);
   });
 
   it('names a skill that is a file rather than a folder by its file name', async () => {

@@ -44,6 +44,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- The skill list offered a folder's README and its chat instructions as skills, and could miss the
+  skills in another folder entirely: one busy folder used the whole search allowance on files that
+  are not skills. Only skill files are offered now, the search has an allowance of its own, and the
+  log names what was found.
 - A result file records the skills the run followed, so a result read weeks later says what the
   agent was actually told to do.
 - An agent can attach workspace skills next to its prompt. Their instructions are put in front of

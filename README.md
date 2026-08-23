@@ -228,10 +228,18 @@ A skill is a Markdown file describing a procedure, so a run does not need to cal
 agent, and under **Skills** next to the prompt tick the ones you want. Their instructions are put in
 front of the prompt, so the run follows them on whatever it fetched, with the tools you enabled.
 
-Skills are found in any `skills` folder in the workspace, `.github/skills/<name>/SKILL.md`
-included. Each one is listed by what it calls itself: Rounds reads the `name` and `description`
-from the file's own header, and falls back to the folder name when it has none. So the list offers
-skills rather than file paths, and you pick a skill by what it does.
+Skills are found in any `skills` folder in the workspace — `.github/skills/<name>/SKILL.md`,
+`.agents/skills/<name>/SKILL.md` and a flat `skills/<name>.md` all count. Only the skill file
+itself is offered: a README, a CHANGELOG or instructions written for a chat agent may sit in the
+same folder, and they are support material rather than something to attach.
+
+Each skill is listed by what it calls itself: Rounds reads the `name` and `description` from the
+file's own header, and falls back to the folder name when it has none. So the list offers skills
+rather than file paths, and you pick a skill by what it does.
+
+If a skill you expect is missing, run **Rounds: Show Output**: the log names every file that was
+taken for a skill. A folder hidden by `files.exclude` or `search.exclude` is hidden from this
+search too, because it uses the editor's own.
 
 A skill that is ticked and then deleted fails the run by name rather than running without it,
 because running without it would answer a different question than the one you set up.

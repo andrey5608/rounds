@@ -15,7 +15,7 @@ import { describeSkillFile, skillName } from '../../agents/skills.js';
 import type { SkillSummary } from '../../agents/skills.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
-import { discoverPromptFiles } from '../wizard/promptFiles.js';
+import { SKILL_LIMIT, discoverPromptFiles } from '../wizard/promptFiles.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
 import { agentToDraft, describeScheduleInput, draftToAgent } from '../wizard/steps.js';
@@ -34,10 +34,10 @@ const RECENT_RUNS = 10;
 /**
  * How many skill files the panel opens to read their headers.
  *
- * A workspace has a handful of skills, not hundreds; a cap keeps a pathological repository from
- * turning "open the agent" into a file-reading exercise.
+ * The discovery filter already keeps support files out, so what arrives here is skills; the cap is
+ * what stops a pathological repository from turning "open the agent" into a file-reading exercise.
  */
-const MAX_DESCRIBED_SKILLS = 30;
+const MAX_DESCRIBED_SKILLS = SKILL_LIMIT;
 
 interface PanelMessage {
   type?: string;
@@ -467,6 +467,13 @@ export class AgentPanel {
       }
     }
     this.skills = summaries;
+    // Which files were taken for skills, so "my skills are not listed" is answerable from the log
+    // rather than from guesswork about globs and exclusions.
+    this.container.logger.debug(
+      summaries.length > 0
+        ? `Skills found in the workspace: ${summaries.map((skill) => skill.path).join(', ')}.`
+        : 'No skill files found in the workspace.',
+    );
   }
 
   private async buildContext(): Promise<FormContext> {
