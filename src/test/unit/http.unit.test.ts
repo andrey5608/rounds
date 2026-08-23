@@ -9,6 +9,8 @@ interface Recorded {
   method: string;
   headers: Record<string, string>;
   redirect?: string;
+  /** The proxy agent, when the request went through a proxy. */
+  dispatcher?: unknown;
 }
 
 function response(
@@ -30,7 +32,13 @@ function fakeFetch(
   const calls: Recorded[] = [];
   let index = 0;
   const fetch: FetchLike = (url, init) => {
-    calls.push({ url, method: init.method, headers: init.headers, redirect: init.redirect });
+    calls.push({
+      url,
+      method: init.method,
+      headers: init.headers,
+      redirect: init.redirect,
+      dispatcher: init.dispatcher,
+    });
     const next = responses[Math.min(index, responses.length - 1)] ?? response(200, '{}');
     index += 1;
     return next instanceof Error ? Promise.reject(next) : Promise.resolve(next);
@@ -126,6 +134,57 @@ describe('http client', () => {
     const { http, calls } = client([response(503, 'down')], { maxAttempts: 3 });
     await assert.rejects(http.requestJson({ path: 'search' }), NetworkError);
     assert.equal(calls.length, 3);
+  });
+
+  it('sends a request through the proxy this machine is configured with', async () => {
+    const { http, calls } = client([response(200, '{"ok":true}')], {
+      environment: { HTTPS_PROXY: 'http://proxy.example:3128' },
+    });
+
+    await http.requestJson({ path: 'search' });
+    assert.ok(calls[0]?.dispatcher, 'a proxy agent was attached to the request');
+  });
+
+  it('goes direct when the host is exempt, or when there is no proxy', async () => {
+    const exempt = client([response(200, '{"ok":true}')], {
+      environment: { HTTPS_PROXY: 'http://proxy.example:3128', NO_PROXY: 'tracker.invalid' },
+    });
+    await exempt.http.requestJson({ path: 'search' });
+    assert.equal(exempt.calls[0]?.dispatcher, undefined);
+
+    const plain = client([response(200, '{"ok":true}')], { environment: {} });
+    await plain.http.requestJson({ path: 'search' });
+    assert.equal(plain.calls[0]?.dispatcher, undefined);
+  });
+
+  it('says what a failed connection actually was, not "fetch failed"', async () => {
+    // Reported from a real installation: a run failed with "TypeError: fetch failed" and nothing
+    // else. That sentence is the same for a typo in a URL, a closed port and a certificate this
+    // machine does not trust, and the reason was in the cause all along.
+    const inner = new Error('getaddrinfo ENOTFOUND tracker.invalid');
+    (inner as Error & { code?: string }).code = 'ENOTFOUND';
+    const { http } = client([new TypeError('fetch failed', { cause: inner })], { maxAttempts: 1 });
+
+    await assert.rejects(http.requestJson({ path: 'search' }), (error: unknown) => {
+      assert.ok(error instanceof NetworkError);
+      assert.match(error.message, /host name could not be resolved/);
+      assert.match(error.detail ?? '', /ENOTFOUND/);
+      return true;
+    });
+  });
+
+  it('mentions the proxy it went through, and only where that is the likely cause', async () => {
+    const inner = new Error('connect ETIMEDOUT');
+    (inner as Error & { code?: string }).code = 'ETIMEDOUT';
+    const { http } = client([new TypeError('fetch failed', { cause: inner })], {
+      maxAttempts: 1,
+      environment: { HTTPS_PROXY: 'http://proxy.example:3128' },
+    });
+
+    await assert.rejects(http.requestJson({ path: 'search' }), (error: unknown) => {
+      assert.match((error as Error).message, /go through the proxy/);
+      return true;
+    });
   });
 
   it('honours Retry-After on a rate limit and then succeeds', async () => {

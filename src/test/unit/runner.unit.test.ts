@@ -19,6 +19,7 @@ import type { RoundsSettings } from '../../state/settings.js';
 import { RoundsStore } from '../../state/store.js';
 import { FixedClock } from '../../state/time.js';
 import type { Agent, RunRecord } from '../../state/types.js';
+import { resolveSkillPath } from '../../agents/skills.js';
 import { createToolRegistry } from '../../tools/index.js';
 import type { RoundsTool } from '../../tools/registry.js';
 
@@ -98,6 +99,8 @@ async function harness(options: {
   resultWriter?: ResultWriter;
   /** Tools another extension would report. */
   externalTools?: RoundsTool<unknown>[];
+  /** Skill files the workspace holds, by path. */
+  skillFiles?: Record<string, string>;
 }): Promise<Harness> {
   const directory = await mkdtemp(join(tmpdir(), 'rounds-runner-'));
   const resultsFolder = join(directory, 'results');
@@ -161,6 +164,18 @@ async function harness(options: {
     gateway,
     registry: createToolRegistry(),
     externalTools: () => options.externalTools ?? [],
+    readFileImpl: (path: string) => {
+      // Keyed the way the runner asks for them: a stored path is workspace-relative and resolved
+      // against the workspace root before anything is read.
+      const files = Object.fromEntries(
+        Object.entries(options.skillFiles ?? {}).map(([stored, content]) => [
+          resolveSkillPath(stored, directory),
+          content,
+        ]),
+      );
+      const found = files[path];
+      return found === undefined ? Promise.reject(new Error('ENOENT')) : Promise.resolve(found);
+    },
     connectors,
     resultWriter: options.resultWriter,
     settings: () => settings,
@@ -379,6 +394,57 @@ describe('agent runner', () => {
 
     const record = await runner.run({ agent: promptOnly, trigger: 'manual' });
     assert.notEqual(record.status, 'skipped');
+  });
+
+  it('puts an attached skill in front of the prompt it sends', async () => {
+    // The reported case: a run cannot call `/a-skill`, so the skill's instructions travel with
+    // the prompt instead. This is the assertion that says they arrive.
+    const withSkill = agent({
+      skills: ['skills/research/SKILL.md'],
+      prompt: { source: 'inline', inlineText: 'Summarize {{items}}.' },
+    });
+    const { runner, gateway } = await harness({
+      agent: withSkill,
+      skillFiles: { 'skills/research/SKILL.md': 'Ask three questions before answering.' },
+    });
+
+    await runner.run({ agent: withSkill, trigger: 'manual' });
+
+    const sent = gateway.requests[0]?.messages[0]?.text ?? '';
+    assert.match(sent, /## Skill: research/);
+    assert.match(sent, /Ask three questions before answering\./);
+    assert.ok(
+      sent.indexOf('Ask three questions') < sent.indexOf('ROUNDS-1'),
+      'the instructions come before the work',
+    );
+  });
+
+  it('names the skills it followed in the result file', async () => {
+    const withSkill = agent({
+      skills: ['skills/research/SKILL.md'],
+      prompt: { source: 'inline', inlineText: 'Summarize {{items}}.' },
+    });
+    const { runner } = await harness({
+      agent: withSkill,
+      skillFiles: { 'skills/research/SKILL.md': 'Ask three questions before answering.' },
+    });
+
+    const record = await runner.run({ agent: withSkill, trigger: 'manual' });
+    assert.ok(record.resultFilePath, 'a result file was written');
+    const content = await readFile(record.resultFilePath ?? '', 'utf8');
+
+    assert.match(content, /skills: \[skills\/research\/SKILL\.md\]/);
+  });
+
+  it('fails the run when an attached skill has gone missing', async () => {
+    const withSkill = agent({ skills: ['skills/gone/SKILL.md'] });
+    const { runner } = await harness({ agent: withSkill, skillFiles: {} });
+
+    const record = await runner.run({ agent: withSkill, trigger: 'manual' });
+
+    assert.equal(record.status, 'failed');
+    assert.equal(record.error?.code, 'prompt.skillUnreadable');
+    assert.match(record.summary, /skills\/gone\/SKILL\.md/);
   });
 
   it('fails a run whose tool no extension provides any more', async () => {

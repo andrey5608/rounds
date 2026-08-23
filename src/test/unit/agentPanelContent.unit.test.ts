@@ -52,6 +52,14 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
     ],
     emptyScriptWhitelist: false,
     scriptWhitelist: ['npm test'],
+    availableSkills: [
+      {
+        path: '.github/skills/research/SKILL.md',
+        name: 'research',
+        description: 'Reads the ticket and the code before answering.',
+        tools: [],
+      },
+    ],
     provider: 'github',
     ...overrides,
   };
@@ -240,6 +248,65 @@ describe('the agent form', () => {
     assert.match(html, /\{\{issueKey\}\}[^<]*are not available/);
   });
 
+  it('puts the actions above the form, not at the end of it', () => {
+    // A form somebody scrolls through should not hide Save at the bottom of it.
+    const html = renderAgentForm(model());
+
+    assert.ok(
+      html.indexOf('data-command="save"') < html.indexOf('<form id="agent-form"'),
+      'Save comes before the form',
+    );
+  });
+
+  it('offers a search box only where a list is long enough to need one', () => {
+    const short = renderAgentForm(model());
+    assert.ok(!short.includes('data-filter="external"'), 'two tools need no search box');
+
+    const manyTools = Array.from({ length: 12 }, (_, index) => ({
+      name: `tool_${index}`,
+      description: `does thing ${index}`,
+      external: true,
+    }));
+    const long = renderAgentForm(model({ context: context({ tools: manyTools }) }));
+
+    assert.match(long, /data-filter="external"/);
+    assert.match(long, /placeholder="Search 12 tools"/);
+  });
+
+  it('keeps a long list inside its own scroll rather than stretching the page', () => {
+    const html = renderAgentForm(model());
+    assert.match(html, /class="tools scrollable"/);
+  });
+
+  it('gives every entry something to search on', () => {
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [{ name: 'research', description: 'Looks something up', external: true, tags: ['search'] }],
+        }),
+      }),
+    );
+
+    assert.match(html, /data-search="research looks something up · search"/);
+  });
+
+  it('puts the tools the agent uses at the top of the list', () => {
+    // With a hundred entries, the ones it is configured with must not be somewhere in the scroll.
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [
+            { name: 'aaa', description: 'first alphabetically' },
+            { name: 'zzz', description: 'last alphabetically' },
+          ],
+        }),
+        draft: { ...agentToDraft(agent()), tools: ['zzz'] },
+      }),
+    );
+
+    assert.ok(html.indexOf('id="tool:zzz"') < html.indexOf('id="tool:aaa"'));
+  });
+
   it('offers to tick a whole group at once', () => {
     const html = renderAgentForm(model());
 
@@ -280,6 +347,73 @@ describe('the agent form', () => {
 
     assert.match(html, /title="Looks something up in the workspace index and returns the passages that match, ranked/);
     assert.match(html, /…<\/p>/);
+  });
+
+  it('offers the skills the workspace has, next to the prompt', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /id="skills-label"/);
+    assert.match(html, /id="skill:\.github\/skills\/research\/SKILL\.md"/);
+    assert.match(html, /put in front of the prompt/);
+  });
+
+  it('shows what a skill is for, not only where its file is', () => {
+    const html = renderAgentForm(model());
+
+    assert.match(html, /Reads the ticket and the code before answering\./);
+    assert.match(html, /title="Reads the ticket and the code before answering\. · \.github/);
+  });
+
+  it('gives the skills list the same scroll, search and ordering as the tools', () => {
+    const manySkills = Array.from({ length: 10 }, (_, index) => ({
+      path: `skills/skill-${index}/SKILL.md`,
+      name: `skill-${index}`,
+      description: `does thing ${index}`,
+      tools: [],
+    }));
+    const html = renderAgentForm(
+      model({
+        context: context({ availableSkills: manySkills }),
+        draft: { ...agentToDraft(agent()), skills: ['skills/skill-9/SKILL.md'] },
+      }),
+    );
+
+    assert.match(html, /data-filter="skills"/);
+    assert.match(html, /placeholder="Search 10 skills"/);
+    assert.match(html, /class="tools scrollable" data-group="skills"/);
+    // Lower case: it is what the filter compares against, not what the row displays.
+    assert.match(html, /data-search="skill-0 does thing 0 · skills\/skill-0\/skill\.md"/);
+    // The one it uses is first, even though its name sorts last.
+    assert.ok(html.indexOf('id="skill:skills/skill-9/SKILL.md"') < html.indexOf('id="skill:skills/skill-0/SKILL.md"'));
+  });
+
+  it('leaves a short list of skills without a search box', () => {
+    const html = renderAgentForm(model());
+    assert.ok(!html.includes('data-filter="skills"'));
+  });
+
+  it('ticks the skills an agent already uses', () => {
+    const html = renderAgentForm(
+      model({
+        draft: { ...agentToDraft(agent()), skills: ['.github/skills/research/SKILL.md'] },
+      }),
+    );
+
+    assert.match(html, /id="skill:\.github\/skills\/research\/SKILL\.md"[^>]*checked/);
+  });
+
+  it('keeps a skill that has gone missing in view, marked', () => {
+    const html = renderAgentForm(
+      model({ draft: { ...agentToDraft(agent()), skills: ['skills/gone/SKILL.md'] } }),
+    );
+
+    assert.match(html, /skills\/gone\/SKILL\.md — missing/);
+    assert.match(html, /id="skill:skills\/gone\/SKILL\.md"[^>]*checked/);
+  });
+
+  it('says where skills come from when the workspace has none', () => {
+    const html = renderAgentForm(model({ context: context({ availableSkills: [] }) }));
+    assert.match(html, /No skill files found in the workspace/);
   });
 
   it('says what to do when there is no model to choose', () => {

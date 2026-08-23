@@ -116,6 +116,14 @@ export interface Agent {
    */
   source?: AgentSource;
   prompt: PromptConfig;
+  /**
+   * Workspace files whose instructions are put in front of the prompt.
+   *
+   * Skills, usually: a skill is a procedure written down, and a run cannot call one because
+   * nothing the language model API offers is addressed with a slash. Included verbatim, so a run
+   * follows the same instructions the chat view would follow.
+   */
+  skills?: string[];
   /** Exact model identifier. A run fails rather than substituting a different model. */
   modelId: string;
   /** Names of the tools this agent may call. */

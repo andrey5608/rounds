@@ -277,7 +277,77 @@ function promptSection(model: AgentFormViewModel): string {
             </div>`,
           })
     }
+    ${skillsField(model)}
   </section>`;
+}
+
+/**
+ * The skills whose instructions go in front of the prompt.
+ *
+ * A skill cannot be called during a run: it is addressed with a slash in the chat view, and
+ * nothing the language model API offers answers to a slash. It can be *followed*, though, which is
+ * what this list does — the chosen files are put in front of the prompt, verbatim.
+ */
+function skillsField(model: AgentFormViewModel): string {
+  const chosen = model.draft.skills ?? [];
+  const available = model.context.availableSkills;
+  const missing = chosen
+    .filter((path) => !available.some((skill) => skill.path === path))
+    .map((path) => ({
+      path,
+      name: path,
+      description: 'This file is gone, so a run would fail on it.',
+      missing: true,
+    }));
+  const entries = ([
+    ...available.map((skill) => ({ ...skill, missing: false })),
+    ...missing,
+  ] as { path: string; name: string; description?: string; missing: boolean }[])
+    // The ones the agent uses first, for the same reason as the tools: a workspace may hold many,
+    // and what it is configured with must not be somewhere down the scroll.
+    .sort((left, right) => {
+      const chosenFirst = Number(chosen.includes(right.path)) - Number(chosen.includes(left.path));
+      return chosenFirst !== 0 ? chosenFirst : left.name.localeCompare(right.name);
+    });
+
+  if (entries.length === 0) {
+    return `<div class="field">
+      <span class="label-text">Skills</span>
+      <p class="hint">No skill files found in the workspace. A skill is a Markdown file under a
+      <code>skills</code> folder; its instructions are put in front of the prompt.</p>
+    </div>`;
+  }
+
+  return `<div class="field">
+    <div class="group-head">
+      <span class="label-text" id="skills-label">Skills</span>
+      ${
+        entries.length > 1
+          ? `<label class="check select-all"><input type="checkbox" id="select-all-skills" data-group="skills"${
+              chosen.length === entries.length ? ' checked' : ''
+            } /> Select all</label>`
+          : ''
+      }
+    </div>
+    ${searchBox('skills', entries.length, 'skills')}
+    <div class="tools scrollable" data-group="skills" role="group" aria-labelledby="skills-label">
+      ${entries
+        .map((skill) => {
+          // What it is, then where it lives: a skill introduces itself in its header, and the
+          // path is the answer to "which file is that" rather than to "what is this".
+          const detail = skill.description ? `${skill.description} · ${skill.path}` : skill.path;
+          return `<div class="tool${skill.missing ? ' missing' : ''}" data-search="${escapeHtml(
+            `${skill.name} ${detail}`.toLowerCase(),
+          )}">
+            ${checkbox(`skill:${skill.path}`, skill.missing ? `${skill.name} — missing` : skill.name, chosen.includes(skill.path))}
+            <p class="hint" title="${escapeHtml(detail)}">${escapeHtml(shorten(detail))}</p>
+          </div>`;
+        })
+        .join('')}
+    </div>
+    <p class="hint">Their instructions are put in front of the prompt, so the run follows them.
+    A skill cannot be called with a slash during a run.</p>
+  </div>`;
 }
 
 function modelSection(model: AgentFormViewModel): string {
@@ -354,12 +424,22 @@ function toolGroup(
       : '';
   }
 
-  const entries = tools
+  // What the agent already uses comes first. With a hundred tools in the list, the ones it is
+  // actually configured with must not be somewhere in the middle of the scroll.
+  const ordered = [...tools].sort((left, right) => {
+    const chosen = Number(enabled.includes(right.name)) - Number(enabled.includes(left.name));
+    return chosen !== 0 ? chosen : left.name.localeCompare(right.name);
+  });
+
+  const entries = ordered
     .map((tool) => {
       const label = tool.missing ? `${tool.name} — missing` : tool.name;
       const tags = tool.tags && tool.tags.length > 0 ? ` · ${tool.tags.join(', ')}` : '';
       const full = `${tool.description}${tags}`;
-      return `<div class="tool${tool.missing ? ' missing' : ''}">
+      // `data-search` is what the filter reads, so filtering never has to parse the markup.
+      return `<div class="tool${tool.missing ? ' missing' : ''}" data-search="${escapeHtml(
+        `${tool.name} ${full}`.toLowerCase(),
+      )}">
         ${checkbox(`tool:${tool.name}`, label, enabled.includes(tool.name))}
         <p class="hint" title="${escapeHtml(full)}">${escapeHtml(shorten(full))}</p>
       </div>`;
@@ -377,8 +457,27 @@ function toolGroup(
       <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
       ${tools.length > 1 ? selectAll : ''}
     </div>
-    <div class="tools" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+    ${searchBox(id, tools.length)}
+    <div class="tools scrollable" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
   </div>`;
+}
+
+/** How many entries a group may have before it is worth searching rather than scrolling. */
+export const SEARCH_THRESHOLD = 8;
+
+/**
+ * A filter over one group.
+ *
+ * Only where it earns its place: a list of three needs no search box, and a hundred needs one more
+ * than it needs a scrollbar. Filtering happens in the page and never touches the draft, so typing
+ * here neither marks the agent changed nor rebuilds the form.
+ */
+function searchBox(id: string, count: number, noun = 'tools'): string {
+  if (count < SEARCH_THRESHOLD) {
+    return '';
+  }
+  return `<input type="search" class="filter" data-filter="${id}" placeholder="Search ${count} ${escapeHtml(noun)}"
+    aria-label="Search the ${escapeHtml(noun)} in this group" />`;
 }
 
 /** How much of a tool's description a list row shows before it stops being a list. */
@@ -520,6 +619,12 @@ export function renderAgentForm(model: AgentFormViewModel): string {
   return `<h1>${title}</h1>
 ${summary ? `<p class="muted-text">${escapeHtml(summary)}</p>` : ''}
 ${model.notReady ? `<p class="warning">${escapeHtml(model.notReady)}</p>` : ''}
+<div class="actions">
+  <button type="button" data-command="save" id="save"${model.canSave ? '' : ' disabled'}>Save</button>
+  <button type="button" data-command="run">Run Now</button>
+  ${editing ? '<button type="button" data-command="openFolder">Open Result Folder</button>' : ''}
+  ${editing ? '<button type="button" class="danger" data-command="delete">Delete Agent</button>' : ''}
+</div>
 <form id="agent-form" novalidate>
   ${identitySection(model)}
   ${sourceSection(model)}
@@ -528,11 +633,5 @@ ${model.notReady ? `<p class="warning">${escapeHtml(model.notReady)}</p>` : ''}
   ${scheduleSection(model)}
   ${advancedSection(model)}
 </form>
-${runsSection(model)}
-<div class="actions">
-  <button type="button" data-command="save" id="save"${model.canSave ? '' : ' disabled'}>Save</button>
-  <button type="button" data-command="run">Run Now</button>
-  ${editing ? '<button type="button" data-command="openFolder">Open Result Folder</button>' : ''}
-  ${editing ? '<button type="button" class="danger" data-command="delete">Delete Agent</button>' : ''}
-</div>`;
+${runsSection(model)}`;
 }

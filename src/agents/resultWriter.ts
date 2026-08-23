@@ -42,6 +42,8 @@ export interface ResultFileRequest {
   /** Front matter values. */
   record: RunRecord;
   sourceItemIds: string[];
+  /** Skill files whose instructions went in front of the prompt, in the order they were used. */
+  skills?: string[];
   truncated: boolean;
   /** The model output, or whatever text the run produced. */
   body: string;
@@ -95,6 +97,9 @@ export function renderFrontMatter(request: ResultFileRequest): string {
   if (record.promptResolution.path !== undefined) {
     lines.push(`promptFile: ${yamlValue(record.promptResolution.path)}`);
   }
+  // Always written, empty list included: a reader who finds no line cannot tell an agent that
+  // used no skill from a writer that forgot to record one.
+  lines.push(`skills: [${(request.skills ?? []).map((skill) => yamlValue(skill)).join(', ')}]`);
   lines.push(
     `usedPromptSnapshot: ${record.promptResolution.usedSnapshot}`,
     `truncated: ${request.truncated}`,

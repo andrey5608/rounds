@@ -44,6 +44,41 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- A failed request reported `TypeError: fetch failed` and nothing else, which is the same sentence
+  for a typo in a base URL, a closed port and an untrusted certificate. The real reason lives in
+  the error's cause chain: it is now read, said in one actionable sentence, and kept in full in the
+  log. Where a proxy is configured, the failure names it too, because the address that could not be
+  reached may be the proxy's own.
+- Requests now go through the proxy this machine is configured with. Node's `fetch` reads neither
+  the editor's proxy setting nor `HTTPS_PROXY`, so behind a company proxy every run failed to reach
+  a host that opened fine in a browser. `HTTPS_PROXY`, `HTTP_PROXY`, either spelling, and `NO_PROXY`
+  are read the way `curl` and `git` read them.
+- Every attached skill failed its run with `prompt.skillUnreadable`. The picker stores a
+  workspace-relative path and the run read it relative to the extension host's working directory,
+  which is somewhere else entirely. It is resolved against the workspace now, and a failure says
+  where it looked.
+- Attaching a skill turns on the tools needed to follow it: what its header asks for, plus reading.
+  Never `runScript`.
+- The skill list offered a folder's README and its chat instructions as skills, and could miss the
+  skills in another folder entirely: one busy folder used the whole search allowance on files that
+  are not skills. Only skill files are offered now, the search has an allowance of its own, and the
+  log names what was found.
+- A result file records the skills the run followed, so a result read weeks later says what the
+  agent was actually told to do.
+- An agent can attach workspace skills next to its prompt. Their instructions are put in front of
+  it, so a run follows the same procedure the chat view would follow. A skill still cannot be
+  called with a slash during a run: slash commands belong to the chat view, and the README now
+  says which mode reaches what.
+- The agent form opens as an ordinary editor tab rather than splitting the editor beside it, and
+  its actions sit at the top where they stay visible instead of at the end of a long form.
+- Neither the tool list nor the skill list stretches the form any more, however many a workspace
+  offers: both scroll in place, what an agent already uses comes first, and a list long enough to
+  need one gets a search box.
+- A workspace skill could not be used at all. It still cannot be *called* during a run — skills are
+  addressed with a slash in the chat view, and nothing the language model API lists as a tool
+  answers to a slash — but the prompt picker now finds them, so an agent can use one by making it
+  its prompt. Every run also logs the tool names it offered the model, which is what makes "the
+  model says it has no such tool" answerable.
 - The scheduling lock left two things in the storage folder — a marker file and a
   `rounds.lock.lock` directory beside it — where the specification names one. There is now exactly
   one, named `rounds.lock`, and an upgrade clears what the old layout left behind.

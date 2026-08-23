@@ -87,7 +87,18 @@ function styles(): string {
       outline: 1px solid var(--vscode-focusBorder);
       outline-offset: 2px;
     }
-    .actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 0.75rem 0;
+      margin-bottom: 0.5rem;
+      background: var(--vscode-editor-background);
+      border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border));
+    }
     button {
       font-family: inherit;
       font-size: inherit;
@@ -132,6 +143,11 @@ function styles(): string {
     .group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
     .group-head .select-all { font-size: 0.9em; color: var(--vscode-descriptionForeground); }
     .tools { display: flex; flex-direction: column; gap: 0.5rem; }
+    /* A hundred tools must not push everything else off the page. */
+    .tools.scrollable { max-height: 16rem; overflow-y: auto; padding-right: 0.25rem; }
+    .tools .tool.hidden { display: none; }
+    input.filter { margin: 0.35rem 0; }
+    .empty-filter { color: var(--vscode-descriptionForeground); margin: 0.25rem 0; }
     .tools .tool .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tools .tool .hint { margin-left: 1.4rem; }
     .tools .tool.missing { color: var(--vscode-editorWarning-foreground); }

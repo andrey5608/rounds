@@ -206,17 +206,64 @@ tool does when the model asks it to. So enabling is per agent and explicit, an u
 refuses all of them, and a tool that is no longer registered fails the run by name instead of
 disappearing from it.
 
-Custom chat modes, `/slash` commands and `@participant` mentions are not available this way: they
-belong to the chat view rather than to the language model API. An agent in chat mode reaches them —
-and, as ever in that mode, does not see the answer.
+### Skills, slash commands and chat modes
+
+These belong to the chat view, not to the language model API, so which mode an agent runs in
+decides whether it can reach them:
+
+| What you want to use | Run and store the result | Open the prompt in chat |
+| --- | --- | --- |
+| Tools the editor lists (the group above) | yes | yes |
+| A skill's instructions | yes, by attaching the skill (below) | yes |
+| `/a-command`, `@a-participant`, a custom chat mode | no | yes |
+
+A run in the first mode talks to the model directly. There is no chat view in that conversation, so
+there is nothing for a slash to address: an agent told to use `/a-command` gets an answer saying it
+was not available, and that answer is correct. The second mode goes through the chat view and
+reaches all of it, at the price that mode always charges: Rounds never sees the answer.
+
+### Attaching a skill
+
+A skill is a Markdown file describing a procedure, so a run does not need to call it. Open the
+agent, and under **Skills** next to the prompt tick the ones you want. Their instructions are put in
+front of the prompt, so the run follows them on whatever it fetched, with the tools you enabled.
+
+Skills are found in any `skills` folder in the workspace — `.github/skills/<name>/SKILL.md`,
+`.agents/skills/<name>/SKILL.md` and a flat `skills/<name>.md` all count. Only the skill file
+itself is offered: a README, a CHANGELOG or instructions written for a chat agent may sit in the
+same folder, and they are support material rather than something to attach.
+
+Each skill is listed by what it calls itself: Rounds reads the `name` and `description` from the
+file's own header, and falls back to the folder name when it has none. So the list offers skills
+rather than file paths, and you pick a skill by what it does.
+
+If a skill you expect is missing, run **Rounds: Show Output**: the log names every file that was
+taken for a skill. A folder hidden by `files.exclude` or `search.exclude` is hidden from this
+search too, because it uses the editor's own.
+
+Ticking a skill turns on the tools it needs: whatever its header asks for, plus `readFile` and
+`listFiles`, since a procedure about a repository cannot be followed without looking at one. The
+boxes move where you can see them. `runScript` is never turned on this way — it runs commands, and
+that stays a decision you make yourself.
+
+A skill that is ticked and then deleted fails the run by name rather than running without it,
+because running without it would answer a different question than the one you set up.
+
+`.github/copilot-instructions.md` is not read for this. It is prose written for the chat view, and
+guessing a list of skills out of somebody's prose would be a list that is wrong in ways nobody can
+see. The skill files themselves say what they are.
+
+To see exactly what a run can call, open the agent and look under **From this workspace**: that list
+is what the editor reports, and it is what the model is offered. Every run also writes the names it
+was given into the log: `Offering 4 tool(s) to the model: …`.
 
 ## Where results are stored
 
 The folder is the agent's own, then `rounds.defaultOutputFolder`, then a `results` folder inside the
 extension's global storage. Files are named `<agent-name>-<YYYYMMDD-HHmmss>.md` in the agent's time
 zone, and each one starts with front matter recording the agent, the model, the mode, the trigger,
-the start and finish times, the status, the source items, the tool calls, where the prompt came from
-and whether anything was truncated. The model's answer follows.
+the start and finish times, the status, the source items, the tool calls, the skills it followed,
+where the prompt came from and whether anything was truncated. The model's answer follows.
 
 Deleting an agent never deletes files it already wrote.
 
@@ -237,6 +284,8 @@ Deleting an agent never deletes files it already wrote.
 | Nothing ever runs | Another window schedules runs (check the status bar tooltip), or `rounds.enabled` is off, or the agent is disabled. |
 | "This agent cannot run because …" | Run **Check Setup**; the reason names exactly what is missing. |
 | "The model … is not available any more" | The provider no longer offers that model. Edit the agent and pick one from the current list; Rounds never substitutes silently. |
+| "The host … could not be reached" | The message says which of the usual reasons it was: a name that did not resolve, a refused port, a timeout, or a certificate this machine does not trust. The output channel carries the full chain underneath it. |
+| Requests fail while the same URL opens in a browser | Runs go through the proxy in `HTTPS_PROXY`, `HTTP_PROXY` or their lower-case spellings, and `NO_PROXY` exempts a host from it, the same way `curl` and `git` read them. The editor must be started with those variables set, so on macOS launch it from a terminal rather than from Finder if they come from your shell profile. A failure behind a proxy names the proxy, because the address that could not be reached may be its own. |
 | A run failed with a usage limit | The provider is rate limiting. Run agents less often, or lower the daily limit. |
 | "The prompt file … could not be read" | The file moved or was deleted. Restore it, point the agent at the new path, or choose a different `rounds.promptFileFallback`. |
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |

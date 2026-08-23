@@ -11,7 +11,11 @@ import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
 import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
+import { describeSkillFile, skillName, toolsForSkills } from '../../agents/skills.js';
+import type { SkillSummary } from '../../agents/skills.js';
+import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
+import { SKILL_LIMIT, discoverPromptFiles } from '../wizard/promptFiles.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
 import { agentToDraft, describeScheduleInput, draftToAgent } from '../wizard/steps.js';
@@ -26,6 +30,14 @@ import { pickPromptFile } from './promptFilePicker.js';
 
 /** How many runs the panel lists. The same ten the tree shows. */
 const RECENT_RUNS = 10;
+
+/**
+ * How many skill files the panel opens to read their headers.
+ *
+ * The discovery filter already keeps support files out, so what arrives here is skills; the cap is
+ * what stops a pathological repository from turning "open the agent" into a file-reading exercise.
+ */
+const MAX_DESCRIBED_SKILLS = SKILL_LIMIT;
 
 interface PanelMessage {
   type?: string;
@@ -86,7 +98,7 @@ export class AgentPanel {
       panel.draft = undefined;
       panel.dirty = false;
       panel.errors = {};
-      panel.panel.reveal(vscode.ViewColumn.Beside, true);
+      panel.panel.reveal(vscode.ViewColumn.Active);
       await panel.render();
       return panel;
     }
@@ -94,7 +106,9 @@ export class AgentPanel {
     const created = vscode.window.createWebviewPanel(
       'rounds.agentPanel',
       agent?.name ?? 'New agent',
-      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+      // A plain tab in the group the user is already in, not a split beside it: this is a form
+      // somebody came to fill in, and splitting the editor makes it half as wide for no reason.
+      { viewColumn: vscode.ViewColumn.Active, preserveFocus: false },
       {
         enableScripts: true,
         // The panel needs no network at all and the CSP says so; this is what it may load from
@@ -103,6 +117,7 @@ export class AgentPanel {
       },
     );
     AgentPanel.current = new AgentPanel(created, container, agent?.id);
+    await AgentPanel.current.loadSkills();
     await AgentPanel.current.render();
     return AgentPanel.current;
   }
@@ -130,8 +145,14 @@ export class AgentPanel {
         return;
       case 'change':
       case 'reshape': {
-        this.draft = draftFromMessage(message.draft);
+        const previous = this.draft;
+        this.draft = this.withSkillTools(draftFromMessage(message.draft), previous);
         this.dirty = true;
+        // Ticking a skill may have turned tools on, and the form has to show that it did.
+        if (this.draft.tools.length !== draftFromMessage(message.draft).tools.length) {
+          await this.render();
+          return;
+        }
         // `change` deliberately does not repaint: rebuilding the document replaces the element
         // being typed into, and the field then loses focus after one character. `reshape` does,
         // because a select changed which fields exist. `panelUpdateKind` owns that distinction so
@@ -197,6 +218,37 @@ export class AgentPanel {
       canSave: this.dirty,
     };
     await this.panel.webview.postMessage({ type: 'state', state });
+  }
+
+  /**
+   * Turns on the tools the chosen skills need.
+   *
+   * A skill is a procedure to follow in a repository, and following one without being able to read
+   * the repository produces a confident answer about nothing. So attaching a skill attaches what
+   * it declares in its header, plus reading. Never `runScript`: that one runs commands, and a
+   * checkbox nobody ticked is not consent to that.
+   *
+   * Only on the way in. Unticking a skill leaves the tools alone, because by then they may be
+   * there for the prompt's sake and taking them away would be undoing somebody else's decision.
+   */
+  private withSkillTools(draft: AgentDraft, previous: AgentDraft | undefined): AgentDraft {
+    const chosen = draft.skills ?? [];
+    const added = chosen.filter((path) => !(previous?.skills ?? []).includes(path));
+    if (added.length === 0) {
+      return draft;
+    }
+
+    const summaries = this.skills.filter((skill) => added.includes(skill.path));
+    const needed = toolsForSkills(summaries, this.container.tools.names());
+    const missing = needed.filter((tool) => !draft.tools.includes(tool));
+    if (missing.length === 0) {
+      return draft;
+    }
+
+    this.container.logger.info(
+      `Turned on ${missing.join(', ')} for the skill(s) just attached.`,
+    );
+    return { ...draft, tools: [...draft.tools, ...missing] };
   }
 
   /** Runs an action that needs a saved agent, and says so when there is not one yet. */
@@ -421,6 +473,46 @@ export class AgentPanel {
     return [...ours, ...external, ...missing];
   }
 
+  /**
+   * The skills the workspace has, read once when the panel opens.
+   *
+   * Discovery is a file search; doing it on every repaint would search the workspace on every
+   * keystroke. A skill added while the panel is open appears the next time it is opened, which is
+   * the same bargain the prompt picker makes.
+   */
+  private skills: SkillSummary[] = [];
+
+  private async loadSkills(): Promise<void> {
+    const found = await discoverPromptFiles(createVscodeFileFinder());
+    const paths = found
+      .filter((candidate) => candidate.skill)
+      .slice(0, MAX_DESCRIBED_SKILLS)
+      .map((candidate) => candidate.path);
+
+    const [folder] = vscode.workspace.workspaceFolders ?? [];
+    const summaries: SkillSummary[] = [];
+    for (const path of paths) {
+      // Its own header is where a skill introduces itself, so the list can offer skills rather
+      // than file paths. A file that cannot be read still appears, under the name of its folder.
+      try {
+        const uri = folder ? vscode.Uri.joinPath(folder.uri, path) : vscode.Uri.file(path);
+        const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+        summaries.push(describeSkillFile(path, content));
+      } catch (error) {
+        this.container.logger.debug(`Could not read the skill ${path}: ${String(error)}`);
+        summaries.push({ path, name: skillName(path), tools: [] });
+      }
+    }
+    this.skills = summaries;
+    // Which files were taken for skills, so "my skills are not listed" is answerable from the log
+    // rather than from guesswork about globs and exclusions.
+    this.container.logger.debug(
+      summaries.length > 0
+        ? `Skills found in the workspace: ${summaries.map((skill) => skill.path).join(', ')}.`
+        : 'No skill files found in the workspace.',
+    );
+  }
+
   private async buildContext(): Promise<FormContext> {
     const data = await buildViewData(this.container);
     const agent = data.state.agents.find((candidate) => candidate.id === this.agentId);
@@ -437,6 +529,7 @@ export class AgentPanel {
       tools: this.availableTools(draftTools),
       emptyScriptWhitelist: this.container.settings().scriptWhitelist.length === 0,
       scriptWhitelist: this.container.settings().scriptWhitelist.map(describeEntry),
+      availableSkills: this.skills,
       provider: chosen && chosen.kind === 'git' ? resolveProvider(chosen) : 'github',
     };
   }

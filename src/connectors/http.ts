@@ -1,6 +1,11 @@
 import type { StoreLogger } from '../state/store.js';
 
 import { AuthError, ConfigError, NetworkError, RateLimitError } from './errors.js';
+import { ProxyAgent } from 'undici';
+
+import { diagnoseNetworkError } from './networkCause.js';
+import type { ProxyEnvironment } from './networkCause.js';
+import { proxyForUrl } from './proxy.js';
 
 /** The part of `fetch` this client uses, so tests can supply their own. */
 export type FetchLike = (
@@ -11,6 +16,8 @@ export type FetchLike = (
     body?: string;
     signal?: AbortSignal;
     redirect?: 'follow' | 'error' | 'manual';
+    /** Sends the request through a proxy. Node's fetch takes this; a test's fake ignores it. */
+    dispatcher?: unknown;
   },
 ) => Promise<HttpResponseLike>;
 
@@ -32,6 +39,8 @@ export interface HttpClientOptions {
   /** Injectable so retry tests do not actually wait. */
   sleep?: (ms: number) => Promise<void>;
   userAgent?: string;
+  /** Environment the proxy note is read from. Injected so a test does not read the machine. */
+  environment?: ProxyEnvironment;
 }
 
 export interface RequestOptions {
@@ -62,6 +71,9 @@ function defaultSleep(ms: number): Promise<void> {
  * configured host ends up somewhere else carrying the token.
  */
 export class HttpClient {
+  /** One agent per proxy address, shared by every client in this window. */
+  private static readonly proxyAgents = new Map<string, ProxyAgent>();
+
   private readonly base: URL;
   private readonly fetchImpl: FetchLike;
   private readonly timeoutMs: number;
@@ -77,8 +89,10 @@ export class HttpClient {
     if (this.base.protocol !== 'https:' && this.base.protocol !== 'http:') {
       throw new ConfigError(`The base URL ${options.baseUrl} must use http or https.`);
     }
-    // The global fetch is structurally compatible with the narrow FetchLike shape used here.
-    this.fetchImpl = options.fetch ?? globalThis.fetch;
+    // The global fetch is structurally compatible with the narrow shape used here, apart from
+    // `dispatcher`: the runtime accepts it and the DOM types this project compiles against do not
+    // describe it, since they describe a browser, where proxies are not the caller's business.
+    this.fetchImpl = options.fetch ?? (globalThis.fetch as unknown as FetchLike);
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
     this.sleep = options.sleep ?? defaultSleep;
@@ -86,6 +100,26 @@ export class HttpClient {
 
   get host(): string {
     return this.base.host;
+  }
+
+  /**
+   * The proxy agent for this URL, built once per proxy address.
+   *
+   * Reused rather than made per request, because an agent holds the connection pool: a fresh one
+   * per request is a fresh TCP and TLS handshake per request.
+   */
+  private dispatcherFor(url: string): unknown {
+    const proxy = proxyForUrl(url, this.options.environment ?? process.env);
+    if (!proxy) {
+      return undefined;
+    }
+    const existing = HttpClient.proxyAgents.get(proxy);
+    if (existing) {
+      return existing;
+    }
+    const agent = new ProxyAgent(proxy);
+    HttpClient.proxyAgents.set(proxy, agent);
+    return agent;
   }
 
   /** Builds the target URL and refuses anything that would leave the configured host. */
@@ -154,6 +188,10 @@ export class HttpClient {
     try {
       const response = await this.fetchImpl(url, {
         method,
+        // Through the machine's proxy when it has one for this host. Without this the request is
+        // simply never delivered on a network that requires one, while the same URL opens in a
+        // browser — which is the most confusing way for a run to fail.
+        dispatcher: this.dispatcherFor(url),
         headers: {
           Accept: 'application/json',
           'User-Agent': this.options.userAgent ?? 'rounds',
@@ -175,7 +213,9 @@ export class HttpClient {
       if (error instanceof ConfigError || error instanceof NetworkError) {
         throw error;
       }
-      throw new NetworkError(this.host, `${method} ${url}: ${String(error)}`);
+      // `TypeError: fetch failed` on its own says nothing; the reason is in the cause chain.
+      const diagnosis = diagnoseNetworkError(error, this.options.environment ?? process.env);
+      throw new NetworkError(this.host, `${method} ${url}: ${diagnosis.detail}`, diagnosis.advice);
     } finally {
       clearTimeout(timer);
     }
