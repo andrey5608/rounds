@@ -363,6 +363,33 @@ describe('the agent form', () => {
     assert.match(html, /title="Reads the ticket and the code before answering\. · \.github/);
   });
 
+  it('gives the skills list the same scroll, search and ordering as the tools', () => {
+    const manySkills = Array.from({ length: 10 }, (_, index) => ({
+      path: `skills/skill-${index}/SKILL.md`,
+      name: `skill-${index}`,
+      description: `does thing ${index}`,
+    }));
+    const html = renderAgentForm(
+      model({
+        context: context({ availableSkills: manySkills }),
+        draft: { ...agentToDraft(agent()), skills: ['skills/skill-9/SKILL.md'] },
+      }),
+    );
+
+    assert.match(html, /data-filter="skills"/);
+    assert.match(html, /placeholder="Search 10 skills"/);
+    assert.match(html, /class="tools scrollable" data-group="skills"/);
+    // Lower case: it is what the filter compares against, not what the row displays.
+    assert.match(html, /data-search="skill-0 does thing 0 · skills\/skill-0\/skill\.md"/);
+    // The one it uses is first, even though its name sorts last.
+    assert.ok(html.indexOf('id="skill:skills/skill-9/SKILL.md"') < html.indexOf('id="skill:skills/skill-0/SKILL.md"'));
+  });
+
+  it('leaves a short list of skills without a search box', () => {
+    const html = renderAgentForm(model());
+    assert.ok(!html.includes('data-filter="skills"'));
+  });
+
   it('ticks the skills an agent already uses', () => {
     const html = renderAgentForm(
       model({

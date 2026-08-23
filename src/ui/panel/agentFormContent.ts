@@ -299,10 +299,16 @@ function skillsField(model: AgentFormViewModel): string {
       description: 'This file is gone, so a run would fail on it.',
       missing: true,
     }));
-  const entries = [
+  const entries = ([
     ...available.map((skill) => ({ ...skill, missing: false })),
     ...missing,
-  ] as { path: string; name: string; description?: string; missing: boolean }[];
+  ] as { path: string; name: string; description?: string; missing: boolean }[])
+    // The ones the agent uses first, for the same reason as the tools: a workspace may hold many,
+    // and what it is configured with must not be somewhere down the scroll.
+    .sort((left, right) => {
+      const chosenFirst = Number(chosen.includes(right.path)) - Number(chosen.includes(left.path));
+      return chosenFirst !== 0 ? chosenFirst : left.name.localeCompare(right.name);
+    });
 
   if (entries.length === 0) {
     return `<div class="field">
@@ -323,13 +329,16 @@ function skillsField(model: AgentFormViewModel): string {
           : ''
       }
     </div>
-    <div class="tools" data-group="skills" role="group" aria-labelledby="skills-label">
+    ${searchBox('skills', entries.length, 'skills')}
+    <div class="tools scrollable" data-group="skills" role="group" aria-labelledby="skills-label">
       ${entries
         .map((skill) => {
           // What it is, then where it lives: a skill introduces itself in its header, and the
           // path is the answer to "which file is that" rather than to "what is this".
           const detail = skill.description ? `${skill.description} · ${skill.path}` : skill.path;
-          return `<div class="tool${skill.missing ? ' missing' : ''}">
+          return `<div class="tool${skill.missing ? ' missing' : ''}" data-search="${escapeHtml(
+            `${skill.name} ${detail}`.toLowerCase(),
+          )}">
             ${checkbox(`skill:${skill.path}`, skill.missing ? `${skill.name} — missing` : skill.name, chosen.includes(skill.path))}
             <p class="hint" title="${escapeHtml(detail)}">${escapeHtml(shorten(detail))}</p>
           </div>`;
@@ -463,12 +472,12 @@ export const SEARCH_THRESHOLD = 8;
  * than it needs a scrollbar. Filtering happens in the page and never touches the draft, so typing
  * here neither marks the agent changed nor rebuilds the form.
  */
-function searchBox(id: string, count: number): string {
+function searchBox(id: string, count: number, noun = 'tools'): string {
   if (count < SEARCH_THRESHOLD) {
     return '';
   }
-  return `<input type="search" class="filter" data-filter="${id}" placeholder="Search ${count} tools"
-    aria-label="Search the tools in this group" />`;
+  return `<input type="search" class="filter" data-filter="${id}" placeholder="Search ${count} ${escapeHtml(noun)}"
+    aria-label="Search the ${escapeHtml(noun)} in this group" />`;
 }
 
 /** How much of a tool's description a list row shows before it stops being a list. */
