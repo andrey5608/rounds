@@ -128,6 +128,36 @@ describe('http client', () => {
     assert.equal(calls.length, 3);
   });
 
+  it('says what a failed connection actually was, not "fetch failed"', async () => {
+    // Reported from a real installation: a run failed with "TypeError: fetch failed" and nothing
+    // else. That sentence is the same for a typo in a URL, a closed port and a certificate this
+    // machine does not trust, and the reason was in the cause all along.
+    const inner = new Error('getaddrinfo ENOTFOUND tracker.invalid');
+    (inner as Error & { code?: string }).code = 'ENOTFOUND';
+    const { http } = client([new TypeError('fetch failed', { cause: inner })], { maxAttempts: 1 });
+
+    await assert.rejects(http.requestJson({ path: 'search' }), (error: unknown) => {
+      assert.ok(error instanceof NetworkError);
+      assert.match(error.message, /host name could not be resolved/);
+      assert.match(error.detail ?? '', /ENOTFOUND/);
+      return true;
+    });
+  });
+
+  it('mentions a proxy it cannot use, and only where that is the likely cause', async () => {
+    const inner = new Error('connect ETIMEDOUT');
+    (inner as Error & { code?: string }).code = 'ETIMEDOUT';
+    const { http } = client([new TypeError('fetch failed', { cause: inner })], {
+      maxAttempts: 1,
+      environment: { HTTPS_PROXY: 'http://proxy.example:3128' },
+    });
+
+    await assert.rejects(http.requestJson({ path: 'search' }), (error: unknown) => {
+      assert.match((error as Error).message, /do not go through it/);
+      return true;
+    });
+  });
+
   it('honours Retry-After on a rate limit and then succeeds', async () => {
     const waits: number[] = [];
     const { http, calls } = client(

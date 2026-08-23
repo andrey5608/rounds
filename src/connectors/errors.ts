@@ -43,8 +43,12 @@ export class AuthError extends ConnectorError {
 export class NetworkError extends ConnectorError {
   readonly code = 'connector.network';
 
-  constructor(host: string, detail?: string) {
-    super(`The host ${host} could not be reached. ${detail ?? ''}`.trim(), detail);
+  /**
+   * `advice` is the part somebody can act on: which of the dozen reasons behind "could not be
+   * reached" this actually was. It leads the message, because the detail is for the log.
+   */
+  constructor(host: string, detail?: string, advice?: string) {
+    super(`The host ${host} could not be reached. ${advice ?? ''}`.trim(), detail);
   }
 }
 

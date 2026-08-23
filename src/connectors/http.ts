@@ -1,6 +1,8 @@
 import type { StoreLogger } from '../state/store.js';
 
 import { AuthError, ConfigError, NetworkError, RateLimitError } from './errors.js';
+import { diagnoseNetworkError } from './networkCause.js';
+import type { ProxyEnvironment } from './networkCause.js';
 
 /** The part of `fetch` this client uses, so tests can supply their own. */
 export type FetchLike = (
@@ -32,6 +34,8 @@ export interface HttpClientOptions {
   /** Injectable so retry tests do not actually wait. */
   sleep?: (ms: number) => Promise<void>;
   userAgent?: string;
+  /** Environment the proxy note is read from. Injected so a test does not read the machine. */
+  environment?: ProxyEnvironment;
 }
 
 export interface RequestOptions {
@@ -175,7 +179,9 @@ export class HttpClient {
       if (error instanceof ConfigError || error instanceof NetworkError) {
         throw error;
       }
-      throw new NetworkError(this.host, `${method} ${url}: ${String(error)}`);
+      // `TypeError: fetch failed` on its own says nothing; the reason is in the cause chain.
+      const diagnosis = diagnoseNetworkError(error, this.options.environment ?? process.env);
+      throw new NetworkError(this.host, `${method} ${url}: ${diagnosis.detail}`, diagnosis.advice);
     } finally {
       clearTimeout(timer);
     }

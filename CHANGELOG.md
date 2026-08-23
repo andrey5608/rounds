@@ -44,6 +44,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- A failed request reported `TypeError: fetch failed` and nothing else, which is the same sentence
+  for a typo in a base URL, a closed port and an untrusted certificate. The real reason lives in
+  the error's cause chain: it is now read, said in one actionable sentence, and kept in full in the
+  log. Where a proxy is configured, the failure also says that requests do not go through it.
 - Every attached skill failed its run with `prompt.skillUnreadable`. The picker stores a
   workspace-relative path and the run read it relative to the extension host's working directory,
   which is somewhere else entirely. It is resolved against the workspace now, and a failure says
