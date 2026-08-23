@@ -27,6 +27,10 @@ All notable changes to this project are documented in this file. The format foll
   scheduled, why a run failed, and when an expression fires next.
 - **`rounds.notifications`** — `failures`, `all` or `silent`. Silent stops the toasts and nothing
   else.
+- **`writeFile`** — a run can produce files rather than putting everything it made into one
+  answer that lands in the result file. Inside the workspace only, never `.vscode` or a workflow
+  folder, never over the paths no tool may open, not over an existing file unless the call says so,
+  and not at all in an untrusted workspace.
 - **`rounds.maxToolRoundsPerRun`** — the cap on how many rounds of tool calls one run may take,
   now 30 rather than a fixed 10. Ten was too few for a prompt that reads several files before it
   writes anything, and such a run failed while it was still making progress.

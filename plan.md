@@ -195,6 +195,9 @@ settings, or the agent config.
   - `readFile(path)` — inside the workspace only
   - `runScript(command, args, cwd)` — user-configured whitelist; nothing unlisted runs
   - `listFiles(globPattern)`
+  - `writeFile(path, content, overwrite?)` — inside the workspace only, never `.vscode` or a
+    workflow folder, never over an existing file unless the call says so, and never in an
+    untrusted workspace
   Adding a tool must mean registering one object in a tool registry.
 - Since phase 21, an agent may also enable a tool another extension registered, as reported by
   `vscode.lm.tools`, and the loop invokes it through `vscode.lm.invokeTool`. Such a tool is

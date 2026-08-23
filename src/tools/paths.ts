@@ -1,5 +1,5 @@
 import { realpath } from 'node:fs/promises';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 /**
  * File name patterns a tool must never open, however it was asked.
@@ -118,4 +118,78 @@ export async function resolveWorkspacePath(
     ok: false,
     reason: `${raw} is outside the workspace; tools may only read inside ${workspaceFolders.join(`${sep}, `)}`,
   };
+}
+
+/**
+ * The workspace folders as the file system sees them, plus as they were given.
+ *
+ * Both, because a folder may be reached through a link: on macOS every temporary folder is, since
+ * `/var` is a link to `/private/var`, and comparing only one form refuses perfectly ordinary files.
+ */
+export async function workspaceRoots(
+  workspaceFolders: string[],
+  realpathImpl: (path: string) => Promise<string> = realpath,
+): Promise<string[]> {
+  const resolved = await Promise.all(
+    workspaceFolders.map(async (folder) => {
+      try {
+        return await realpathImpl(folder);
+      } catch {
+        return folder;
+      }
+    }),
+  );
+  return [...new Set([...workspaceFolders, ...resolved])];
+}
+
+/**
+ * Resolves a path that is about to be written to.
+ *
+ * Writing needs a check reading does not. A file that does not exist yet has no real path, so the
+ * link check in `resolveWorkspacePath` has nothing to follow — and `link/report.md`, where `link`
+ * points out of the workspace, would be accepted and then written outside it. Reading survives that
+ * because it goes on to find no file; writing creates one. So the nearest folder that does exist is
+ * resolved instead, and the target is rebuilt underneath it.
+ */
+export async function resolveWritePath(
+  raw: string,
+  workspaceFolders: string[],
+  realpathImpl: (path: string) => Promise<string> = realpath,
+): Promise<PathRejection> {
+  const resolved = await resolveWorkspacePath(raw, workspaceFolders, realpathImpl);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const roots = await workspaceRoots(workspaceFolders, realpathImpl);
+  const missing: string[] = [];
+  let current = resolved.path;
+  let real: string | undefined;
+
+  // Up to the first folder that exists. A path this deep in non-existent folders is unusual, but
+  // the loop ends at the file system root either way.
+  while (real === undefined) {
+    try {
+      real = await realpathImpl(current);
+    } catch {
+      const parent = dirname(current);
+      if (parent === current) {
+        return { ok: false, reason: `${raw} has no existing parent folder` };
+      }
+      missing.unshift(basename(current));
+      current = parent;
+    }
+  }
+
+  const target = missing.length > 0 ? join(real, ...missing) : real;
+  if (!roots.some((root) => isInside(root, target))) {
+    return {
+      ok: false,
+      reason: `${raw} points outside the workspace through a link (${target})`,
+    };
+  }
+  if (isDenied(target)) {
+    return { ok: false, reason: `${raw} resolves to a path Rounds never opens` };
+  }
+  return { ok: true, path: target };
 }

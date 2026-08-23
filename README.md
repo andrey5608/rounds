@@ -195,9 +195,25 @@ command with the arguments it may be given:
 - Commands run directly, never through a shell, and only inside the workspace. `;`, `&&` and pipes are
   ordinary text that matches no pattern, so they cannot be used to chain anything.
 
+### Writing files
+
+`writeFile` lets a run produce files instead of putting everything into one answer. It writes UTF-8
+text inside the open workspace, creates the folders on the way, and refuses the rest:
+
+- Anything outside the workspace, including a path that reaches out through a symbolic link.
+- `.vscode` and `.github/workflows`. Both are executable configuration: a task can be set to run
+  when the folder opens, and a workflow runs after a push, which would be a way around the script
+  whitelist rather than through it.
+- The paths no tool may open at all: `.env`, keys, `.git`, `node_modules`, `.ssh`, `.aws`.
+- A file that already exists, unless the call passes `overwrite: true`.
+- More than 200 KB in one call, and anything at all in a workspace you have not trusted.
+
+Each file is written beside its target and moved into place, so a run interrupted halfway leaves the
+previous file intact. Every write is named in the output channel and in the run's tool calls.
+
 ### Tools from other extensions
 
-Besides `readFile`, `listFiles` and `runScript`, an agent may enable a tool another extension
+Besides `readFile`, `listFiles`, `writeFile` and `runScript`, an agent may enable a tool another extension
 registered — whatever the editor reports, listed in the agent form under **From this workspace**. A
 prompt can then research something before it writes about it.
 
@@ -290,6 +306,7 @@ Deleting an agent never deletes files it already wrote.
 | A run failed with a usage limit | The provider is rate limiting. Run agents less often, or lower the daily limit. |
 | "The prompt file … could not be read" | The file moved or was deleted. Restore it, point the agent at the new path, or choose a different `rounds.promptFileFallback`. |
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |
+| The model says it cannot write files | `writeFile` is off for that agent. Tick it in the agent form; a run only ever has the tools it was given. |
 | `runScript` refuses everything | `rounds.scriptWhitelist` is empty. Add the commands you want to allow, with their arguments. |
 | Something else | Open **Rounds: Show Output**. Every line, including the ones `rounds.logLevel` hides, is also written to `logs/rounds-<date>.log` inside the extension's storage folder — the output channel prints the full path at startup. Attach that file to a report: it is redacted before anything is written. |
 

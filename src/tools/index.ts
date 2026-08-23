@@ -3,6 +3,7 @@ import { createReadFileTool } from './readFile.js';
 import { ToolRegistry } from './registry.js';
 import type { RoundsTool } from './registry.js';
 import { createRunScriptTool } from './runScript.js';
+import { createWriteFileTool } from './writeFile.js';
 
 /**
  * Builds the registry.
@@ -15,6 +16,7 @@ export function createToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
   registry.register(createReadFileTool());
   registry.register(createListFilesTool());
+  registry.register(createWriteFileTool());
   registry.register(createRunScriptTool());
   return registry;
 }
