@@ -14,7 +14,7 @@ export const PROMPT_FILE_LIMIT = 100;
 export const SKILL_SEARCH_LIMIT = 400;
 
 /** How many skills the picker offers. */
-export const SKILL_LIMIT = 50;
+export const SKILL_LIMIT = 100;
 
 /**
  * Files that live beside skills without being one.
