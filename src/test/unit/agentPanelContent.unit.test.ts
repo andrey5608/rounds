@@ -57,6 +57,7 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
         path: '.github/skills/research/SKILL.md',
         name: 'research',
         description: 'Reads the ticket and the code before answering.',
+        tools: [],
       },
     ],
     provider: 'github',
@@ -368,6 +369,7 @@ describe('the agent form', () => {
       path: `skills/skill-${index}/SKILL.md`,
       name: `skill-${index}`,
       description: `does thing ${index}`,
+      tools: [],
     }));
     const html = renderAgentForm(
       model({

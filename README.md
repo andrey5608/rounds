@@ -241,6 +241,11 @@ If a skill you expect is missing, run **Rounds: Show Output**: the log names eve
 taken for a skill. A folder hidden by `files.exclude` or `search.exclude` is hidden from this
 search too, because it uses the editor's own.
 
+Ticking a skill turns on the tools it needs: whatever its header asks for, plus `readFile` and
+`listFiles`, since a procedure about a repository cannot be followed without looking at one. The
+boxes move where you can see them. `runScript` is never turned on this way — it runs commands, and
+that stays a decision you make yourself.
+
 A skill that is ticked and then deleted fails the run by name rather than running without it,
 because running without it would answer a different question than the one you set up.
 

@@ -44,6 +44,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Every attached skill failed its run with `prompt.skillUnreadable`. The picker stores a
+  workspace-relative path and the run read it relative to the extension host's working directory,
+  which is somewhere else entirely. It is resolved against the workspace now, and a failure says
+  where it looked.
+- Attaching a skill turns on the tools needed to follow it: what its header asks for, plus reading.
+  Never `runScript`.
 - The skill list offered a folder's README and its chat instructions as skills, and could miss the
   skills in another folder entirely: one busy folder used the whole search allowance on files that
   are not skills. Only skill files are offered now, the search has an allowance of its own, and the

@@ -1,3 +1,5 @@
+import { isAbsolute, resolve as resolvePath } from 'node:path';
+
 import { parsePromptFile } from './promptFrontMatter.js';
 
 /** One skill, ready to be put in front of a prompt. */
@@ -12,9 +14,15 @@ export interface LoadedSkill {
 export class SkillUnavailableError extends Error {
   readonly code = 'prompt.skillUnreadable';
 
-  constructor(readonly path: string) {
+  constructor(
+    readonly path: string,
+    /** Where it was looked for, when that is not the path as stored. */
+    readonly resolvedPath?: string,
+  ) {
+    const where =
+      resolvedPath && resolvedPath !== path ? ` Looked for it at ${resolvedPath}.` : '';
     super(
-      `The skill file "${path}" could not be read, so this run would follow different instructions than the agent was given. Fix the path or take the skill off the agent.`,
+      `The skill file "${path}" could not be read, so this run would follow different instructions than the agent was given.${where} Fix the path or take the skill off the agent.`,
     );
     this.name = 'SkillUnavailableError';
   }
@@ -30,24 +38,37 @@ export class SkillUnavailableError extends Error {
 export async function loadSkills(
   paths: readonly string[],
   readFileImpl: (path: string) => Promise<string>,
+  options: { workspaceRoot?: string } = {},
 ): Promise<LoadedSkill[]> {
   const skills: LoadedSkill[] = [];
   for (const path of paths) {
+    // Stored relative to the workspace, because that is what the picker offers and what stays
+    // true when the folder moves. Reading it relative to whatever the extension host's working
+    // directory happens to be is how every skill came back unreadable.
+    const resolved = resolveSkillPath(path, options.workspaceRoot);
     let raw: string;
     try {
-      raw = await readFileImpl(path);
+      raw = await readFileImpl(resolved);
     } catch {
-      throw new SkillUnavailableError(path);
+      throw new SkillUnavailableError(path, resolved);
     }
     // A skill file carries the same kind of header a prompt file does, and it is addressed to the
     // editor rather than to the model.
     const content = parsePromptFile(raw).text.trim();
     if (content.length === 0) {
-      throw new SkillUnavailableError(path);
+      throw new SkillUnavailableError(path, resolved);
     }
     skills.push({ name: skillName(path), content, path });
   }
   return skills;
+}
+
+/** A stored skill path as a path on disk. */
+export function resolveSkillPath(path: string, workspaceRoot?: string): string {
+  if (isAbsolute(path)) {
+    return path;
+  }
+  return workspaceRoot ? resolvePath(workspaceRoot, path) : resolvePath(path);
 }
 
 /**
@@ -76,17 +97,50 @@ export interface SkillSummary {
   path: string;
   name: string;
   description?: string;
+  /** Tools the skill's header asks for. A skill that reads files says so here. */
+  tools: string[];
 }
 
 /** Describes one skill file without loading it into a prompt. */
 export function describeSkillFile(path: string, content: string): SkillSummary {
   const header = parsePromptFile(content).frontMatter;
-  const summary: SkillSummary = { path, name: header?.name?.trim() || skillName(path) };
+  const summary: SkillSummary = {
+    path,
+    name: header?.name?.trim() || skillName(path),
+    tools: header?.tools ?? [],
+  };
   const description = header?.description?.trim();
   if (description) {
     summary.description = description;
   }
   return summary;
+}
+
+/**
+ * The tools an agent needs once it follows these skills.
+ *
+ * Two sources, both honest. What a skill declares in its header is what its author said it needs.
+ * And reading is the floor: a procedure written about a repository cannot be followed without
+ * looking at it, and an agent that silently could not read would produce an answer about nothing.
+ *
+ * `runScript` is never added. It runs commands, it is gated by a whitelist and by workspace trust,
+ * and a checkbox somebody did not tick is not consent to any of that.
+ */
+export function toolsForSkills(
+  skills: readonly SkillSummary[],
+  available: readonly string[],
+): string[] {
+  if (skills.length === 0) {
+    return [];
+  }
+  const wanted = new Set<string>(['readFile', 'listFiles']);
+  for (const skill of skills) {
+    for (const tool of skill.tools) {
+      wanted.add(tool);
+    }
+  }
+  wanted.delete('runScript');
+  return [...wanted].filter((tool) => available.includes(tool));
 }
 
 /** A `SKILL.md` is named by its folder; anything else by its file name. */

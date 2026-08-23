@@ -243,7 +243,9 @@ export class AgentRunner {
     // Skills go in front of the prompt: they say how this kind of work is done, the prompt says
     // what to do now. Read before anything else happens, because a run missing one would follow
     // different instructions than the agent was given.
-    const skills = await loadSkills(agent.skills ?? [], this.readSkillFile);
+    const skills = await loadSkills(agent.skills ?? [], this.readSkillFile, {
+      workspaceRoot: this.dependencies.workspaceFolders[0],
+    });
     if (skills.length > 0) {
       logger.info(`Using ${skills.length} skill(s): ${skills.map((skill) => skill.name).join(', ')}.`);
     }

@@ -19,6 +19,7 @@ import type { RoundsSettings } from '../../state/settings.js';
 import { RoundsStore } from '../../state/store.js';
 import { FixedClock } from '../../state/time.js';
 import type { Agent, RunRecord } from '../../state/types.js';
+import { resolveSkillPath } from '../../agents/skills.js';
 import { createToolRegistry } from '../../tools/index.js';
 import type { RoundsTool } from '../../tools/registry.js';
 
@@ -164,7 +165,15 @@ async function harness(options: {
     registry: createToolRegistry(),
     externalTools: () => options.externalTools ?? [],
     readFileImpl: (path: string) => {
-      const found = options.skillFiles?.[path];
+      // Keyed the way the runner asks for them: a stored path is workspace-relative and resolved
+      // against the workspace root before anything is read.
+      const files = Object.fromEntries(
+        Object.entries(options.skillFiles ?? {}).map(([stored, content]) => [
+          resolveSkillPath(stored, directory),
+          content,
+        ]),
+      );
+      const found = files[path];
       return found === undefined ? Promise.reject(new Error('ENOENT')) : Promise.resolve(found);
     },
     connectors,

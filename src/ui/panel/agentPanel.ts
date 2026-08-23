@@ -11,7 +11,7 @@ import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
 import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
-import { describeSkillFile, skillName } from '../../agents/skills.js';
+import { describeSkillFile, skillName, toolsForSkills } from '../../agents/skills.js';
 import type { SkillSummary } from '../../agents/skills.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
@@ -145,8 +145,14 @@ export class AgentPanel {
         return;
       case 'change':
       case 'reshape': {
-        this.draft = draftFromMessage(message.draft);
+        const previous = this.draft;
+        this.draft = this.withSkillTools(draftFromMessage(message.draft), previous);
         this.dirty = true;
+        // Ticking a skill may have turned tools on, and the form has to show that it did.
+        if (this.draft.tools.length !== draftFromMessage(message.draft).tools.length) {
+          await this.render();
+          return;
+        }
         // `change` deliberately does not repaint: rebuilding the document replaces the element
         // being typed into, and the field then loses focus after one character. `reshape` does,
         // because a select changed which fields exist. `panelUpdateKind` owns that distinction so
@@ -212,6 +218,37 @@ export class AgentPanel {
       canSave: this.dirty,
     };
     await this.panel.webview.postMessage({ type: 'state', state });
+  }
+
+  /**
+   * Turns on the tools the chosen skills need.
+   *
+   * A skill is a procedure to follow in a repository, and following one without being able to read
+   * the repository produces a confident answer about nothing. So attaching a skill attaches what
+   * it declares in its header, plus reading. Never `runScript`: that one runs commands, and a
+   * checkbox nobody ticked is not consent to that.
+   *
+   * Only on the way in. Unticking a skill leaves the tools alone, because by then they may be
+   * there for the prompt's sake and taking them away would be undoing somebody else's decision.
+   */
+  private withSkillTools(draft: AgentDraft, previous: AgentDraft | undefined): AgentDraft {
+    const chosen = draft.skills ?? [];
+    const added = chosen.filter((path) => !(previous?.skills ?? []).includes(path));
+    if (added.length === 0) {
+      return draft;
+    }
+
+    const summaries = this.skills.filter((skill) => added.includes(skill.path));
+    const needed = toolsForSkills(summaries, this.container.tools.names());
+    const missing = needed.filter((tool) => !draft.tools.includes(tool));
+    if (missing.length === 0) {
+      return draft;
+    }
+
+    this.container.logger.info(
+      `Turned on ${missing.join(', ')} for the skill(s) just attached.`,
+    );
+    return { ...draft, tools: [...draft.tools, ...missing] };
   }
 
   /** Runs an action that needs a saved agent, and says so when there is not one yet. */
@@ -463,7 +500,7 @@ export class AgentPanel {
         summaries.push(describeSkillFile(path, content));
       } catch (error) {
         this.container.logger.debug(`Could not read the skill ${path}: ${String(error)}`);
-        summaries.push({ path, name: skillName(path) });
+        summaries.push({ path, name: skillName(path), tools: [] });
       }
     }
     this.skills = summaries;
