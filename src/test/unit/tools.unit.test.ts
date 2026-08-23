@@ -39,6 +39,7 @@ describe('tool registry', () => {
     assert.deepEqual(createToolRegistry().names(), [
       'readFile',
       'listFiles',
+      'searchText',
       'writeFile',
       'runScript',
     ]);
@@ -59,7 +60,7 @@ describe('tool registry', () => {
   it('reports an unknown tool as a result with the available names', async () => {
     const outcome = await createToolRegistry().invoke('doTheThing', {}, context());
     assert.match(outcome.content, /no tool named "doTheThing"/);
-    assert.match(outcome.content, /readFile, listFiles, writeFile, runScript/);
+    assert.match(outcome.content, /readFile, listFiles, searchText, writeFile, runScript/);
     assert.equal(outcome.record.allowed, false);
   });
 

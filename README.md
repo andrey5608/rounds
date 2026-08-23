@@ -195,9 +195,19 @@ command with the arguments it may be given:
 - Commands run directly, never through a shell, and only inside the workspace. `;`, `&&` and pipes are
   ordinary text that matches no pattern, so they cannot be used to chain anything.
 
+### Searching the workspace
+
+`searchText` returns matching lines as `path:line: text`, so "where is this mentioned" costs one
+call instead of one `readFile` per candidate. The pattern is literal text unless `isRegex` is true,
+matching ignores case unless `caseSensitive` is true, and a glob narrows which files are read. It
+searches through the editor's own file search, so your `files.exclude` and `search.exclude` settings
+apply, and it skips what `readFile` refuses: the deny list, binaries and files over 200 KB. At most
+60 matches from 300 files come back, and an answer that stopped early says so rather than reading
+as "not found".
+
 ### Writing files
 
-A new agent starts with `readFile`, `listFiles` and `writeFile` ticked, since an agent that can
+A new agent starts with `readFile`, `listFiles`, `searchText` and `writeFile` ticked, since an agent that can
 neither look at the workspace nor put anything in it can only ever answer in one message. Untick
 what a particular agent has no business doing. `runScript` is never ticked for you.
 
@@ -217,7 +227,7 @@ previous file intact. Every write is named in the output channel and in the run'
 
 ### Tools from other extensions
 
-Besides `readFile`, `listFiles`, `writeFile` and `runScript`, an agent may enable a tool another extension
+Besides `readFile`, `listFiles`, `searchText`, `writeFile` and `runScript`, an agent may enable a tool another extension
 registered — whatever the editor reports, listed in the agent form under **From this workspace**. A
 prompt can then research something before it writes about it.
 

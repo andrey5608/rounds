@@ -195,6 +195,8 @@ settings, or the agent config.
   - `readFile(path)` — inside the workspace only
   - `runScript(command, args, cwd)` — user-configured whitelist; nothing unlisted runs
   - `listFiles(globPattern)`
+  - `searchText(pattern, globPattern?, isRegex?, caseSensitive?)` — matching lines from the
+    workspace, capped in matches, files searched and time spent
   - `writeFile(path, content, overwrite?)` — inside the workspace only, never `.vscode` or a
     workflow folder, never over an existing file unless the call says so, and never in an
     untrusted workspace

@@ -88,7 +88,7 @@ describe('the agent form', () => {
     assert.match(html, /id="tool:readFile"[^>]*checked/);
   });
 
-  it('starts a new agent with the reading and writing tools ticked, not runScript', () => {
+  it('starts a new agent with the reading, searching and writing tools ticked, not runScript', () => {
     // A new agent with nothing ticked can only answer in one message, and what that looks like is
     // a model saying it has no way to write a file.
     const formContext = context({
@@ -96,12 +96,18 @@ describe('the agent form', () => {
       tools: [
         { name: 'readFile', description: 'reads a file' },
         { name: 'listFiles', description: 'lists files' },
+        { name: 'searchText', description: 'searches the workspace' },
         { name: 'writeFile', description: 'writes a file' },
         { name: 'runScript', description: 'runs a command' },
       ],
     });
 
-    assert.deepEqual(emptyDraft(formContext).tools, ['readFile', 'listFiles', 'writeFile']);
+    assert.deepEqual(emptyDraft(formContext).tools, [
+      'readFile',
+      'listFiles',
+      'searchText',
+      'writeFile',
+    ]);
   });
 
   it('defaults only to tools this window actually offers', () => {
