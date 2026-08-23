@@ -203,7 +203,7 @@ settings, or the agent config.
 
 ## Result handling
 - Each run writes `<agentName>-<timestamp>.md` into the agent's output folder, with
-  front matter (agent, model, mode, started/finished, status, source items, tool calls)
+  front matter (agent, model, mode, started/finished, status, source items, tool calls, skills)
   followed by the model output.
 - Run history per agent, newest first, capped at a configurable limit (default 50):
   timestamp, status, one-line summary, tool calls, result file path, error message,

@@ -410,6 +410,23 @@ describe('agent runner', () => {
     );
   });
 
+  it('names the skills it followed in the result file', async () => {
+    const withSkill = agent({
+      skills: ['skills/research/SKILL.md'],
+      prompt: { source: 'inline', inlineText: 'Summarize {{items}}.' },
+    });
+    const { runner } = await harness({
+      agent: withSkill,
+      skillFiles: { 'skills/research/SKILL.md': 'Ask three questions before answering.' },
+    });
+
+    const record = await runner.run({ agent: withSkill, trigger: 'manual' });
+    assert.ok(record.resultFilePath, 'a result file was written');
+    const content = await readFile(record.resultFilePath ?? '', 'utf8');
+
+    assert.match(content, /skills: \[skills\/research\/SKILL\.md\]/);
+  });
+
   it('fails the run when an attached skill has gone missing', async () => {
     const withSkill = agent({ skills: ['skills/gone/SKILL.md'] });
     const { runner } = await harness({ agent: withSkill, skillFiles: {} });

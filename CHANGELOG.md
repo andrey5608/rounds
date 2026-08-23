@@ -44,6 +44,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- A result file records the skills the run followed, so a result read weeks later says what the
+  agent was actually told to do.
 - An agent can attach workspace skills next to its prompt. Their instructions are put in front of
   it, so a run follows the same procedure the chat view would follow. A skill still cannot be
   called with a slash during a run: slash commands belong to the chat view, and the README now

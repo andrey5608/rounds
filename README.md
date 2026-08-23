@@ -241,8 +241,8 @@ was given into the log: `Offering 4 tool(s) to the model: …`.
 The folder is the agent's own, then `rounds.defaultOutputFolder`, then a `results` folder inside the
 extension's global storage. Files are named `<agent-name>-<YYYYMMDD-HHmmss>.md` in the agent's time
 zone, and each one starts with front matter recording the agent, the model, the mode, the trigger,
-the start and finish times, the status, the source items, the tool calls, where the prompt came from
-and whether anything was truncated. The model's answer follows.
+the start and finish times, the status, the source items, the tool calls, the skills it followed,
+where the prompt came from and whether anything was truncated. The model's answer follows.
 
 Deleting an agent never deletes files it already wrote.
 

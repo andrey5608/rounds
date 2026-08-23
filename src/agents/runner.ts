@@ -330,7 +330,15 @@ export class AgentRunner {
     }
 
     const body = sections.join('\n\n---\n\n');
-    const resultFilePath = await this.writeResult(agent, record, source, body, truncated, timeZone);
+    const resultFilePath = await this.writeResult(
+      agent,
+      record,
+      source,
+      body,
+      truncated,
+      timeZone,
+      skills.map((skill) => skill.path),
+    );
     return this.finish(record, {
       status: 'succeeded',
       summary: summarize(body),
@@ -496,6 +504,7 @@ export class AgentRunner {
     body: string,
     truncated: boolean,
     timeZone: string | undefined,
+    skills: readonly string[],
   ): Promise<string | undefined> {
     const folder = resolveOutputFolder({
       agentFolder: agent.outputFolder,
@@ -510,6 +519,7 @@ export class AgentRunner {
         timeZone,
         record: { ...record, finishedAt: this.clock.now().toISOString(), status: 'succeeded' },
         sourceItemIds: source.items.map((item) => item.id),
+        skills: [...skills],
         truncated,
         body,
       });

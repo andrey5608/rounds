@@ -90,6 +90,25 @@ describe('front matter', () => {
     assert.match(text, /\n---$/);
   });
 
+  it('names the skills the run followed', () => {
+    // A result read weeks later has to say what the agent was told to do, and half of that is
+    // whichever procedures were put in front of the prompt.
+    const text = renderFrontMatter({
+      ...request('/results'),
+      skills: ['.github/skills/deep-research/SKILL.md', 'skills/triage.md'],
+    });
+
+    assert.match(
+      text,
+      /\nskills: \[\.github\/skills\/deep-research\/SKILL\.md, skills\/triage\.md\]\n/,
+    );
+  });
+
+  it('writes an empty list rather than leaving the line out', () => {
+    // A missing line cannot be told from an agent that used no skill at all.
+    assert.match(renderFrontMatter(request('/results')), /\nskills: \[\]\n/);
+  });
+
   it('records the error code of a failed run', () => {
     const text = renderFrontMatter(
       request('/results', {
