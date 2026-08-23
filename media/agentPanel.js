@@ -74,7 +74,50 @@
     }, 250);
   }
 
+  /**
+   * Shows the entries of one group that match what was typed.
+   *
+   * In the page, never through the extension: filtering is not an edit, so it must not mark the
+   * agent changed and must not rebuild the form under the cursor.
+   */
+  function applyFilter(group, query) {
+    const list = document.querySelector('.tools[data-group="' + group + '"]');
+    if (!list) {
+      return;
+    }
+    const needle = query.trim().toLowerCase();
+    let shown = 0;
+    for (const entry of list.querySelectorAll('.tool')) {
+      const haystack = entry.getAttribute('data-search') || '';
+      const matches = needle.length === 0 || haystack.indexOf(needle) !== -1;
+      entry.classList.toggle('hidden', !matches);
+      if (matches) {
+        shown += 1;
+      }
+    }
+
+    let empty = list.querySelector('.empty-filter');
+    if (shown === 0) {
+      if (!empty) {
+        empty = document.createElement('p');
+        empty.className = 'empty-filter';
+        list.appendChild(empty);
+      }
+      empty.textContent = 'Nothing matches "' + query.trim() + '".';
+    } else if (empty) {
+      empty.remove();
+    }
+    syncSelectAll(group);
+  }
+
   document.addEventListener('input', (event) => {
+    const filtered = event.target && event.target.getAttribute
+      ? event.target.getAttribute('data-filter')
+      : null;
+    if (filtered) {
+      applyFilter(filtered, event.target.value);
+      return;
+    }
     if (event.target && event.target.closest('#agent-form')) {
       if (!announced) {
         // Says "somebody is typing" straight away, so a repaint from elsewhere cannot land in the
@@ -150,8 +193,10 @@
   /** Keeps a group's "Select all" honest: ticked, empty, or somewhere in between. */
   function syncSelectAll(group) {
     const box = document.getElementById('select-all-' + group);
+    // Only what is on screen: with a filter applied, "select all" means the ones being shown, and
+    // a box claiming otherwise would tick a hundred things somebody cannot see.
     const tools = document.querySelectorAll(
-      '.tools[data-group="' + group + '"] input[type="checkbox"]',
+      '.tools[data-group="' + group + '"] .tool:not(.hidden) input[type="checkbox"]',
     );
     if (!box || tools.length === 0) {
       return;
@@ -171,12 +216,17 @@
     if (!target || !target.closest('#agent-form')) {
       return;
     }
+    // The search box lives inside the form and fires `change` when it loses focus. Filtering is
+    // not an edit, so treating it as one would mark the agent changed for looking at a list.
+    if (target.getAttribute && target.getAttribute('data-filter')) {
+      return;
+    }
 
     // "Select all" is not a tool, so it never reaches the draft; it ticks the ones that are.
     const group = target.getAttribute('data-group');
     if (group) {
       for (const tool of document.querySelectorAll(
-        '.tools[data-group="' + group + '"] input[type="checkbox"]',
+        '.tools[data-group="' + group + '"] .tool:not(.hidden) input[type="checkbox"]',
       )) {
         tool.checked = target.checked;
       }

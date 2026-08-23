@@ -415,12 +415,22 @@ function toolGroup(
       : '';
   }
 
-  const entries = tools
+  // What the agent already uses comes first. With a hundred tools in the list, the ones it is
+  // actually configured with must not be somewhere in the middle of the scroll.
+  const ordered = [...tools].sort((left, right) => {
+    const chosen = Number(enabled.includes(right.name)) - Number(enabled.includes(left.name));
+    return chosen !== 0 ? chosen : left.name.localeCompare(right.name);
+  });
+
+  const entries = ordered
     .map((tool) => {
       const label = tool.missing ? `${tool.name} — missing` : tool.name;
       const tags = tool.tags && tool.tags.length > 0 ? ` · ${tool.tags.join(', ')}` : '';
       const full = `${tool.description}${tags}`;
-      return `<div class="tool${tool.missing ? ' missing' : ''}">
+      // `data-search` is what the filter reads, so filtering never has to parse the markup.
+      return `<div class="tool${tool.missing ? ' missing' : ''}" data-search="${escapeHtml(
+        `${tool.name} ${full}`.toLowerCase(),
+      )}">
         ${checkbox(`tool:${tool.name}`, label, enabled.includes(tool.name))}
         <p class="hint" title="${escapeHtml(full)}">${escapeHtml(shorten(full))}</p>
       </div>`;
@@ -438,8 +448,27 @@ function toolGroup(
       <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
       ${tools.length > 1 ? selectAll : ''}
     </div>
-    <div class="tools" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+    ${searchBox(id, tools.length)}
+    <div class="tools scrollable" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
   </div>`;
+}
+
+/** How many entries a group may have before it is worth searching rather than scrolling. */
+export const SEARCH_THRESHOLD = 8;
+
+/**
+ * A filter over one group.
+ *
+ * Only where it earns its place: a list of three needs no search box, and a hundred needs one more
+ * than it needs a scrollbar. Filtering happens in the page and never touches the draft, so typing
+ * here neither marks the agent changed nor rebuilds the form.
+ */
+function searchBox(id: string, count: number): string {
+  if (count < SEARCH_THRESHOLD) {
+    return '';
+  }
+  return `<input type="search" class="filter" data-filter="${id}" placeholder="Search ${count} tools"
+    aria-label="Search the tools in this group" />`;
 }
 
 /** How much of a tool's description a list row shows before it stops being a list. */
@@ -581,6 +610,12 @@ export function renderAgentForm(model: AgentFormViewModel): string {
   return `<h1>${title}</h1>
 ${summary ? `<p class="muted-text">${escapeHtml(summary)}</p>` : ''}
 ${model.notReady ? `<p class="warning">${escapeHtml(model.notReady)}</p>` : ''}
+<div class="actions">
+  <button type="button" data-command="save" id="save"${model.canSave ? '' : ' disabled'}>Save</button>
+  <button type="button" data-command="run">Run Now</button>
+  ${editing ? '<button type="button" data-command="openFolder">Open Result Folder</button>' : ''}
+  ${editing ? '<button type="button" class="danger" data-command="delete">Delete Agent</button>' : ''}
+</div>
 <form id="agent-form" novalidate>
   ${identitySection(model)}
   ${sourceSection(model)}
@@ -589,11 +624,5 @@ ${model.notReady ? `<p class="warning">${escapeHtml(model.notReady)}</p>` : ''}
   ${scheduleSection(model)}
   ${advancedSection(model)}
 </form>
-${runsSection(model)}
-<div class="actions">
-  <button type="button" data-command="save" id="save"${model.canSave ? '' : ' disabled'}>Save</button>
-  <button type="button" data-command="run">Run Now</button>
-  ${editing ? '<button type="button" data-command="openFolder">Open Result Folder</button>' : ''}
-  ${editing ? '<button type="button" class="danger" data-command="delete">Delete Agent</button>' : ''}
-</div>`;
+${runsSection(model)}`;
 }

@@ -50,7 +50,11 @@ All notable changes to this project are documented in this file. The format foll
   it, so a run follows the same procedure the chat view would follow. A skill still cannot be
   called with a slash during a run: slash commands belong to the chat view, and the README now
   says which mode reaches what.
-- The agent form opens as an ordinary editor tab rather than splitting the editor beside it.
+- The agent form opens as an ordinary editor tab rather than splitting the editor beside it, and
+  its actions sit at the top where they stay visible instead of at the end of a long form.
+- The tool list no longer stretches the form when a workspace offers a hundred of them: it scrolls
+  in place, the tools an agent already uses come first, and a group long enough to need one gets a
+  search box.
 - A workspace skill could not be used at all. It still cannot be *called* during a run — skills are
   addressed with a slash in the chat view, and nothing the language model API lists as a tool
   answers to a slash — but the prompt picker now finds them, so an agent can use one by making it

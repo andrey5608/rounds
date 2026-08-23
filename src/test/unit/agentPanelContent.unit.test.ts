@@ -247,6 +247,65 @@ describe('the agent form', () => {
     assert.match(html, /\{\{issueKey\}\}[^<]*are not available/);
   });
 
+  it('puts the actions above the form, not at the end of it', () => {
+    // A form somebody scrolls through should not hide Save at the bottom of it.
+    const html = renderAgentForm(model());
+
+    assert.ok(
+      html.indexOf('data-command="save"') < html.indexOf('<form id="agent-form"'),
+      'Save comes before the form',
+    );
+  });
+
+  it('offers a search box only where a list is long enough to need one', () => {
+    const short = renderAgentForm(model());
+    assert.ok(!short.includes('data-filter="external"'), 'two tools need no search box');
+
+    const manyTools = Array.from({ length: 12 }, (_, index) => ({
+      name: `tool_${index}`,
+      description: `does thing ${index}`,
+      external: true,
+    }));
+    const long = renderAgentForm(model({ context: context({ tools: manyTools }) }));
+
+    assert.match(long, /data-filter="external"/);
+    assert.match(long, /placeholder="Search 12 tools"/);
+  });
+
+  it('keeps a long list inside its own scroll rather than stretching the page', () => {
+    const html = renderAgentForm(model());
+    assert.match(html, /class="tools scrollable"/);
+  });
+
+  it('gives every entry something to search on', () => {
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [{ name: 'research', description: 'Looks something up', external: true, tags: ['search'] }],
+        }),
+      }),
+    );
+
+    assert.match(html, /data-search="research looks something up · search"/);
+  });
+
+  it('puts the tools the agent uses at the top of the list', () => {
+    // With a hundred entries, the ones it is configured with must not be somewhere in the scroll.
+    const html = renderAgentForm(
+      model({
+        context: context({
+          tools: [
+            { name: 'aaa', description: 'first alphabetically' },
+            { name: 'zzz', description: 'last alphabetically' },
+          ],
+        }),
+        draft: { ...agentToDraft(agent()), tools: ['zzz'] },
+      }),
+    );
+
+    assert.ok(html.indexOf('id="tool:zzz"') < html.indexOf('id="tool:aaa"'));
+  });
+
   it('offers to tick a whole group at once', () => {
     const html = renderAgentForm(model());
 
