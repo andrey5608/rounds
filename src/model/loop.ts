@@ -7,8 +7,15 @@ import { dump } from '../state/dump.js';
 
 import type { LanguageModelGateway, ModelMessage } from './gateway.js';
 
-/** How many times the model may ask for tools before the run is stopped. */
-export const MAX_ITERATIONS = 10;
+/**
+ * How many times the model may ask for tools before the run is stopped.
+ *
+ * The fallback for a caller that does not say; `rounds.maxToolRoundsPerRun` is what decides in a
+ * real run. Ten was too few for the work people actually give an agent: a prompt that reads a few
+ * files and then writes about them spends rounds before it has anything to say, and hitting the cap
+ * fails a run that was making progress.
+ */
+export const MAX_ITERATIONS = 30;
 
 /**
  * Thrown when the model produced nothing at all.
@@ -33,7 +40,7 @@ export class IterationCapError extends Error {
 
   constructor(iterations: number) {
     super(
-      `The model kept asking for tools without producing an answer (${iterations} rounds). The run was stopped; simplify the prompt or enable fewer tools.`,
+      `The model kept asking for tools without producing an answer (${iterations} rounds). The run was stopped; simplify the prompt, enable fewer tools, or raise "rounds.maxToolRoundsPerRun".`,
     );
     this.name = 'IterationCapError';
   }

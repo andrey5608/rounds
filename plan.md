@@ -52,10 +52,14 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.maxExecutionsPerDay`, `rounds.minimumIntervalWarning`,
   `rounds.manualRunNextRunPolicy`, `rounds.defaultOutputFolder`,
   `rounds.scriptWhitelist`, `rounds.executionHistoryLimit`,
-  `rounds.promptFileFallback`, `rounds.logLevel`, `rounds.notifications`
+  `rounds.promptFileFallback`, `rounds.logLevel`, `rounds.notifications`,
+  `rounds.maxToolRoundsPerRun`
 - `rounds.notifications` (`failures` | `all` | `silent`, default `failures`) decides how much
   the extension may interrupt. `silent` stops the toasts only: the log, the status bar and the
   run record are unchanged, and a run the user started by hand always reports its outcome.
+- `rounds.maxToolRoundsPerRun` (number, default 30) caps how many times the model may ask for
+  tools in one run. The cap is a recorded failure rather than a silent stop, because a model
+  looping over tools produces nothing while looking like a slow run.
 - Settings UI title: "Rounds"
 
 ### Views

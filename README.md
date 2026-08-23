@@ -150,6 +150,7 @@ Rounds ships with these safeguards on by default and they are not meant to be sw
 | `rounds.promptFileFallback` | `snapshot` | What a run does when its prompt file cannot be read. |
 | `rounds.logLevel` | `info` | Verbosity of the Rounds output channel. |
 | `rounds.notifications` | `failures` | How much Rounds may interrupt you: `failures`, `all` or `silent`. A run you start yourself always reports its outcome, and `silent` leaves the output channel, the status bar and the run history untouched. |
+| `rounds.maxToolRoundsPerRun` | `30` | How many times the model may ask for tools in one run before the run is stopped and recorded as failed. Raise it for a prompt that genuinely needs many steps. |
 
 ## Commands
 

@@ -27,6 +27,9 @@ All notable changes to this project are documented in this file. The format foll
   scheduled, why a run failed, and when an expression fires next.
 - **`rounds.notifications`** — `failures`, `all` or `silent`. Silent stops the toasts and nothing
   else.
+- **`rounds.maxToolRoundsPerRun`** — the cap on how many rounds of tool calls one run may take,
+  now 30 rather than a fixed 10. Ten was too few for a prompt that reads several files before it
+  writes anything, and such a run failed while it was still making progress.
 - Prompt files already in the workspace are offered when choosing one, and an inline prompt is
   written in a real editor document.
 - **Bitbucket support**, both the hosted service and self-hosted installations. They share a name and

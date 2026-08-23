@@ -546,6 +546,27 @@ describe('agent runner', () => {
     assert.equal(record.status, 'succeeded');
   });
 
+  it('caps tool rounds where the setting says, not where the loop defaults', async () => {
+    // The cap was fixed at ten and a run that was still making progress failed at it. It is a
+    // setting now, and the setting is only real if the runner passes it on.
+    const gateway = new FakeGateway();
+    gateway.turns = [
+      { text: '', toolCalls: [{ callId: 'call-1', name: 'listFiles', input: { globPattern: '**/*.md' } }] },
+    ];
+    const toolAgent = agent({ tools: ['listFiles'] });
+    const { runner } = await harness({
+      agent: toolAgent,
+      gateway,
+      settings: { maxToolRoundsPerRun: 2 },
+    });
+
+    const record = await runner.run({ agent: toolAgent, trigger: 'manual' });
+
+    assert.equal(record.status, 'failed');
+    assert.equal(record.error?.code, 'model.iterationCap');
+    assert.equal(gateway.requests.length, 2, 'it stopped where the setting said');
+  });
+
   it('never throws, whatever the stage does', async () => {
     for (const failure of [
       { fetch: () => Promise.reject(new Error('source exploded')) },

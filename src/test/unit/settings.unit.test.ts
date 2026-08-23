@@ -50,11 +50,27 @@ describe('settings reader', () => {
         'rounds.jitterSeconds': 99999,
         'rounds.maxExecutionsPerDay': 0,
         'rounds.executionHistoryLimit': -3,
+        'rounds.maxToolRoundsPerRun': 0,
       }),
     );
     assert.equal(settings.jitterSeconds, 1800);
     assert.equal(settings.maxExecutionsPerDay, 1);
     assert.equal(settings.executionHistoryLimit, 1);
+    // Zero rounds would fail every run that uses a tool, which is not a setting anybody means.
+    assert.equal(settings.maxToolRoundsPerRun, 1);
+  });
+
+  it('reads the tool round cap, and defaults it to something a real prompt fits in', () => {
+    assert.equal(SETTING_DEFAULTS.maxToolRoundsPerRun, 30);
+    assert.equal(
+      readSettings(new FakeConfiguration({ 'rounds.maxToolRoundsPerRun': 45 })).maxToolRoundsPerRun,
+      45,
+    );
+    assert.equal(
+      readSettings(new FakeConfiguration({ 'rounds.maxToolRoundsPerRun': 1000 }))
+        .maxToolRoundsPerRun,
+      100,
+    );
   });
 
   it('ignores values of the wrong type', () => {

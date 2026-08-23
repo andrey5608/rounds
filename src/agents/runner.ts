@@ -316,6 +316,7 @@ export class AgentRunner {
         enabledTools: agent.tools,
         toolContext: this.toolContext(record.id, settings, request.isCancelled),
         logger,
+        maxIterations: settings.maxToolRoundsPerRun,
         isCancelled: request.isCancelled,
       });
       logger.info(
