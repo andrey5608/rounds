@@ -88,6 +88,37 @@ describe('the agent form', () => {
     assert.match(html, /id="tool:readFile"[^>]*checked/);
   });
 
+  it('starts a new agent with the reading, searching and writing tools ticked, not runScript', () => {
+    // A new agent with nothing ticked can only answer in one message, and what that looks like is
+    // a model saying it has no way to write a file.
+    const formContext = context({
+      editing: undefined,
+      tools: [
+        { name: 'readFile', description: 'reads a file' },
+        { name: 'listFiles', description: 'lists files' },
+        { name: 'searchText', description: 'searches the workspace' },
+        { name: 'writeFile', description: 'writes a file' },
+        { name: 'runScript', description: 'runs a command' },
+      ],
+    });
+
+    assert.deepEqual(emptyDraft(formContext).tools, [
+      'readFile',
+      'listFiles',
+      'searchText',
+      'writeFile',
+    ]);
+  });
+
+  it('defaults only to tools this window actually offers', () => {
+    const formContext = context({
+      editing: undefined,
+      tools: [{ name: 'readFile', description: 'reads a file' }],
+    });
+
+    assert.deepEqual(emptyDraft(formContext).tools, ['readFile']);
+  });
+
   it('starts an empty form with defaults rather than blanks', () => {
     const formContext = context({ editing: undefined });
     const html = renderAgentForm(model({ context: formContext, draft: emptyDraft(formContext) }));

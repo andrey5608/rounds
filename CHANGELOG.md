@@ -27,6 +27,18 @@ All notable changes to this project are documented in this file. The format foll
   scheduled, why a run failed, and when an expression fires next.
 - **`rounds.notifications`** — `failures`, `all` or `silent`. Silent stops the toasts and nothing
   else.
+- A new agent starts with `readFile`, `listFiles`, `searchText` and `writeFile` ticked. `runScript` never is: it
+  executes commands behind a whitelist the user fills in by hand, and a default is not consent.
+- **`searchText`** — matching lines from the workspace as `path:line: text`. Without it "where is
+  this mentioned" costs one `readFile` per candidate, and a run spends its rounds opening files
+  instead of answering.
+- **`writeFile`** — a run can produce files rather than putting everything it made into one
+  answer that lands in the result file. Inside the workspace only, never `.vscode` or a workflow
+  folder, never over the paths no tool may open, not over an existing file unless the call says so,
+  and not at all in an untrusted workspace.
+- **`rounds.maxToolRoundsPerRun`** — the cap on how many rounds of tool calls one run may take,
+  now 30 rather than a fixed 10. Ten was too few for a prompt that reads several files before it
+  writes anything, and such a run failed while it was still making progress.
 - Prompt files already in the workspace are offered when choosing one, and an inline prompt is
   written in a real editor document.
 - **Bitbucket support**, both the hosted service and self-hosted installations. They share a name and

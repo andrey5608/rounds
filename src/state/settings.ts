@@ -20,6 +20,7 @@ export const SETTING_KEYS = [
   'rounds.promptFileFallback',
   'rounds.logLevel',
   'rounds.notifications',
+  'rounds.maxToolRoundsPerRun',
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -63,6 +64,8 @@ export interface RoundsSettings {
   logLevel: 'none' | 'error' | 'info' | 'debug';
   /** How much the extension may interrupt. See `src/ui/notifications.ts` for what each value means. */
   notifications: NotificationMode;
+  /** How many times the model may ask for tools in one run before the run is stopped. */
+  maxToolRoundsPerRun: number;
 }
 
 export const SETTING_DEFAULTS: RoundsSettings = {
@@ -78,6 +81,7 @@ export const SETTING_DEFAULTS: RoundsSettings = {
   promptFileFallback: 'snapshot',
   logLevel: 'info',
   notifications: 'failures',
+  maxToolRoundsPerRun: 30,
 };
 
 function clampNumber(value: unknown, fallback: number, minimum: number, maximum: number): number {
@@ -161,6 +165,12 @@ export function readSettings(configuration: ConfigurationLike): RoundsSettings {
       configuration.get('rounds.notifications'),
       ['failures', 'all', 'silent'] as const,
       SETTING_DEFAULTS.notifications,
+    ),
+    maxToolRoundsPerRun: clampNumber(
+      configuration.get('rounds.maxToolRoundsPerRun'),
+      SETTING_DEFAULTS.maxToolRoundsPerRun,
+      1,
+      100,
     ),
   };
 }

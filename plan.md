@@ -52,10 +52,14 @@ descriptively, e.g. "requires a Language Model API provider such as GitHub Copil
   `rounds.maxExecutionsPerDay`, `rounds.minimumIntervalWarning`,
   `rounds.manualRunNextRunPolicy`, `rounds.defaultOutputFolder`,
   `rounds.scriptWhitelist`, `rounds.executionHistoryLimit`,
-  `rounds.promptFileFallback`, `rounds.logLevel`, `rounds.notifications`
+  `rounds.promptFileFallback`, `rounds.logLevel`, `rounds.notifications`,
+  `rounds.maxToolRoundsPerRun`
 - `rounds.notifications` (`failures` | `all` | `silent`, default `failures`) decides how much
   the extension may interrupt. `silent` stops the toasts only: the log, the status bar and the
   run record are unchanged, and a run the user started by hand always reports its outcome.
+- `rounds.maxToolRoundsPerRun` (number, default 30) caps how many times the model may ask for
+  tools in one run. The cap is a recorded failure rather than a silent stop, because a model
+  looping over tools produces nothing while looking like a slow run.
 - Settings UI title: "Rounds"
 
 ### Views
@@ -191,6 +195,11 @@ settings, or the agent config.
   - `readFile(path)` — inside the workspace only
   - `runScript(command, args, cwd)` — user-configured whitelist; nothing unlisted runs
   - `listFiles(globPattern)`
+  - `searchText(pattern, globPattern?, isRegex?, caseSensitive?)` — matching lines from the
+    workspace, capped in matches, files searched and time spent
+  - `writeFile(path, content, overwrite?)` — inside the workspace only, never `.vscode` or a
+    workflow folder, never over an existing file unless the call says so, and never in an
+    untrusted workspace
   Adding a tool must mean registering one object in a tool registry.
 - Since phase 21, an agent may also enable a tool another extension registered, as reported by
   `vscode.lm.tools`, and the loop invokes it through `vscode.lm.invokeTool`. Such a tool is

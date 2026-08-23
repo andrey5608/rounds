@@ -332,6 +332,13 @@
             "Show no notifications. The output channel, the status bar and the run history are unchanged."
           ],
           "markdownDescription": "How much Rounds may interrupt you. A run you start yourself always reports its outcome."
+        },
+        "rounds.maxToolRoundsPerRun": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 100,
+          "markdownDescription": "How many times the model may ask for tools in one run before the run is stopped and recorded as failed. A model that loops over tools without answering would otherwise keep going indefinitely. Raise this for prompts that genuinely need many steps; lower it to fail such a run sooner."
         }
       }
     },

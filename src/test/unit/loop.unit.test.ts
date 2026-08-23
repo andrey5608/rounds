@@ -196,6 +196,8 @@ describe('agentic loop', () => {
         assert.ok(error instanceof IterationCapError);
         assert.equal(error.code, 'model.iterationCap');
         assert.match(error.message, /3 rounds/);
+        // The way out has to be in the message: the setting is the only thing that raises the cap.
+        assert.match(error.message, /rounds\.maxToolRoundsPerRun/);
         return true;
       },
     );

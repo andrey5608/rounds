@@ -35,8 +35,14 @@ function processResult(overrides: Partial<ProcessResult> = {}): ProcessResult {
 }
 
 describe('tool registry', () => {
-  it('registers the three v1 tools', () => {
-    assert.deepEqual(createToolRegistry().names(), ['readFile', 'listFiles', 'runScript']);
+  it('registers the built-in tools', () => {
+    assert.deepEqual(createToolRegistry().names(), [
+      'readFile',
+      'listFiles',
+      'searchText',
+      'writeFile',
+      'runScript',
+    ]);
   });
 
   it('refuses two tools with the same name', () => {
@@ -54,7 +60,7 @@ describe('tool registry', () => {
   it('reports an unknown tool as a result with the available names', async () => {
     const outcome = await createToolRegistry().invoke('doTheThing', {}, context());
     assert.match(outcome.content, /no tool named "doTheThing"/);
-    assert.match(outcome.content, /readFile, listFiles, runScript/);
+    assert.match(outcome.content, /readFile, listFiles, searchText, writeFile, runScript/);
     assert.equal(outcome.record.allowed, false);
   });
 

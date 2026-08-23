@@ -3,6 +3,21 @@ import { createReadFileTool } from './readFile.js';
 import { ToolRegistry } from './registry.js';
 import type { RoundsTool } from './registry.js';
 import { createRunScriptTool } from './runScript.js';
+import { createSearchTextTool } from './searchText.js';
+import { createWriteFileTool } from './writeFile.js';
+
+/**
+ * The tools a new agent starts with.
+ *
+ * Reading, listing, searching and writing: what it takes to look at the workspace and put the
+ * result somewhere. A new agent with nothing ticked could only ever answer in one message, and
+ * what that looks like is a model saying it has no way to write a file: a worse first experience
+ * than a checkbox somebody may untick.
+ *
+ * `runScript` is not here. It executes commands, it is gated by a whitelist the user fills in by
+ * hand, and a default is not consent to that.
+ */
+export const DEFAULT_TOOLS = ['readFile', 'listFiles', 'searchText', 'writeFile'];
 
 /**
  * Builds the registry.
@@ -15,6 +30,8 @@ export function createToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
   registry.register(createReadFileTool());
   registry.register(createListFilesTool());
+  registry.register(createSearchTextTool());
+  registry.register(createWriteFileTool());
   registry.register(createRunScriptTool());
   return registry;
 }
