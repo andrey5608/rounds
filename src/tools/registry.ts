@@ -28,6 +28,12 @@ export interface ToolContext {
   workspaceFolders: string[];
   scriptWhitelist: ScriptWhitelistEntry[];
   /**
+   * Environment variables a command may receive despite looking like a credential.
+   *
+   * Names, optionally ending in `*`. Empty means the default: nothing that looks like one.
+   */
+  scriptEnvironment?: string[];
+  /**
    * Whether the user has trusted this workspace.
    *
    * Passed in rather than read from the editor, like `workspaceFolders`: this layer stays free of

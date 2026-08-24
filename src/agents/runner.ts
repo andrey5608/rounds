@@ -510,6 +510,7 @@ export class AgentRunner {
     return {
       workspaceFolders: this.dependencies.workspaceFolders(),
       scriptWhitelist: settings.scriptWhitelist,
+      scriptEnvironment: settings.scriptEnvironment,
       workspaceTrusted: this.dependencies.workspaceTrusted?.() ?? true,
       logger: this.dependencies.logger,
       runId,

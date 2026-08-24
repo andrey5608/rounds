@@ -339,6 +339,14 @@
           "minimum": 1,
           "maximum": 100,
           "markdownDescription": "How many times the model may ask for tools in one run before the run is stopped and recorded as failed. A model that loops over tools without answering would otherwise keep going indefinitely. Raise this for prompts that genuinely need many steps; lower it to fail such a run sooner."
+        },
+        "rounds.scriptEnvironment": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Environment variables `runScript` may pass to a command even though their names look like credentials.\n\nBy default a variable whose name contains `token`, `secret`, `password`, `key` or `credential` is withheld from every spawned command. Some commands need exactly one of those, so name it here:\n\n```json\n\"rounds.scriptEnvironment\": [\"GITHUB_TOKEN\", \"GIT_ASKPASS\", \"NPM_CONFIG_*\"]\n```\n\nA name may end with `*` to allow every variable starting that way. Matching ignores case. Nothing else is passed, so allowing a Git token does not also hand over the keys sitting next to it.\n\nThe variable has to be in the editor's own environment first. Variables exported from `.zshrc` or `.bashrc` reach it when the editor is started from a terminal, or through the editor's own login shell resolution."
         }
       }
     },

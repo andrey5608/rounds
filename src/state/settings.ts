@@ -21,6 +21,7 @@ export const SETTING_KEYS = [
   'rounds.logLevel',
   'rounds.notifications',
   'rounds.maxToolRoundsPerRun',
+  'rounds.scriptEnvironment',
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -66,6 +67,14 @@ export interface RoundsSettings {
   notifications: NotificationMode;
   /** How many times the model may ask for tools in one run before the run is stopped. */
   maxToolRoundsPerRun: number;
+  /**
+   * Names of environment variables a command may receive even though they look like credentials.
+   *
+   * Everything matching token, secret, password, key or credential is otherwise withheld from a
+   * spawned command. Some commands need exactly one of those to do their job, so the way through
+   * is to name it, the same way `rounds.scriptWhitelist` names commands.
+   */
+  scriptEnvironment: string[];
 }
 
 export const SETTING_DEFAULTS: RoundsSettings = {
@@ -82,6 +91,7 @@ export const SETTING_DEFAULTS: RoundsSettings = {
   logLevel: 'info',
   notifications: 'failures',
   maxToolRoundsPerRun: 30,
+  scriptEnvironment: [],
 };
 
 function clampNumber(value: unknown, fallback: number, minimum: number, maximum: number): number {
@@ -95,6 +105,17 @@ function readEnum<T extends string>(value: unknown, allowed: readonly T[], fallb
   return typeof value === 'string' && (allowed as readonly string[]).includes(value)
     ? (value as T)
     : fallback;
+}
+
+/** A list of names, keeping only the entries that are names. */
+function readStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function readOptionalString(value: unknown): string | undefined {
@@ -172,5 +193,6 @@ export function readSettings(configuration: ConfigurationLike): RoundsSettings {
       1,
       100,
     ),
+    scriptEnvironment: readStringList(configuration.get('rounds.scriptEnvironment')),
   };
 }

@@ -63,17 +63,36 @@ export function findWhitelistEntry(
   return whitelist.find((entry) => entryAllows(entry, input));
 }
 
-/** Copies the environment without anything that looks like a credential. */
+/**
+ * Copies the environment without anything that looks like a credential.
+ *
+ * `allowed` names the exceptions. A command that authenticates against a Git host needs the token
+ * the user keeps in their shell profile, and withholding it means the command simply fails; naming
+ * it is the same bargain `rounds.scriptWhitelist` makes for commands. Everything not named is
+ * still withheld, so allowing a Git token does not also hand over the cloud keys next to it.
+ */
 export function scrubEnvironment(
   source: Record<string, string | undefined>,
+  allowed: readonly string[] = [],
 ): Record<string, string | undefined> {
   const result: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(source)) {
-    if (!SENSITIVE_ENV.test(key)) {
+    if (!SENSITIVE_ENV.test(key) || isAllowedName(key, allowed)) {
       result[key] = value;
     }
   }
   return result;
+}
+
+/** Whether this variable was named, either outright or by a pattern ending in `*`. */
+export function isAllowedName(name: string, allowed: readonly string[]): boolean {
+  return allowed.some((pattern) => {
+    const trimmed = pattern.trim();
+    if (trimmed.endsWith('*')) {
+      return name.toUpperCase().startsWith(trimmed.slice(0, -1).toUpperCase());
+    }
+    return name.toUpperCase() === trimmed.toUpperCase();
+  });
 }
 
 /** Spawns a process without a shell and collects its output. */
@@ -216,7 +235,7 @@ export function createRunScriptTool(): RoundsTool<RunScriptInput> {
         args: input.args,
         cwd,
         timeoutMs: DEFAULT_TIMEOUT_MS,
-        env: scrubEnvironment(process.env),
+        env: scrubEnvironment(process.env, context.scriptEnvironment ?? []),
       });
 
       const stdout = truncate(result.stdout.trim(), MAX_OUTPUT_CHARS);
