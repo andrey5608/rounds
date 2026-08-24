@@ -86,6 +86,23 @@ describe('settings reader', () => {
     assert.equal(settings.logLevel, SETTING_DEFAULTS.logLevel);
   });
 
+  it('reads the environment allowlist, keeping only names', () => {
+    const settings = readSettings(
+      new FakeConfiguration({
+        'rounds.scriptEnvironment': ['GITHUB_TOKEN', '  GIT_*  ', '', 42, null],
+      }),
+    );
+
+    assert.deepEqual(settings.scriptEnvironment, ['GITHUB_TOKEN', 'GIT_*']);
+    assert.deepEqual(readSettings(new FakeConfiguration({})).scriptEnvironment, []);
+    assert.deepEqual(
+      readSettings(new FakeConfiguration({ 'rounds.scriptEnvironment': 'GITHUB_TOKEN' }))
+        .scriptEnvironment,
+      [],
+      'a single string is not a list, and guessing at one would pass something unasked',
+    );
+  });
+
   it('keeps only well formed whitelist entries', () => {
     const settings = readSettings(
       new FakeConfiguration({

@@ -7,15 +7,15 @@ const MAX_DUMP_CHARS = 20_000;
  * Written for the case where a summary is not enough: "the model returned no text" says nothing about
  * what the model actually sent, and the only way to answer that is to write the object down.
  */
-export function dump(value: unknown): string {
+export function dump(value: unknown, maxChars: number = MAX_DUMP_CHARS): string {
   let text: string;
   try {
     text = JSON.stringify(value, replaceUnserializable(), 2) ?? String(value);
   } catch (error) {
     return `<could not be serialized: ${String(error)}>`;
   }
-  return text.length > MAX_DUMP_CHARS
-    ? `${text.slice(0, MAX_DUMP_CHARS)}\n<truncated: ${text.length} characters total>`
+  return text.length > maxChars
+    ? `${text.slice(0, maxChars)}\n<truncated: ${text.length} characters total>`
     : text;
 }
 

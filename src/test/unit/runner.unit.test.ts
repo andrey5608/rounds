@@ -91,6 +91,7 @@ interface Harness {
 async function harness(options: {
   agent: Agent;
   settings?: Partial<RoundsSettings>;
+  runProcess?: RunnerDependencies['runProcess'];
   fetch?: () => Promise<FetchResult>;
   diff?: () => Promise<{ text: string; truncated: boolean }>;
   consent?: boolean;
@@ -164,6 +165,7 @@ async function harness(options: {
     gateway,
     registry: createToolRegistry(),
     externalTools: () => options.externalTools ?? [],
+    runProcess: options.runProcess,
     readFileImpl: (path: string) => {
       // Keyed the way the runner asks for them: a stored path is workspace-relative and resolved
       // against the workspace root before anything is read.
@@ -592,6 +594,46 @@ describe('agent runner', () => {
     assert.equal(record.status, 'failed');
     assert.equal(record.error?.code, 'model.iterationCap');
     assert.equal(gateway.requests.length, 2, 'it stopped where the setting said');
+  });
+
+  it('gives runScript the variables the setting names, and no others', async () => {
+    // The whole chain: a setting, the tool context built per run, and the environment a spawned
+    // command actually receives. Any link left out and the token silently never arrives.
+    const seen: Record<string, string | undefined>[] = [];
+    const gateway = new FakeGateway();
+    gateway.turns = [
+      {
+        text: '',
+        toolCalls: [{ callId: 'call-1', name: 'runScript', input: { command: 'git', args: ['status'] } }],
+      },
+      { text: 'Clean.', toolCalls: [] },
+    ];
+    const scripted = agent({ tools: ['runScript'] });
+    const { runner } = await harness({
+      agent: scripted,
+      gateway,
+      settings: {
+        scriptWhitelist: [{ command: 'git', args: ['status'] }],
+        scriptEnvironment: ['ROUNDS_TEST_TOKEN'],
+      },
+      runProcess: (options) => {
+        seen.push(options.env);
+        return Promise.resolve({ code: 0, signal: null, stdout: 'clean', stderr: '', timedOut: false });
+      },
+    });
+
+    process.env.ROUNDS_TEST_TOKEN = 'wanted';
+    process.env.ROUNDS_TEST_SECRET = 'withheld';
+    try {
+      await runner.run({ agent: scripted, trigger: 'manual' });
+    } finally {
+      delete process.env.ROUNDS_TEST_TOKEN;
+      delete process.env.ROUNDS_TEST_SECRET;
+    }
+
+    assert.equal(seen.length, 1, 'the command ran');
+    assert.equal(seen[0]?.ROUNDS_TEST_TOKEN, 'wanted');
+    assert.equal(seen[0]?.ROUNDS_TEST_SECRET, undefined, 'nothing came along with it');
   });
 
   it('never throws, whatever the stage does', async () => {

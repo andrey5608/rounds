@@ -6,6 +6,7 @@ import {
   toExternalTool,
 } from '../../tools/externalTools.js';
 import type { ExternalToolInfo, ExternalToolResult } from '../../tools/externalTools.js';
+import { createToolRegistry } from '../../tools/index.js';
 import { ToolRegistry } from '../../tools/registry.js';
 import type { ToolContext } from '../../tools/registry.js';
 
@@ -140,6 +141,8 @@ describe('tools from other extensions', () => {
   });
 
   it('names the tools this extension owns, so nothing can take one over', () => {
-    assert.deepEqual([...BUILT_IN_TOOL_NAMES], ['readFile', 'listFiles', 'runScript']);
+    // Compared against the registry rather than against a copy of the list: this went stale once
+    // already, when two tools were added and the list was not, and nothing failed to say so.
+    assert.deepEqual([...BUILT_IN_TOOL_NAMES].sort(), createToolRegistry().names().sort());
   });
 });

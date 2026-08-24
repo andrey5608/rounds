@@ -36,6 +36,13 @@ All notable changes to this project are documented in this file. The format foll
   answer that lands in the result file. Inside the workspace only, never `.vscode` or a workflow
   folder, never over the paths no tool may open, not over an existing file unless the call says so,
   and not at all in an untrusted workspace.
+- The agent form shows the allowed environment variables beside the allowed commands, with
+  **Allow a variable…** next to **Allow a command…**: what a spawned command may run and what it
+  may be told are the same decision and now live in the same place. The list itself stays global.
+- **`rounds.scriptEnvironment`** — names the environment variables `runScript` may pass on despite
+  looking like credentials. Every such variable was withheld from every command, so a command that
+  authenticates against a Git host simply failed. Naming one lets it through and nothing else with
+  it; a name may end with `*`.
 - **`rounds.maxToolRoundsPerRun`** — the cap on how many rounds of tool calls one run may take,
   now 30 rather than a fixed 10. Ten was too few for a prompt that reads several files before it
   writes anything, and such a run failed while it was still making progress.
@@ -60,6 +67,15 @@ All notable changes to this project are documented in this file. The format foll
   runs while it is typed, and a run row says how many items it read and how long it took.
 
 ### Fixed
+
+- Attaching a skill no longer ticks a tool belonging to another extension, however the skill's
+  header asks. The editor may put a confirmation dialog in front of such a tool, and a scheduled
+  run has nobody to answer it, so this arrived as dialogs at every run for a box nobody knowingly
+  ticked. What a skill asked for and did not get is named in the output channel, and the form warns
+  where such a tool is ticked by hand.
+- `BUILT_IN_TOOL_NAMES` had not kept up with the tools added since, so `searchText` and `writeFile`
+  could be shadowed in the list of tools from other extensions. It is now checked against the
+  registry itself, which cannot drift.
 
 - A failed request reported `TypeError: fetch failed` and nothing else, which is the same sentence
   for a typo in a base URL, a closed port and an untrusted certificate. The real reason lives in

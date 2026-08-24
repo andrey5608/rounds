@@ -9,8 +9,10 @@ import {
   createRunScriptTool,
   entryAllows,
   findWhitelistEntry,
+  isAllowedName,
   scrubEnvironment,
 } from '../../tools/runScript.js';
+import { addToEnvironment, parseVariableName } from '../../tools/scriptWhitelist.js';
 import type { ScriptWhitelistEntry } from '../../state/settings.js';
 
 const silentLogger = {
@@ -213,6 +215,69 @@ describe('runScript whitelist', () => {
       HOME: '/home/alex',
     });
     assert.deepEqual(scrubbed, { PATH: '/usr/bin', HOME: '/home/alex' });
+  });
+
+  it('takes a variable name and refuses a value with it', () => {
+    // "NAME=value" would look right in the settings, put a secret in a file meant to hold none,
+    // and still match nothing. Better to refuse it where it is typed.
+    assert.deepEqual(parseVariableName(' GITHUB_TOKEN '), { ok: true, name: 'GITHUB_TOKEN' });
+    assert.deepEqual(parseVariableName('GIT_*'), { ok: true, name: 'GIT_*' });
+
+    const withValue = parseVariableName('GITHUB_TOKEN=ghp_secret');
+    assert.equal(withValue.ok, false);
+    assert.match(withValue.ok ? '' : withValue.message, /name only/);
+
+    assert.equal(parseVariableName('').ok, false);
+    assert.equal(parseVariableName('has spaces').ok, false);
+    assert.equal(parseVariableName('9LIVES').ok, false, 'a name does not start with a digit');
+    assert.equal(parseVariableName('GIT*HUB').ok, false, 'the star belongs at the end');
+  });
+
+  it('does not add a name the list already covers', () => {
+    assert.deepEqual(addToEnvironment(['GITHUB_TOKEN'], 'github_token'), {
+      environment: ['GITHUB_TOKEN'],
+      added: false,
+    });
+    assert.deepEqual(addToEnvironment(['GITHUB_TOKEN'], 'NPM_TOKEN'), {
+      environment: ['GITHUB_TOKEN', 'NPM_TOKEN'],
+      added: true,
+    });
+  });
+
+  it('passes a named credential through, and only the named one', () => {
+    // A command that authenticates against a Git host needs the token from the shell profile, and
+    // withholding it means the command just fails. Naming it is the way through; nothing else
+    // comes with it.
+    const scrubbed = scrubEnvironment(
+      {
+        PATH: '/usr/bin',
+        GITHUB_TOKEN: 'wanted',
+        AWS_SECRET_ACCESS_KEY: 'not wanted',
+        NPM_CONFIG_TOKEN: 'wanted too',
+      },
+      ['GITHUB_TOKEN', 'NPM_CONFIG_*'],
+    );
+
+    assert.deepEqual(scrubbed, {
+      PATH: '/usr/bin',
+      GITHUB_TOKEN: 'wanted',
+      NPM_CONFIG_TOKEN: 'wanted too',
+    });
+  });
+
+  it('matches a name however it is written', () => {
+    assert.equal(isAllowedName('GITHUB_TOKEN', ['github_token']), true);
+    assert.equal(isAllowedName('GIT_TOKEN', [' GIT_* ']), true);
+    assert.equal(isAllowedName('GITLAB_TOKEN', ['GITHUB_TOKEN']), false);
+    assert.equal(isAllowedName('GITHUB_TOKEN', []), false);
+  });
+
+  it('is a decision per run, taken from the setting', () => {
+    // The list lives in settings and reaches the tool through the context; a tool that read the
+    // setting itself would be a second place to keep this rule.
+    const allowed = scrubEnvironment({ GITHUB_TOKEN: 'x' }, context({ scriptEnvironment: ['GITHUB_TOKEN'] }).scriptEnvironment ?? []);
+    assert.deepEqual(allowed, { GITHUB_TOKEN: 'x' });
+    assert.deepEqual(scrubEnvironment({ GITHUB_TOKEN: 'x' }, context().scriptEnvironment ?? []), {});
   });
 });
 

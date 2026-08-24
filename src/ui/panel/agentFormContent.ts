@@ -367,6 +367,23 @@ function modelSection(model: AgentFormViewModel): string {
         <div class="row-inline">
           <button type="button" data-command="allowCommand">Allow a command…</button>
         </div>
+      </div>
+      <div class="field">
+        <span class="label-text">Variables runScript may pass on</span>
+        ${
+          context.scriptEnvironment.length === 0
+            ? `<p class="hint">None. A variable whose name looks like a credential is withheld from
+               every command; name one here to let it through.</p>`
+            : `<ul class="allowed">${context.scriptEnvironment
+                .map((name) => `<li><code>${escapeHtml(name)}</code></li>`)
+                .join('')}</ul>`
+        }
+        <p class="hint">Names only, shared by every agent. A name may end with * to allow every
+        variable starting that way, and the value has to be in the environment the editor itself
+        was started with.</p>
+        <div class="row-inline">
+          <button type="button" data-command="allowVariable">Allow a variable…</button>
+        </div>
       </div>`
     : '';
 
@@ -452,6 +469,13 @@ function toolGroup(
     Select all
   </label>`;
 
+  // Said where the ticking happens, not only in the README: the editor decides on its own whether
+  // a tool needs confirming, and a run at 09:00 has nobody there to answer the dialog.
+  const note =
+    id === 'external' && ticked > 0
+      ? `<p class="warning">The editor may ask for confirmation before one of these runs, and a scheduled run has nobody to answer it. Rounds gives up on such a call rather than waiting, and the run carries on without its result.</p>`
+      : '';
+
   return `<div class="field">
     <div class="group-head">
       <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
@@ -459,6 +483,7 @@ function toolGroup(
     </div>
     ${searchBox(id, tools.length)}
     <div class="tools scrollable" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+    ${note}
   </div>`;
 }
 

@@ -28,7 +28,13 @@ export type ExternalToolInvoker = (
 ) => Promise<ExternalToolResult>;
 
 /** Names this extension owns. An external tool may not take one over. */
-export const BUILT_IN_TOOL_NAMES = ['readFile', 'listFiles', 'runScript'] as const;
+export const BUILT_IN_TOOL_NAMES = [
+  'readFile',
+  'listFiles',
+  'searchText',
+  'writeFile',
+  'runScript',
+] as const;
 
 /**
  * How long an invocation may take before the loop gives up on it.
