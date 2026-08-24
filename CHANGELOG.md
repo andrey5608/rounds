@@ -65,6 +65,13 @@ All notable changes to this project are documented in this file. The format foll
   the editor's proxy setting nor `HTTPS_PROXY`, so behind a company proxy every run failed to reach
   a host that opened fine in a browser. `HTTPS_PROXY`, `HTTP_PROXY`, either spelling, and `NO_PROXY`
   are read the way `curl` and `git` read them.
+- A skill in the second folder of a multi-folder workspace failed with `prompt.skillUnreadable`:
+  the stored path carries no folder name and only the first folder was tried. Every folder is
+  tried now, the failure lists each place it looked, and a file that read fine but held nothing
+  below its header says that instead of claiming it could not be read.
+- The workspace folders are read when a run starts rather than captured when the extension
+  activates, so a folder added to an open window is visible to skills, prompt files and the file
+  tools instead of silently missing.
 - Every attached skill failed its run with `prompt.skillUnreadable`. The picker stores a
   workspace-relative path and the run read it relative to the extension host's working directory,
   which is somewhere else entirely. It is resolved against the workspace now, and a failure says

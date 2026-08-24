@@ -180,7 +180,7 @@ async function harness(options: {
     resultWriter: options.resultWriter,
     settings: () => settings,
     globalStorage: directory,
-    workspaceFolders: [directory],
+    workspaceFolders: () => [directory],
     workspaceName: 'rounds',
     logger,
     clock,

@@ -109,7 +109,12 @@ export interface RunnerDependencies {
   handOffToChat?: (prompt: string, options: { modelId?: string }) => Promise<void>;
   settings: () => RoundsSettings;
   globalStorage: string;
-  workspaceFolders: string[];
+  /**
+   * The workspace folders, read per run rather than captured. A folder can be added to a window
+   * that is already open, and a list taken at activation then sends a run looking in the wrong
+   * place for a file the user can see.
+   */
+  workspaceFolders: () => string[];
   /** Whether the user trusts this workspace. Injected so the runner stays free of `vscode`. */
   workspaceTrusted?: () => boolean;
   /** Reads a skill file. Injected so the run pipeline is testable without a disk. */
@@ -244,7 +249,7 @@ export class AgentRunner {
     // what to do now. Read before anything else happens, because a run missing one would follow
     // different instructions than the agent was given.
     const skills = await loadSkills(agent.skills ?? [], this.readSkillFile, {
-      workspaceRoot: this.dependencies.workspaceFolders[0],
+      workspaceFolders: this.dependencies.workspaceFolders(),
     });
     if (skills.length > 0) {
       logger.info(`Using ${skills.length} skill(s): ${skills.map((skill) => skill.name).join(', ')}.`);
@@ -393,7 +398,7 @@ export class AgentRunner {
 
   private async resolvePrompt(agent: Agent, settings: RoundsSettings): Promise<PromptResolution> {
     const resolver = new PromptResolver({
-      workspaceRoot: this.dependencies.workspaceFolders[0],
+      workspaceRoot: this.dependencies.workspaceFolders()[0],
       defaultFallback: settings.promptFileFallback,
       clock: this.clock,
       logger: this.dependencies.logger,
@@ -489,7 +494,7 @@ export class AgentRunner {
     isCancelled?: () => boolean,
   ): ToolContext {
     return {
-      workspaceFolders: this.dependencies.workspaceFolders,
+      workspaceFolders: this.dependencies.workspaceFolders(),
       scriptWhitelist: settings.scriptWhitelist,
       workspaceTrusted: this.dependencies.workspaceTrusted?.() ?? true,
       logger: this.dependencies.logger,

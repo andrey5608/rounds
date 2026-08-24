@@ -11,18 +11,30 @@ export interface LoadedSkill {
   path: string;
 }
 
+/** Why a skill could not be used. Two different problems that used to share one sentence. */
+export type SkillFailure = 'unreadable' | 'empty';
+
 export class SkillUnavailableError extends Error {
   readonly code = 'prompt.skillUnreadable';
 
   constructor(
     readonly path: string,
-    /** Where it was looked for, when that is not the path as stored. */
-    readonly resolvedPath?: string,
+    /** Every place it was looked for. More than one when the workspace has several folders. */
+    readonly attempted: string[] = [],
+    readonly failure: SkillFailure = 'unreadable',
   ) {
     const where =
-      resolvedPath && resolvedPath !== path ? ` Looked for it at ${resolvedPath}.` : '';
+      attempted.length > 0 && !(attempted.length === 1 && attempted[0] === path)
+        ? ` Looked for it at ${attempted.join(', ')}.`
+        : '';
+    // "Could not be read" for a file that was read perfectly well and turned out to hold nothing
+    // sends somebody to check permissions on a file whose problem is that it is empty.
+    const problem =
+      failure === 'empty'
+        ? `The skill file "${path}" has no instructions in it, only a header`
+        : `The skill file "${path}" could not be read`;
     super(
-      `The skill file "${path}" could not be read, so this run would follow different instructions than the agent was given.${where} Fix the path or take the skill off the agent.`,
+      `${problem}, so this run would follow different instructions than the agent was given.${where} Fix the path or take the skill off the agent.`,
     );
     this.name = 'SkillUnavailableError';
   }
@@ -38,32 +50,57 @@ export class SkillUnavailableError extends Error {
 export async function loadSkills(
   paths: readonly string[],
   readFileImpl: (path: string) => Promise<string>,
-  options: { workspaceRoot?: string } = {},
+  options: { workspaceFolders?: readonly string[] } = {},
 ): Promise<LoadedSkill[]> {
   const skills: LoadedSkill[] = [];
   for (const path of paths) {
     // Stored relative to the workspace, because that is what the picker offers and what stays
     // true when the folder moves. Reading it relative to whatever the extension host's working
     // directory happens to be is how every skill came back unreadable.
-    const resolved = resolveSkillPath(path, options.workspaceRoot);
-    let raw: string;
-    try {
-      raw = await readFileImpl(resolved);
-    } catch {
-      throw new SkillUnavailableError(path, resolved);
+    const candidates = skillPathCandidates(path, options.workspaceFolders);
+    let raw: string | undefined;
+
+    // Every folder, not only the first. With two folders open, a skill in the second one is a
+    // perfectly ordinary skill, and resolving it against the first found nothing and blamed the
+    // path the user had chosen from a list.
+    for (const candidate of candidates) {
+      try {
+        raw = await readFileImpl(candidate);
+        break;
+      } catch {
+        continue;
+      }
     }
+    if (raw === undefined) {
+      throw new SkillUnavailableError(path, candidates, 'unreadable');
+    }
+
     // A skill file carries the same kind of header a prompt file does, and it is addressed to the
     // editor rather than to the model.
     const content = parsePromptFile(raw).text.trim();
     if (content.length === 0) {
-      throw new SkillUnavailableError(path, resolved);
+      throw new SkillUnavailableError(path, candidates, 'empty');
     }
     skills.push({ name: skillName(path), content, path });
   }
   return skills;
 }
 
-/** A stored skill path as a path on disk. */
+/** Every place a stored skill path could be, in the order they are tried. */
+export function skillPathCandidates(
+  path: string,
+  workspaceFolders: readonly string[] = [],
+): string[] {
+  if (isAbsolute(path)) {
+    return [path];
+  }
+  if (workspaceFolders.length === 0) {
+    return [resolvePath(path)];
+  }
+  return [...new Set(workspaceFolders.map((folder) => resolvePath(folder, path)))];
+}
+
+/** A stored skill path as a path on disk, against one folder. */
 export function resolveSkillPath(path: string, workspaceRoot?: string): string {
   if (isAbsolute(path)) {
     return path;

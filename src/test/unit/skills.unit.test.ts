@@ -26,8 +26,8 @@ function reader(files: Record<string, string>): (path: string) => Promise<string
   };
 }
 
-function load(paths: string[], files: Record<string, string>) {
-  return loadSkills(paths, reader(files), { workspaceRoot: ROOT });
+function load(paths: string[], files: Record<string, string>, folders: string[] = [ROOT]) {
+  return loadSkills(paths, reader(files), { workspaceFolders: folders });
 }
 
 describe('the tools attaching a skill turns on', () => {
@@ -183,10 +183,41 @@ describe('skills attached to an agent', () => {
     });
   });
 
-  it('treats a skill that is only a header as unreadable', async () => {
+  it('refuses a skill that is only a header, and says that is what it is', async () => {
+    // It reads perfectly well and holds no instructions. Calling that "could not be read" sends
+    // somebody to check file permissions on a file whose problem is that it is empty.
     await assert.rejects(
       load(['skills/empty.md'], { 'skills/empty.md': '---\nname: empty\n---\n' }),
-      SkillUnavailableError,
+      (error: unknown) => {
+        assert.ok(error instanceof SkillUnavailableError);
+        assert.equal(error.failure, 'empty');
+        assert.match(error.message, /no instructions in it, only a header/);
+        return true;
+      },
     );
+  });
+
+  it('finds a skill in any workspace folder, not only the first', async () => {
+    // The picker stores a workspace-relative path with no folder in it, so with two folders open
+    // the second one's skills resolved against the first and came back missing.
+    const second = join(ROOT, '..', 'other');
+    const files = { [join(second, 'skills', 'b.md')]: 'read the tickets first' };
+    const reads = (path: string) =>
+      files[path] === undefined ? Promise.reject(new Error('ENOENT')) : Promise.resolve(files[path]);
+
+    const skills = await loadSkills(['skills/b.md'], reads, { workspaceFolders: [ROOT, second] });
+
+    assert.equal(skills.length, 1);
+    assert.match(skills[0]?.content ?? '', /read the tickets first/);
+  });
+
+  it('names every folder it looked in, so the report says where to put the file', async () => {
+    const second = join(ROOT, '..', 'other');
+    await assert.rejects(load(['skills/gone.md'], {}, [ROOT, second]), (error: unknown) => {
+      assert.ok(error instanceof SkillUnavailableError);
+      assert.equal(error.attempted.length, 2);
+      assert.match(error.message, /Looked for it at .*,/);
+      return true;
+    });
   });
 });

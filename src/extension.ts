@@ -146,8 +146,9 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     handOffToChat,
     settings: () => settings,
     globalStorage: extensionContext.globalStorageUri.fsPath,
-    workspaceFolders: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
-    // Read per run rather than captured: trust can be granted while the window is open.
+    // Read per run rather than captured, for the same reason trust is: both change while the
+    // window stays open, and a folder added afterwards must not be invisible to a run.
+    workspaceFolders: () => (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
     workspaceTrusted: () => vscode.workspace.isTrusted,
     workspaceName: vscode.workspace.workspaceFolders?.[0]?.name,
     findFiles: createVscodeFileFinder(),
