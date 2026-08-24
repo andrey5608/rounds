@@ -114,7 +114,7 @@ export async function runAgenticLoop(options: AgenticLoopOptions): Promise<Agent
     options.logger.info(
       `Round ${iteration} answered in ${Date.now() - started}ms: ${turn.text.length} character(s) of text, ${turn.toolCalls.length} tool call(s).`,
     );
-    options.logger.debug(`Round ${iteration} turn:\n${dump(turn)}`);
+    options.logger.debug(`Round ${iteration} turn:\n${dump(turn, 100)}`);
 
     if (turn.toolCalls.length === 0) {
       if (turn.text.trim().length === 0) {
