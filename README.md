@@ -278,7 +278,10 @@ boxes move where you can see them. `runScript` is never turned on this way — i
 that stays a decision you make yourself.
 
 A skill that is ticked and then deleted fails the run by name rather than running without it,
-because running without it would answer a different question than the one you set up.
+because running without it would answer a different question than the one you set up. The failure
+names every place the file was looked for, and says whether it could not be read at all or read
+fine and held nothing but a header. Skills are looked for in every folder of the workspace, and the
+list of folders is read when the run starts, so a folder added while the window is open counts.
 
 `.github/copilot-instructions.md` is not read for this. It is prose written for the chat view, and
 guessing a list of skills out of somebody's prose would be a list that is wrong in ways nobody can
@@ -319,8 +322,10 @@ Deleting an agent never deletes files it already wrote.
 | Requests fail while the same URL opens in a browser | Runs go through the proxy in `HTTPS_PROXY`, `HTTP_PROXY` or their lower-case spellings, and `NO_PROXY` exempts a host from it, the same way `curl` and `git` read them. The editor must be started with those variables set, so on macOS launch it from a terminal rather than from Finder if they come from your shell profile. A failure behind a proxy names the proxy, because the address that could not be reached may be its own. |
 | A run failed with a usage limit | The provider is rate limiting. Run agents less often, or lower the daily limit. |
 | "The prompt file … could not be read" | The file moved or was deleted. Restore it, point the agent at the new path, or choose a different `rounds.promptFileFallback`. |
+| A run says "No tasks found" | The source returned no items, so Rounds finished the run without asking the model. The result file records it, and the run does not count against the daily limit. |
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |
 | The model says it cannot write files | `writeFile` is off for that agent. Tick it in the agent form; a run only ever has the tools it was given. |
+| `prompt.skillUnreadable` | The message lists every path that was tried. If the file is there, check it is not empty below its header; if it is somewhere else, tick the skill again so the agent stores the path the picker offers. |
 | `runScript` refuses everything | `rounds.scriptWhitelist` is empty. Add the commands you want to allow, with their arguments. |
 | Something else | Open **Rounds: Show Output**. Every line, including the ones `rounds.logLevel` hides, is also written to `logs/rounds-<date>.log` inside the extension's storage folder — the output channel prints the full path at startup. Attach that file to a report: it is redacted before anything is written. |
 

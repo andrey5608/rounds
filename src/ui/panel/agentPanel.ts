@@ -489,19 +489,28 @@ export class AgentPanel {
       .slice(0, MAX_DESCRIBED_SKILLS)
       .map((candidate) => candidate.path);
 
-    const [folder] = vscode.workspace.workspaceFolders ?? [];
+    const folders = vscode.workspace.workspaceFolders ?? [];
     const summaries: SkillSummary[] = [];
     for (const path of paths) {
       // Its own header is where a skill introduces itself, so the list can offer skills rather
-      // than file paths. A file that cannot be read still appears, under the name of its folder.
-      try {
-        const uri = folder ? vscode.Uri.joinPath(folder.uri, path) : vscode.Uri.file(path);
-        const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
-        summaries.push(describeSkillFile(path, content));
-      } catch (error) {
-        this.container.logger.debug(`Could not read the skill ${path}: ${String(error)}`);
-        summaries.push({ path, name: skillName(path), tools: [] });
+      // than file paths. Every folder is tried, the way a run tries them: a skill in the second
+      // folder of a workspace is an ordinary skill and should not be listed nameless.
+      const uris =
+        folders.length > 0
+          ? folders.map((folder) => vscode.Uri.joinPath(folder.uri, path))
+          : [vscode.Uri.file(path)];
+      let described: SkillSummary | undefined;
+      for (const uri of uris) {
+        try {
+          const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+          described = describeSkillFile(path, content);
+          break;
+        } catch (error) {
+          this.container.logger.debug(`Could not read the skill ${path} at ${uri.fsPath}: ${String(error)}`);
+        }
       }
+      // A file that cannot be read still appears, under the name of its folder.
+      summaries.push(described ?? { path, name: skillName(path), tools: [] });
     }
     this.skills = summaries;
     // Which files were taken for skills, so "my skills are not listed" is answerable from the log
