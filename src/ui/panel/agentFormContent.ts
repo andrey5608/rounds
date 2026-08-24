@@ -452,6 +452,13 @@ function toolGroup(
     Select all
   </label>`;
 
+  // Said where the ticking happens, not only in the README: the editor decides on its own whether
+  // a tool needs confirming, and a run at 09:00 has nobody there to answer the dialog.
+  const note =
+    id === 'external' && ticked > 0
+      ? `<p class="warning">The editor may ask for confirmation before one of these runs, and a scheduled run has nobody to answer it. Rounds gives up on such a call rather than waiting, and the run carries on without its result.</p>`
+      : '';
+
   return `<div class="field">
     <div class="group-head">
       <span class="label-text" id="${id}-tools-label">${escapeHtml(title)}</span>
@@ -459,6 +466,7 @@ function toolGroup(
     </div>
     ${searchBox(id, tools.length)}
     <div class="tools scrollable" data-group="${id}" role="group" aria-labelledby="${id}-tools-label">${entries}</div>
+    ${note}
   </div>`;
 }
 

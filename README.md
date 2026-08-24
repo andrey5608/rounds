@@ -251,7 +251,10 @@ Besides `readFile`, `listFiles`, `searchText`, `writeFile` and `runScript`, an a
 registered — whatever the editor reports, listed in the agent form under **From this workspace**. A
 prompt can then research something before it writes about it.
 
-Read this part before you enable one. Such a tool is somebody else's code: the promise that Rounds
+Read this part before you enable one. The editor decides on its own whether a tool needs confirming
+before it runs, and a scheduled run has nobody there to answer the dialog: Rounds gives up on such a
+call after a deadline rather than waiting, and the run carries on without that tool's result. Such a
+tool is also somebody else's code: the promise that Rounds
 only contacts the base URLs you configured covers the requests Rounds makes, and cannot cover what a
 tool does when the model asks it to. So enabling is per agent and explicit, an untrusted workspace
 refuses all of them, and a tool that is no longer registered fails the run by name instead of
@@ -292,10 +295,12 @@ If a skill you expect is missing, run **Rounds: Show Output**: the log names eve
 taken for a skill. A folder hidden by `files.exclude` or `search.exclude` is hidden from this
 search too, because it uses the editor's own.
 
-Ticking a skill turns on the tools it needs: whatever its header asks for, plus `readFile` and
-`listFiles`, since a procedure about a repository cannot be followed without looking at one. The
-boxes move where you can see them. `runScript` is never turned on this way — it runs commands, and
-that stays a decision you make yourself.
+Ticking a skill turns on the tools it needs: what its header asks for among Rounds' own tools, plus
+`readFile` and `listFiles`, since a procedure about a repository cannot be followed without looking
+at one. The boxes move where you can see them. Two things are never turned on this way: `runScript`,
+which runs commands, and a tool belonging to another extension, which the editor may put a
+confirmation dialog in front of. A skill asking for either is noted in the output channel so you can
+tick it yourself.
 
 A skill that is ticked and then deleted fails the run by name rather than running without it,
 because running without it would answer a different question than the one you set up. The failure

@@ -10,6 +10,7 @@ import {
   loadSkills,
   resolveSkillPath,
   skillName,
+  declinedTools,
   toolsForSkills,
 } from '../../agents/skills.js';
 
@@ -32,18 +33,41 @@ function load(paths: string[], files: Record<string, string>, folders: string[] 
 
 describe('the tools attaching a skill turns on', () => {
   const available = ['readFile', 'listFiles', 'runScript', 'a_workspace_tool'];
+  /** The tools this extension owns; everything else in `available` belongs to somebody else. */
+  const ours = ['readFile', 'listFiles', 'searchText', 'writeFile', 'runScript'];
 
   it('turns on reading, because a procedure about a repository needs to see it', () => {
     const needed = toolsForSkills([{ path: 'a', name: 'a', tools: [] }], available);
     assert.deepEqual(needed.sort(), ['listFiles', 'readFile']);
   });
 
-  it('turns on what the skill itself asked for', () => {
+  it('turns on what the skill itself asked for, among the tools we own', () => {
     const needed = toolsForSkills(
-      [{ path: 'a', name: 'a', tools: ['a_workspace_tool'] }],
-      available,
+      [{ path: 'a', name: 'a', tools: ['searchText'] }],
+      [...available, 'searchText'],
+      ours,
     );
-    assert.ok(needed.includes('a_workspace_tool'));
+    assert.ok(needed.includes('searchText'));
+  });
+
+  it('never turns on a tool from another extension, however the header asks', () => {
+    // The editor may put a confirmation dialog in front of one, and a run at 09:00 has nobody
+    // there to answer it. The person filling in the form can tick it; the form cannot decide.
+    const skill = [{ path: 'a', name: 'a', tools: ['a_workspace_tool'] }];
+
+    assert.ok(!toolsForSkills(skill, available, ours).includes('a_workspace_tool'));
+    assert.deepEqual(declinedTools(skill, available, ours), ['a_workspace_tool']);
+  });
+
+  it('reports runScript as declined rather than silently dropping it', () => {
+    assert.deepEqual(
+      declinedTools([{ path: 'a', name: 'a', tools: ['runScript'] }], available, ours),
+      ['runScript'],
+    );
+  });
+
+  it('declines nothing when the skill asked for nothing unusual', () => {
+    assert.deepEqual(declinedTools([{ path: 'a', name: 'a', tools: ['readFile'] }], available, ours), []);
   });
 
   it('never turns on runScript, however loudly a skill asks', () => {

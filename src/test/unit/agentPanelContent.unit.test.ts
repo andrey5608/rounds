@@ -119,6 +119,27 @@ describe('the agent form', () => {
     assert.deepEqual(emptyDraft(formContext).tools, ['readFile']);
   });
 
+  it('warns about confirmation dialogs only when an external tool is ticked', () => {
+    const withExternal = context({
+      tools: [
+        { name: 'readFile', description: 'reads a file' },
+        { name: 'a_workspace_tool', description: 'somebody else\'s tool', external: true },
+      ],
+    });
+    const draft = agentToDraft(agent({ tools: ['a_workspace_tool'] }));
+
+    assert.match(
+      renderAgentForm(model({ context: withExternal, draft })),
+      /may ask for confirmation/,
+    );
+    assert.ok(
+      !renderAgentForm(model({ context: withExternal, draft: agentToDraft(agent()) })).includes(
+        'may ask for confirmation',
+      ),
+      'nothing ticked, nothing to warn about',
+    );
+  });
+
   it('starts an empty form with defaults rather than blanks', () => {
     const formContext = context({ editing: undefined });
     const html = renderAgentForm(model({ context: formContext, draft: emptyDraft(formContext) }));

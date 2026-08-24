@@ -162,10 +162,16 @@ export function describeSkillFile(path: string, content: string): SkillSummary {
  *
  * `runScript` is never added. It runs commands, it is gated by a whitelist and by workspace trust,
  * and a checkbox somebody did not tick is not consent to any of that.
+ *
+ * Neither is a tool belonging to another extension, whatever the header names. Such a tool is
+ * somebody else's code, and the editor may put a confirmation dialog in front of it — which a
+ * scheduled run has nobody to answer. A skill asking for one is a suggestion to the person filling
+ * in the form, not a decision it may take for them; `declinedTools` is what the form tells them.
  */
 export function toolsForSkills(
   skills: readonly SkillSummary[],
   available: readonly string[],
+  ours: readonly string[] = available,
 ): string[] {
   if (skills.length === 0) {
     return [];
@@ -177,7 +183,24 @@ export function toolsForSkills(
     }
   }
   wanted.delete('runScript');
-  return [...wanted].filter((tool) => available.includes(tool));
+  return [...wanted].filter((tool) => available.includes(tool) && ours.includes(tool));
+}
+
+/** The tools these skills asked for that will not be turned on for them, and why. */
+export function declinedTools(
+  skills: readonly SkillSummary[],
+  available: readonly string[],
+  ours: readonly string[],
+): string[] {
+  const declined = new Set<string>();
+  for (const skill of skills) {
+    for (const tool of skill.tools) {
+      if (tool === 'runScript' || (available.includes(tool) && !ours.includes(tool))) {
+        declined.add(tool);
+      }
+    }
+  }
+  return [...declined];
 }
 
 /** A `SKILL.md` is named by its folder; anything else by its file name. */

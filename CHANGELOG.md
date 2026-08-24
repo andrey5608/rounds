@@ -65,6 +65,15 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Attaching a skill no longer ticks a tool belonging to another extension, however the skill's
+  header asks. The editor may put a confirmation dialog in front of such a tool, and a scheduled
+  run has nobody to answer it, so this arrived as dialogs at every run for a box nobody knowingly
+  ticked. What a skill asked for and did not get is named in the output channel, and the form warns
+  where such a tool is ticked by hand.
+- `BUILT_IN_TOOL_NAMES` had not kept up with the tools added since, so `searchText` and `writeFile`
+  could be shadowed in the list of tools from other extensions. It is now checked against the
+  registry itself, which cannot drift.
+
 - A failed request reported `TypeError: fetch failed` and nothing else, which is the same sentence
   for a typo in a base URL, a closed port and an untrusted certificate. The real reason lives in
   the error's cause chain: it is now read, said in one actionable sentence, and kept in full in the

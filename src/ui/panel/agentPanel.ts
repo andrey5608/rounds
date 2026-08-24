@@ -11,10 +11,11 @@ import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
 import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
-import { describeSkillFile, skillName, toolsForSkills } from '../../agents/skills.js';
+import { declinedTools, describeSkillFile, skillName, toolsForSkills } from '../../agents/skills.js';
 import type { SkillSummary } from '../../agents/skills.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
 import { listExternalTools } from '../../tools/vscodeLmTools.js';
+import { BUILT_IN_TOOL_NAMES } from '../../tools/externalTools.js';
 import { SKILL_LIMIT, discoverPromptFiles } from '../wizard/promptFiles.js';
 import { runDocumentUri } from '../runDetails.js';
 import { buildViewData } from '../viewState.js';
@@ -225,8 +226,10 @@ export class AgentPanel {
    *
    * A skill is a procedure to follow in a repository, and following one without being able to read
    * the repository produces a confident answer about nothing. So attaching a skill attaches what
-   * it declares in its header, plus reading. Never `runScript`: that one runs commands, and a
-   * checkbox nobody ticked is not consent to that.
+   * it declares in its header, plus reading -- but only tools this extension owns. Never
+   * `runScript`: that one runs commands, and a checkbox nobody ticked is not consent to that. And
+   * never another extension's tool: the editor may ask for confirmation before one runs, and a
+   * scheduled run at 09:00 has nobody there to answer the dialog.
    *
    * Only on the way in. Unticking a skill leaves the tools alone, because by then they may be
    * there for the prompt's sake and taking them away would be undoing somebody else's decision.
@@ -239,7 +242,16 @@ export class AgentPanel {
     }
 
     const summaries = this.skills.filter((skill) => added.includes(skill.path));
-    const needed = toolsForSkills(summaries, this.container.tools.names());
+    const available = this.container.tools.names();
+    const needed = toolsForSkills(summaries, available, [...BUILT_IN_TOOL_NAMES]);
+    // What the skill asked for and did not get. Said out loud rather than passed over: the person
+    // filling in the form can tick it themselves, which is the whole difference that matters here.
+    const declined = declinedTools(summaries, available, [...BUILT_IN_TOOL_NAMES]);
+    if (declined.length > 0) {
+      this.container.logger.info(
+        `The skill(s) just attached also ask for ${declined.join(', ')}, which stays off until you tick it.`,
+      );
+    }
     const missing = needed.filter((tool) => !draft.tools.includes(tool));
     if (missing.length === 0) {
       return draft;
