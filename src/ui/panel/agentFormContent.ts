@@ -367,6 +367,23 @@ function modelSection(model: AgentFormViewModel): string {
         <div class="row-inline">
           <button type="button" data-command="allowCommand">Allow a command…</button>
         </div>
+      </div>
+      <div class="field">
+        <span class="label-text">Variables runScript may pass on</span>
+        ${
+          context.scriptEnvironment.length === 0
+            ? `<p class="hint">None. A variable whose name looks like a credential is withheld from
+               every command; name one here to let it through.</p>`
+            : `<ul class="allowed">${context.scriptEnvironment
+                .map((name) => `<li><code>${escapeHtml(name)}</code></li>`)
+                .join('')}</ul>`
+        }
+        <p class="hint">Names only, shared by every agent. A name may end with * to allow every
+        variable starting that way, and the value has to be in the environment the editor itself
+        was started with.</p>
+        <div class="row-inline">
+          <button type="button" data-command="allowVariable">Allow a variable…</button>
+        </div>
       </div>`
     : '';
 

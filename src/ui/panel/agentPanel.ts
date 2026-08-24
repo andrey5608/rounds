@@ -10,7 +10,13 @@ import { resolveOutputFolder } from '../../setup/outputFolder.js';
 import type { Agent } from '../../state/types.js';
 import { describeRun } from '../agentsView.js';
 import { parsePromptFile } from '../../agents/promptFrontMatter.js';
-import { addToWhitelist, describeEntry, parseCommandLine } from '../../tools/scriptWhitelist.js';
+import {
+  addToEnvironment,
+  addToWhitelist,
+  describeEntry,
+  parseCommandLine,
+  parseVariableName,
+} from '../../tools/scriptWhitelist.js';
 import { declinedTools, describeSkillFile, skillName, toolsForSkills } from '../../agents/skills.js';
 import type { SkillSummary } from '../../agents/skills.js';
 import { createVscodeFileFinder } from '../../tools/vscodeFileFinder.js';
@@ -172,6 +178,11 @@ export class AgentPanel {
         this.draft = draftFromMessage(message.draft);
         this.dirty = true;
         await this.allowCommand();
+        return;
+      case 'allowVariable':
+        this.draft = draftFromMessage(message.draft);
+        this.dirty = true;
+        await this.allowVariable();
         return;
       case 'run':
         await this.withAgent((agent) => vscode.commands.executeCommand('rounds.runNow', agent));
@@ -441,6 +452,52 @@ export class AgentPanel {
     await this.render();
   }
 
+  /**
+   * Adds one name to `rounds.scriptEnvironment`.
+   *
+   * Next to the command whitelist because it is the same kind of decision, made in the same place:
+   * what a spawned command may run, and what it may be told. Written to the user settings for the
+   * reason the whitelist is — agents are global here, so a workspace value would be the one that
+   * does not apply.
+   */
+  private async allowVariable(): Promise<void> {
+    const typed = await vscode.window.showInputBox({
+      title: 'Allow an environment variable for runScript',
+      prompt: 'The name only. It may end with * to allow every variable starting that way.',
+      placeHolder: 'GITHUB_TOKEN',
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        const parsed = parseVariableName(value);
+        return parsed.ok ? undefined : parsed.message;
+      },
+    });
+    if (!typed) {
+      return;
+    }
+    const parsed = parseVariableName(typed);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const { environment, added } = addToEnvironment(
+      this.container.settings().scriptEnvironment,
+      parsed.name,
+    );
+    if (!added) {
+      await this.container.notifier.requested('info', `"${parsed.name}" is already allowed.`);
+      return;
+    }
+
+    await vscode.workspace
+      .getConfiguration()
+      .update('rounds.scriptEnvironment', environment, vscode.ConfigurationTarget.Global);
+    await this.container.notifier.requested(
+      'info',
+      `runScript may now pass "${parsed.name}" on, when the editor itself has it.`,
+    );
+    await this.render();
+  }
+
   /** Asks once before losing work, and only when there is work to lose. */
   private async confirmDiscard(): Promise<boolean> {
     if (!this.dirty) {
@@ -550,6 +607,7 @@ export class AgentPanel {
       tools: this.availableTools(draftTools),
       emptyScriptWhitelist: this.container.settings().scriptWhitelist.length === 0,
       scriptWhitelist: this.container.settings().scriptWhitelist.map(describeEntry),
+      scriptEnvironment: this.container.settings().scriptEnvironment,
       availableSkills: this.skills,
       provider: chosen && chosen.kind === 'git' ? resolveProvider(chosen) : 'github',
     };

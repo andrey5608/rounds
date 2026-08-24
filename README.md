@@ -236,6 +236,10 @@ commands need exactly one of those, so name it:
 "rounds.scriptEnvironment": ["GITHUB_TOKEN", "NPM_CONFIG_*"]
 ```
 
+The agent form shows this list beside the commands whenever an agent has `runScript` ticked, with
+**Allow a variable…** for adding one, so both halves of the same decision — what a command may run
+and what it may be told — are in the same place. The list is shared by every agent.
+
 A name may end with `*`, and case does not matter. Nothing else gets through, so allowing a Git
 token does not also hand over the cloud keys sitting beside it in your shell profile.
 

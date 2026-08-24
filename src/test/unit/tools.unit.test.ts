@@ -12,6 +12,7 @@ import {
   isAllowedName,
   scrubEnvironment,
 } from '../../tools/runScript.js';
+import { addToEnvironment, parseVariableName } from '../../tools/scriptWhitelist.js';
 import type { ScriptWhitelistEntry } from '../../state/settings.js';
 
 const silentLogger = {
@@ -214,6 +215,33 @@ describe('runScript whitelist', () => {
       HOME: '/home/alex',
     });
     assert.deepEqual(scrubbed, { PATH: '/usr/bin', HOME: '/home/alex' });
+  });
+
+  it('takes a variable name and refuses a value with it', () => {
+    // "NAME=value" would look right in the settings, put a secret in a file meant to hold none,
+    // and still match nothing. Better to refuse it where it is typed.
+    assert.deepEqual(parseVariableName(' GITHUB_TOKEN '), { ok: true, name: 'GITHUB_TOKEN' });
+    assert.deepEqual(parseVariableName('GIT_*'), { ok: true, name: 'GIT_*' });
+
+    const withValue = parseVariableName('GITHUB_TOKEN=ghp_secret');
+    assert.equal(withValue.ok, false);
+    assert.match(withValue.ok ? '' : withValue.message, /name only/);
+
+    assert.equal(parseVariableName('').ok, false);
+    assert.equal(parseVariableName('has spaces').ok, false);
+    assert.equal(parseVariableName('9LIVES').ok, false, 'a name does not start with a digit');
+    assert.equal(parseVariableName('GIT*HUB').ok, false, 'the star belongs at the end');
+  });
+
+  it('does not add a name the list already covers', () => {
+    assert.deepEqual(addToEnvironment(['GITHUB_TOKEN'], 'github_token'), {
+      environment: ['GITHUB_TOKEN'],
+      added: false,
+    });
+    assert.deepEqual(addToEnvironment(['GITHUB_TOKEN'], 'NPM_TOKEN'), {
+      environment: ['GITHUB_TOKEN', 'NPM_TOKEN'],
+      added: true,
+    });
   });
 
   it('passes a named credential through, and only the named one', () => {

@@ -103,3 +103,45 @@ function splitArguments(text: string): string[] {
   }
   return parts;
 }
+
+export type VariableNameParse = { ok: true; name: string } | { ok: false; message: string };
+
+/**
+ * Checks a name for `rounds.scriptEnvironment`.
+ *
+ * A name, not a value: this list says which variables a command may receive, and the values stay
+ * where they are. Refusing `NAME=value` here matters, because that entry would look right in the
+ * settings, put a secret in a file meant to hold none, and still never match anything.
+ */
+export function parseVariableName(input: string): VariableNameParse {
+  const text = input.trim();
+  if (text.length === 0) {
+    return { ok: false, message: 'Enter a variable name, for example GITHUB_TOKEN.' };
+  }
+  if (text.includes('=')) {
+    return {
+      ok: false,
+      message:
+        'Enter the name only. The value comes from the environment the editor was started with, and writing it here would store a secret in your settings.',
+    };
+  }
+  if (!/^[A-Za-z_][A-Za-z0-9_]*\*?$/.test(text)) {
+    return {
+      ok: false,
+      message:
+        'A variable name may hold letters, digits and underscores, and may end with * to allow every name starting that way.',
+    };
+  }
+  return { ok: true, name: text };
+}
+
+/** Adds a name unless it is already covered, so the list does not grow duplicates. */
+export function addToEnvironment(
+  current: readonly string[],
+  name: string,
+): { environment: string[]; added: boolean } {
+  const already = current.some((entry) => entry.trim().toUpperCase() === name.toUpperCase());
+  return already
+    ? { environment: [...current], added: false }
+    : { environment: [...current, name], added: true };
+}

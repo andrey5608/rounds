@@ -57,6 +57,8 @@ export interface FormContext {
   emptyScriptWhitelist: boolean;
   /** What `runScript` is allowed to run, as command lines, so the form can show it. */
   scriptWhitelist: readonly string[];
+  /** Environment variables `runScript` may pass on, from `rounds.scriptEnvironment`. */
+  scriptEnvironment: readonly string[];
   /** Skills the workspace has, as they describe themselves, for the list an agent picks from. */
   availableSkills: readonly SkillSummary[];
   /** What the chosen connection speaks, for the project field's label. */

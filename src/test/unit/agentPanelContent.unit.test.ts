@@ -52,6 +52,7 @@ function context(overrides: Partial<FormContext> = {}): FormContext {
     ],
     emptyScriptWhitelist: false,
     scriptWhitelist: ['npm test'],
+    scriptEnvironment: ['GITHUB_TOKEN'],
     availableSkills: [
       {
         path: '.github/skills/research/SKILL.md',
@@ -219,6 +220,34 @@ describe('the agent form', () => {
   it('says nothing about the whitelist for an agent that cannot run commands', () => {
     const html = renderAgentForm(model({ context: context({ scriptWhitelist: [] }) }));
     assert.ok(!html.includes('data-command="allowCommand"'));
+    assert.ok(!html.includes('data-command="allowVariable"'));
+  });
+
+  it('lists the environment variables a command may receive, and how to add one', () => {
+    const withScript = agent({ tools: ['runScript'] });
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: withScript, scriptEnvironment: ['GITHUB_TOKEN', 'GIT_*'] }),
+        draft: { ...agentToDraft(withScript), tools: ['runScript'] },
+      }),
+    );
+
+    assert.match(html, /<code>GITHUB_TOKEN<\/code>/);
+    assert.match(html, /<code>GIT_\*<\/code>/);
+    assert.match(html, /data-command="allowVariable"/);
+  });
+
+  it('says what an empty environment list means rather than showing nothing', () => {
+    const withScript = agent({ tools: ['runScript'] });
+    const html = renderAgentForm(
+      model({
+        context: context({ editing: withScript, scriptEnvironment: [] }),
+        draft: { ...agentToDraft(withScript), tools: ['runScript'] },
+      }),
+    );
+
+    assert.match(html, /withheld from\s+every command/);
+    assert.match(html, /data-command="allowVariable"/);
   });
 
   it('keeps the tools from the workspace in a group of their own', () => {

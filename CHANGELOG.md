@@ -36,6 +36,9 @@ All notable changes to this project are documented in this file. The format foll
   answer that lands in the result file. Inside the workspace only, never `.vscode` or a workflow
   folder, never over the paths no tool may open, not over an existing file unless the call says so,
   and not at all in an untrusted workspace.
+- The agent form shows the allowed environment variables beside the allowed commands, with
+  **Allow a variable…** next to **Allow a command…**: what a spawned command may run and what it
+  may be told are the same decision and now live in the same place. The list itself stays global.
 - **`rounds.scriptEnvironment`** — names the environment variables `runScript` may pass on despite
   looking like credentials. Every such variable was withheld from every command, so a command that
   authenticates against a Git host simply failed. Naming one lets it through and nothing else with
