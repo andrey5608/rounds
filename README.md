@@ -322,6 +322,7 @@ Deleting an agent never deletes files it already wrote.
 | Requests fail while the same URL opens in a browser | Runs go through the proxy in `HTTPS_PROXY`, `HTTP_PROXY` or their lower-case spellings, and `NO_PROXY` exempts a host from it, the same way `curl` and `git` read them. The editor must be started with those variables set, so on macOS launch it from a terminal rather than from Finder if they come from your shell profile. A failure behind a proxy names the proxy, because the address that could not be reached may be its own. |
 | A run failed with a usage limit | The provider is rate limiting. Run agents less often, or lower the daily limit. |
 | "The prompt file … could not be read" | The file moved or was deleted. Restore it, point the agent at the new path, or choose a different `rounds.promptFileFallback`. |
+| A run says "No tasks found" | The source returned no items, so Rounds finished the run without asking the model. The result file records it, and the run does not count against the daily limit. |
 | A chat-mode run has no result file | That is the mode: the prompt was opened for review and Rounds never sees the answer. |
 | The model says it cannot write files | `writeFile` is off for that agent. Tick it in the agent form; a run only ever has the tools it was given. |
 | `prompt.skillUnreadable` | The message lists every path that was tried. If the file is there, check it is not empty below its header; if it is somewhere else, tick the skill again so the agent stores the path the picker offers. |

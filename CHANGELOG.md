@@ -48,6 +48,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- A run whose source returned nothing no longer asks the model. It finishes as succeeded with a
+  result file saying no tasks were found, and it does not count against the daily limit, which is
+  there to protect the model provider and was never approached. Before, an empty source still sent
+  a prompt with an empty item list and paid for an answer about nothing.
+
 - An agent stores its project and its repository separately, and the project is labelled the way
   the chosen host labels it: owner, workspace or project key. Schema version 2 migrates what
   version 1 wrote.

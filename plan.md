@@ -214,6 +214,9 @@ settings, or the agent config.
 - Each run writes `<agentName>-<timestamp>.md` into the agent's output folder, with
   front matter (agent, model, mode, started/finished, status, source items, tool calls, skills)
   followed by the model output.
+- A run whose source returned no items finishes as succeeded without asking the model. It writes
+  a result file saying no tasks were found, and does not count against the daily limit, which
+  exists to protect the model provider and was never approached.
 - Run history per agent, newest first, capped at a configurable limit (default 50):
   timestamp, status, one-line summary, tool calls, result file path, error message,
   prompt source and resolution info.

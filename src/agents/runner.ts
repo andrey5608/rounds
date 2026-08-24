@@ -268,18 +268,32 @@ export class AgentRunner {
       logger.info('This agent has no source; the prompt runs as written.');
     }
 
-    const prompts = this.renderPrompts(promptText, source, scan.perItem, timeZone);
-    // An agent with no source always has exactly one prompt, so an empty list can only mean a
-    // source that returned nothing. Saying "the source returned nothing" about an agent that has
-    // none would be a lie about why nothing happened.
-    if (prompts.length === 0 && agent.source) {
+    // A source that found nothing is a run with nothing to do, not a run to spend a model call on.
+    // It finishes successfully with a result file saying so, because "no new tickets" is an answer
+    // somebody scheduled this to get, and a missing file would read as a run that never happened.
+    if (agent.source && source.items.length === 0) {
+      const path = await this.writeResult(
+        agent,
+        record,
+        source,
+        `No tasks found.\n\nThe ${agent.source.kind} source returned no items, so the model was not asked anything.`,
+        false,
+        timeZone,
+        skills.map((skill) => skill.path),
+      );
       return this.finish(record, {
-        status: 'skipped',
-        summary: 'The source returned nothing to work on.',
+        status: 'succeeded',
+        summary: 'No tasks found: the source returned nothing, so the model was not asked.',
+        resultFilePath: path,
         logger,
         resolution,
+        cursor: source.cursor,
+        // The model was never reached, so this must not eat a day's allowance of runs.
+        reachedModel: false,
       });
     }
+
+    const prompts = this.renderPrompts(promptText, source, scan.perItem, timeZone);
 
     if (agent.executionMode === 'chat') {
       return this.handOff(request, record, prompts, logger, resolution);
@@ -549,6 +563,8 @@ export class AgentRunner {
       logger: Logger;
       resolution?: PromptResolution;
       cursor?: string;
+      /** False when the run finished without asking the model anything. */
+      reachedModel?: boolean;
     },
   ): Promise<RunRecord> {
     const finished: RunRecord = {
@@ -564,8 +580,11 @@ export class AgentRunner {
     await this.dependencies.history.record(finished);
 
     if (outcome.status === 'succeeded' || outcome.status === 'handedOff') {
-      // Both reach the model provider, so both count against the daily limit.
-      await this.dependencies.counters.count(record.agentId);
+      // The daily limit is there to protect the model provider, so it counts runs that reached
+      // one. A run that found nothing to do never sent a request and must not use up the day.
+      if (outcome.reachedModel !== false) {
+        await this.dependencies.counters.count(record.agentId);
+      }
       await this.dependencies.store.update((draft) => {
         const agent = draft.agents.find((candidate) => candidate.id === record.agentId);
         if (!agent) {

@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { ResultWriter } from '../../agents/resultWriter.js';
 import { AgentRunner } from '../../agents/runner.js';
@@ -322,18 +322,45 @@ describe('agent runner', () => {
     assert.match(record.summary, /prompt file .* could not be read/);
   });
 
-  it('skips when the source has nothing to work on', async () => {
-    const { runner } = await harness({
-      agent: agent({ prompt: { source: 'inline', inlineText: 'Look at {{issueKey}}' } }),
+  it('finishes a source with nothing in it without asking the model', async () => {
+    const gateway = new FakeGateway();
+    const empty = agent({ prompt: { source: 'inline', inlineText: 'Look at {{issueKey}}' } });
+    const { runner, resultsFolder } = await harness({
+      agent: empty,
+      gateway,
       fetch: () => Promise.resolve({ items: [], truncated: false }),
     });
 
-    const record = await runner.run({
-      agent: agent({ prompt: { source: 'inline', inlineText: 'Look at {{issueKey}}' } }),
-      trigger: 'schedule',
+    const record = await runner.run({ agent: empty, trigger: 'schedule' });
+
+    assert.equal(record.status, 'succeeded');
+    assert.match(record.summary, /No tasks found/);
+    assert.equal(gateway.requests.length, 0, 'nothing was sent to the model');
+    assert.equal(record.sourceItemCount, 0);
+
+    // The file is the point: a scheduled check that reports nothing still has to report.
+    assert.ok(record.resultFilePath, 'a result file was written');
+    const written = await readFile(join(resultsFolder, basename(record.resultFilePath ?? '')), 'utf8');
+    assert.match(written, /No tasks found\./);
+    assert.match(written, /the model was not asked anything/);
+  });
+
+  it('does not spend a day\'s allowance on a run that found nothing', async () => {
+    // The daily limit protects the model provider. A run that never reached one must not use it
+    // up, or a quiet morning would stop the afternoon from running at all.
+    const empty = agent({ prompt: { source: 'inline', inlineText: 'Look at {{issueKey}}' } });
+    const { runner, store } = await harness({
+      agent: empty,
+      settings: { maxExecutionsPerDay: 1 },
+      fetch: () => Promise.resolve({ items: [], truncated: false }),
     });
-    assert.equal(record.status, 'skipped');
-    assert.match(record.summary, /nothing to work on/);
+
+    const first = await runner.run({ agent: empty, trigger: 'schedule' });
+    assert.equal(first.status, 'succeeded');
+
+    const stored = (await store.reload()).agents[0];
+    const second = await runner.run({ agent: stored ?? empty, trigger: 'schedule' });
+    assert.notEqual(second.status, 'skipped', 'the cap was not reached by a run that did nothing');
   });
 
   it('renders a per-item prompt once per item and sections the result', async () => {
